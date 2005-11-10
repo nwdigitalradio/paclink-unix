@@ -30,6 +30,10 @@ test: lzhuf_1 binmail
 	./$(LZHBIN) e1 ascmail binmail1.test
 	./$(LZHBIN) d1 binmail1.test ascmail1.test
 	cmp ascmail ascmail1.test
+	./$(LZHBIN) e1 ascmail binmail1.test | grep f708
+	./$(LZHBIN) e1 ascmail binmail1.test | grep 20216
+	./$(LZHBIN) d1 binmail1.test ascmail1.test | grep f708
+	./$(LZHBIN) d1 binmail1.test ascmail1.test | grep 20216
 	echo regression tests passed
 
 clean:
