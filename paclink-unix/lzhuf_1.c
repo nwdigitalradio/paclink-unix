@@ -645,8 +645,8 @@ void Encode(void)  /* compression */
 		{
 			/* Writes the CRC in the beginning of the file */
 			rewind(outfile);
-			crc_fputc((int)(crc & 0xff), outfile);
-			crc_fputc((int)((crc >> 8) & 0xff), outfile);
+			fputc((int)(crc & 0xff), outfile);
+			fputc((int)((crc >> 8) & 0xff), outfile);
 			if (ferror(outfile)) {
 				Error(wterr);
 			}
@@ -734,13 +734,13 @@ int main(int argc, char *argv[])
         if (argc != 4) {
 				printf("'lzhuf e[1] file1 file2' encodes file1 into file2.\n"
 						   "'lzhuf d[1] file2 file1' decodes file2 into file1.\n");
-				return EXIT_FAILURE;
+				exit(EXIT_FAILURE);
 		}
 		if ((s = argv[1], strpbrk(s, "D1E1d1e1") == NULL)
 		 || (s = argv[2], (infile  = fopen(s, "rb")) == NULL)
 		 || (s = argv[3], (outfile = fopen(s, "wb")) == NULL)) {
 				printf("??? %s\n", s);
-				return EXIT_FAILURE;
+				exit(EXIT_FAILURE);
 		}
 
 		version_1 = (argv[1][1] == '1');
@@ -751,5 +751,6 @@ int main(int argc, char *argv[])
 				Decode();
 		fclose(infile);
 		fclose(outfile);
-		return EXIT_SUCCESS;
+		exit(EXIT_SUCCESS);
+		return 0;
 }
