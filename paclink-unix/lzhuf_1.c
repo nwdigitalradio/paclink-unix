@@ -3,11 +3,32 @@
         written by Haruyasu Yoshizaki 11/20/1988
         some minor changes 4/6/1989
         comments translated by Haruhiko Okumura 4/7/1989
+        ported to UNIX by Nicholas S. Castellano N2QZ 11/9/2005
 **************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+
+void Error(const char *message);
+void InitTree(void);
+void InsertNode(int r);
+void DeleteNode(int p);
+int GetBit(void);
+int GetByte(void);
+void Putcode(int l, unsigned c);
+void StartHuff(void);
+void reconst(void);
+void update(int c);
+void EncodeChar(unsigned c);
+void EncodePosition(unsigned c);
+void EncodeEnd(void);
+int DecodeChar(void);
+int DecodePosition(void);
+void Encode(void);
+void Decode(void);
+void EncodeChar(unsigned c);
+void EncodePosition(unsigned c);
 
 /* crctab calculated by Mark G. Mendel, Network Systems Corporation */
 static unsigned short crctab[256] = {
@@ -55,7 +76,7 @@ unsigned	short	crc;
 int					version_1;
 char wterr[] = "Can't write.";
 
-void Error(char *message)
+void Error(const char *message)
 {
         printf("\n%s\n", message);
         exit(EXIT_FAILURE);
@@ -68,20 +89,20 @@ void Error(char *message)
 #define THRESHOLD       2
 #define NIL             N       /* leaf of tree */
 
-unsigned char
-                text_buf[N + F - 1];
-int             match_position, match_length,
-                lson[N + 1], rson[N + 257], dad[N + 1];
+unsigned char text_buf[N + F - 1];
+unsigned int match_position;
+int match_length;
+int lson[N + 1], rson[N + 257], dad[N + 1];
 
-static int crc_fputc(int c, FILE *outfile)
+static int crc_fputc(int c, FILE *crcoutfile)
 {
 	crc = updcrc(c, crc);
-	return(putc(c, outfile));
+	return(putc(c, crcoutfile));
 }
 
-static int crc_fgetc(FILE *infile)
+static int crc_fgetc(FILE *crcinfile)
 {
-	int retour = getc(infile);
+	int retour = getc(crcinfile);
 
 	if (retour != -1) {
 		crc = updcrc(retour, crc);
@@ -344,11 +365,11 @@ void Putcode(int l, unsigned c)         /* output c bits of code */
 {
         putbuf |= c >> putlen;
         if ((putlen += l) >= 8) {
-				if (crc_fputc(putbuf >> 8, outfile) == EOF) {
+				if (crc_fputc((int)(putbuf >> 8), outfile) == EOF) {
                         Error(wterr);
                 }
                 if ((putlen -= 8) >= 8) {
-						if (crc_fputc(putbuf, outfile) == EOF) {
+						if (crc_fputc((int)putbuf, outfile) == EOF) {
                                 Error(wterr);
                         }
                         codesize += 2;
@@ -429,7 +450,9 @@ void reconst(void)
 
 void update(int c)
 {
-        int i, j, k, l;
+        int i, j;
+	unsigned k;
+	int l;
 
         if (freq[R] == MAX_FREQ) {
                 reconst();
@@ -461,8 +484,6 @@ void update(int c)
         } while ((c = prnt[c]) != 0);   /* repeat up to root */
 }
 
-unsigned code, len;
-
 void EncodeChar(unsigned c)
 {
         unsigned i;
@@ -482,9 +503,7 @@ void EncodeChar(unsigned c)
                 j++;
         } while ((k = prnt[k]) != R);
         Putcode(j, i);
-        code = i;
-        len = j;
-        update(c);
+        update((int)c);
 }
 
 void EncodePosition(unsigned c)
@@ -502,7 +521,7 @@ void EncodePosition(unsigned c)
 void EncodeEnd(void)
 {
         if (putlen) {
-				if (crc_fputc(putbuf >> 8, outfile) == EOF) {
+				if (crc_fputc((int)(putbuf >> 8), outfile) == EOF) {
                         Error(wterr);
                 }
                 codesize++;
@@ -523,7 +542,7 @@ int DecodeChar(void)
                 c = son[c];
         }
         c -= T;
-        update(c);
+        update((int)c);
         return c;
 }
 
@@ -549,7 +568,6 @@ int DecodePosition(void)
 void Encode(void)  /* compression */
 {
 		int  i, c, len, r, s, last_match_length;
-		char *ptr;
 
 		crc = 0;
 
@@ -562,9 +580,11 @@ void Encode(void)  /* compression */
 
 		fseek(infile, 0L, 2);
 		textsize = ftell(infile);
-		ptr = (char *)&textsize;
-		for (i = 0 ; i < sizeof(textsize) ; i++)
-			crc_fputc(ptr[i], infile);
+
+		crc_fputc((int)(textsize & 0xff), infile);
+		crc_fputc((int)((textsize >> 8) & 0xff), infile);
+		crc_fputc((int)((textsize >> 16) & 0xff), infile);
+		crc_fputc((int)((textsize >> 24) & 0xff), infile);
 
 		if (fwrite(&textsize, sizeof textsize, 1, outfile) < 1)
 				Error(wterr);   /* output size of text */
@@ -591,8 +611,8 @@ void Encode(void)  /* compression */
 						match_length = 1;
 						EncodeChar(text_buf[r]);
 				} else {
-						EncodeChar(255 - THRESHOLD + match_length);
-						EncodePosition(match_position);
+						EncodeChar((unsigned)(255 - THRESHOLD + match_length));
+						EncodePosition((unsigned)match_position);
 				}
 				last_match_length = match_length;
 				for (i = 0; i < last_match_length &&
@@ -635,7 +655,6 @@ void Encode(void)  /* compression */
 
 void Decode(void)  /* recover */
 {
-		char *ptr;
 		int  i, j, k, r, c;
 		unsigned long int  count;
 		unsigned short  crc_read;
@@ -649,11 +668,11 @@ void Decode(void)  /* recover */
 
 		crc = 0;
 
-		textsize = 0;
-		ptr = (char *)&textsize;
+		textsize = crc_fgetc(infile);
+		textsize |= (crc_fgetc(infile) << 8);
+		textsize |= (crc_fgetc(infile) << 16);
+		textsize |= (crc_fgetc(infile) << 24);
 
-		for (i = 0 ; i < sizeof(textsize) ; i++)
-			ptr[i] = crc_fgetc(infile);
 		printf("File Size = %lu\n", textsize);
 
 		if (textsize == 0)
