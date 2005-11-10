@@ -309,17 +309,17 @@ uchar getlen = 0;
 
 int GetBit(void)        /* get one bit */
 {
-        int i;
+        unsigned int i;
 
         while (getlen <= 8) {
-				if ((i = crc_fgetc(infile)) < 0) i = 0;
+				if ((int)(i = crc_fgetc(infile)) < 0) i = 0;
                 getbuf |= i << (8 - getlen);
                 getlen += 8;
         }
         i = getbuf;
         getbuf <<= 1;
         getlen--;
-        return (i < 0);
+        return (i & 0x8000) ? 1 : 0;
 }
 
 int GetByte(void)       /* get one byte */
@@ -327,14 +327,14 @@ int GetByte(void)       /* get one byte */
         unsigned i;
 
         while (getlen <= 8) {
-				if ((i = crc_fgetc(infile)) == 0xffff) i = 0;
+				if ((int)(i = crc_fgetc(infile)) < 0) i = 0;
                 getbuf |= i << (8 - getlen);
                 getlen += 8;
         }
         i = getbuf;
         getbuf <<= 8;
         getlen -= 8;
-        return i >> 8;
+        return (i >> 8) & 0xff;
 }
 
 unsigned putbuf = 0;
@@ -638,7 +638,7 @@ void Decode(void)  /* recover */
 		char *ptr;
 		int  i, j, k, r, c;
 		unsigned long int  count;
-		unsigned int  crc_read;
+		unsigned short  crc_read;
 
 		if (version_1)
 		{
@@ -654,7 +654,7 @@ void Decode(void)  /* recover */
 
 		for (i = 0 ; i < sizeof(textsize) ; i++)
 			ptr[i] = crc_fgetc(infile);
-		printf("File Size = %d\n", textsize);
+		printf("File Size = %lu\n", textsize);
 
 		if (textsize == 0)
 				return;
@@ -715,7 +715,7 @@ int main(int argc, char *argv[])
 
 		version_1 = (argv[1][1] == '1');
 
-		if (toupper(*argv[1]) == 'E')
+		if (toupper((unsigned char) *argv[1]) == 'E')
 				Encode();
 		else
 				Decode();
