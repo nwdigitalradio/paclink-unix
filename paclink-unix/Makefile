@@ -16,6 +16,8 @@ OBJS=lzhuf_1.o
 
 LZHBIN=lzhuf_1
 
+BIN=$(LZHBIN)
+
 all: $(LZHBIN) binmail
 
 lzhuf_1: $(OBJS)
