@@ -574,20 +574,22 @@ void Encode(void)  /* compression */
 		if (version_1)
 		{
 			/* Reserves two bytes for the CRC */
-			if (fwrite(&crc, sizeof crc, 1, outfile) < 1)
-				Error(wterr);   /* output crc of binary */
+			if (fseek(outfile, 2L, SEEK_CUR) < 0) {
+				Error(wterr);
+			}
 		}
 
-		fseek(infile, 0L, 2);
+		fseek(infile, 0L, SEEK_END);
 		textsize = ftell(infile);
 
-		crc_fputc((int)(textsize & 0xff), infile);
-		crc_fputc((int)((textsize >> 8) & 0xff), infile);
-		crc_fputc((int)((textsize >> 16) & 0xff), infile);
-		crc_fputc((int)((textsize >> 24) & 0xff), infile);
+		crc_fputc((int)(textsize & 0xff), outfile);
+		crc_fputc((int)((textsize >> 8) & 0xff), outfile);
+		crc_fputc((int)((textsize >> 16) & 0xff), outfile);
+		crc_fputc((int)((textsize >> 24) & 0xff), outfile);
 
-		if (fwrite(&textsize, sizeof textsize, 1, outfile) < 1)
-				Error(wterr);   /* output size of text */
+		if (ferror(outfile)) {
+				Error(wterr);
+		}
 		if (textsize == 0)
 				return;
 		rewind(infile);
@@ -643,8 +645,11 @@ void Encode(void)  /* compression */
 		{
 			/* Writes the CRC in the beginning of the file */
 			rewind(outfile);
-			if (fwrite(&crc, sizeof crc, 1, outfile) < 1)
-				Error(wterr);   /* output crc of binary */
+			crc_fputc((int)(crc & 0xff), outfile);
+			crc_fputc((int)((crc >> 8) & 0xff), outfile);
+			if (ferror(outfile)) {
+				Error(wterr);
+			}
 			printf("CRC: %04x\n", crc);
 		}
 
@@ -661,8 +666,11 @@ void Decode(void)  /* recover */
 
 		if (version_1)
 		{
-			if (fread(&crc_read, sizeof crc_read, 1, infile) < 1)
-				Error("Can't read");  /* read size of text */
+			crc_read = crc_fgetc(infile);
+			crc_read |= (crc_fgetc(infile) << 8);
+			if (feof(infile) || ferror(infile)) {
+				Error("Can't read");
+			}
 			printf("File CRC  = %04x\n", crc_read);
 		}
 
@@ -672,6 +680,9 @@ void Decode(void)  /* recover */
 		textsize |= (crc_fgetc(infile) << 8);
 		textsize |= (crc_fgetc(infile) << 16);
 		textsize |= (crc_fgetc(infile) << 24);
+		if (feof(infile) || ferror(infile)) {
+			Error("Can't read");
+		}
 
 		printf("File Size = %lu\n", textsize);
 
