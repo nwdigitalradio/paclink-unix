@@ -4,4 +4,4 @@ License is granted to any licensed Amateur Radio operator to freely
 copy, use, and modify this code for non-commercial Amateur Radio
 purposes only.  Any commercial use is prohibited.  73!
 
-lzhuf_1.c by Haruyasu Yoshizaki 11/20/1988 and 4/6/1986
+lzhuf_1.c by Haruyasu Yoshizaki 11/20/1988 and 4/6/1989
