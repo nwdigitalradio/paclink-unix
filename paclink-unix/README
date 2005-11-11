@@ -1,0 +1,22 @@
+$Id$
+
+Welcome to the paclink-unix distribution.
+
+paclink-unix is a UNIX client for the Winlink 2000 system.
+
+paclink-unix is licensed under a variant of the New BSD license,
+restricting use to licensed Amateur Radio operators for non
+commercial use.  See the COPYING file for details.
+
+Other files you might want to peruse:
+
+AUTHORS		Who's involved
+ChangeLog	Detailed list of changes
+NEWS		Summary of feature changes and fixes
+INSTALL		Installation instructions
+
+If you use and enjoy paclink-unix I would love to hear from you.
+Drop me a QSL or postcard in the mail!
+
+73,
+Nick N2QZ
