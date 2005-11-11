@@ -4,7 +4,7 @@ WARN=-Wall -Wshadow -Wpointer-arith -Wbad-function-cast -Wcast-qual -Wstrict-pro
 
 OPTIMIZE=-O2 -fomit-frame-pointer -fstrength-reduce -finline-functions -funroll-loops
 
-DEFS= 
+DEFS=-DHAVE_CONFIG_H
 
 CFLAGS= -g -O2 $(WARN) $(OPTIMIZE) $(DEFS)
 
@@ -12,16 +12,23 @@ LIBOBJS=
 
 LIBS=
 
-OBJS=lzhuf_1.o
+LZHOBJS=lzhuf_1.o
 
 LZHBIN=lzhuf_1
 
-BIN=$(LZHBIN)
+WL2KTELNETOBJS=wl2ktelnet.o
 
-all: $(LZHBIN) binmail
+WL2KTELNETBIN=wl2ktelnet
 
-lzhuf_1: $(OBJS)
-	$(CC) $(CFLAGS) -o $(LZHBIN) $(OBJS) $(LIBS)
+BIN=$(LZHBIN) $(WL2KTELNETBIN)
+
+all: $(BIN) binmail
+
+$(LZHBIN): $(LZHOBJS)
+	$(CC) $(CFLAGS) -o $(LZHBIN) $(LZHOBJS) $(LIBS)
+
+$(WL2KTELNETBIN): $(WL2KTELNETOBJS)
+	$(CC) $(CFLAGS) -o $(WL2KTELNETBIN) $(WL2KTELNETOBJS) $(LIBS)
 
 binmail: binmail.uue
 	uudecode binmail.uue
