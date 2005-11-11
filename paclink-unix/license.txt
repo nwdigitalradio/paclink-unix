@@ -1,6 +1,6 @@
 /*	$Id$	*/
 
-/*-
+/*
  * Copyright (c) 2005
  *	Nicholas S. Castellano N2QZ and the Winlink Development Team,
  *      except where otherwise noted.
