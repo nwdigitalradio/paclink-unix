@@ -1,1 +1,7 @@
+autom4te.cache
+config.h
+config.h.in
+Makefile
+Makefile.in
 lzhuf_1
+wl2ktelnet
