@@ -35,16 +35,20 @@ __RCSID("$Id$");
 #include "timeout.h"
 
 char *wl2kgetline(FILE *fp);
+int getrawchar(FILE *fp);
+int getcompressed(FILE *fp, FILE *ofp);
 void usage(void);
+
+#define WL2KBUF 2048
 
 char *
 wl2kgetline(FILE *fp)
 {
-  static char buf[2048];
+  static char buf[WL2KBUF];
   int i;
   int c;
 
-  for (i = 0; i < 2047; i++) {
+  for (i = 0; i < WL2KBUF; i++) {
     resettimeout();
     if ((c = fgetc(fp)) == EOF) {
       return NULL;
@@ -56,6 +60,118 @@ wl2kgetline(FILE *fp)
     buf[i] = c;
   }
   return NULL;
+}
+
+int
+getrawchar(FILE *fp)
+{
+  int c;
+
+  resettimeout();
+  c = fgetc(fp);
+  return c;
+}
+
+#define CHRNUL 0
+#define CHRSOH 1
+#define CHRSTX 2
+#define CHREOT 4
+
+#define COMPRESSED_GOOD 0
+#define COMPRESSED_BAD 1
+
+int
+getcompressed(FILE *fp, FILE *ofp)
+{
+  int c;
+  int len;
+  int i;
+  unsigned char title[81];
+  unsigned char offset[7];
+  int cksum = 0;
+
+  c = getrawchar(fp);
+  if (c != CHRSOH) {
+    return COMPRESSED_BAD;
+  }
+  len = getrawchar(fp);
+  title[80] = '\0';
+  for (i = 0; i < 80; i++) {
+    c = getrawchar(fp);
+    len--;
+    title[i] = c;
+    if (c == CHRNUL) {
+      ungetc(c, fp);
+      len++;
+      break;
+    }
+  }
+  c = getrawchar(fp);
+  len--;
+  if (c != CHRNUL) {
+    return COMPRESSED_BAD;
+  }
+  printf("title: %s\n", title);
+  offset[6] = '\0';
+  for (i = 0; i < 6; i++) {
+    c = getrawchar(fp);
+    len--;
+    offset[i] = c;
+    if (c == CHRNUL) {
+      ungetc(c, fp);
+      len++;
+      break;
+    }
+  }
+  c = getrawchar(fp);
+  len--;
+  if (c != CHRNUL) {
+    return COMPRESSED_BAD;
+  }
+  printf("offset: %s\n", offset);
+  if (len != 0) {
+    return COMPRESSED_BAD;
+  }
+  if (strcmp(offset, "0") != 0) {
+    return COMPRESSED_BAD;
+  }
+
+  for (;;) {
+    c = getrawchar(fp);
+    switch (c) {
+    case CHRSTX:
+      printf("STX\n");
+      len = getrawchar(fp);
+      if (len == 0) {
+	len = 256;
+      }
+      printf("len %d\n", len);
+      while (len--) {
+	c = getrawchar(fp);
+	if (fputc(c, ofp) == EOF) {
+	  printf("write error\n");
+	  return COMPRESSED_BAD;
+	}
+	cksum = (cksum + c) % 256;
+      }
+      break;
+    case CHREOT:
+      printf("EOT\n");
+      c = getrawchar(fp);
+      cksum = (cksum + c) % 256;
+      if (cksum != 0) {
+	printf("bad cksum\n");
+	return COMPRESSED_BAD;
+      }
+      return COMPRESSED_GOOD;
+      break;
+    default:
+      printf("huh?\n");
+      return COMPRESSED_BAD;
+      break;
+    }
+  }
+  return COMPRESSED_BAD;
 }
 
 void
@@ -73,13 +189,13 @@ main(int argc, char *argv[])
   struct sockaddr_in s_in;
   int port;
   FILE *fp;
+  FILE *ofp;
   char *line;
   char *inboundsid = NULL;
   char *inboundsidcodes = NULL;
   const char *sid = "[PaclinkUNIX-1.0-B2FHM]";
   int proposals = 0;
   int i;
-  int c;
   char *cp;
   unsigned int timeoutsecs;
 
@@ -213,7 +329,7 @@ main(int argc, char *argv[])
   proposals = 0;
 
   while ((line = wl2kgetline(fp)) != NULL) {
-    printf("#%s#\n", line);
+    printf("%s\n", line);
     if (strncmp("FA", line, 2) == 0) {
       proposals++;
     } else if (strncmp("FB", line, 2) == 0) {
@@ -232,11 +348,32 @@ main(int argc, char *argv[])
       printf("\n");
 
       i = proposals;
-#if 1
-      while ((c = fgetc(fp)) != EOF) {
-	putchar(c);
+      ofp = fopen("bin.out", "w");
+      if (ofp == NULL) {
+	perror("fopen()");
+	exit(EXIT_FAILURE);
       }
-#endif
+      if (getcompressed(fp, ofp) != COMPRESSED_GOOD) {
+	printf("error receiving compressed data\n");
+	exit(EXIT_FAILURE);
+      }
+      if (fclose(ofp) != 0) {
+	printf("error closing compressed data\n");
+	exit(EXIT_FAILURE);
+      }
+      system("ls -l bin.out");
+      printf("extracting...\n");
+      if (system("./lzhuf_1 d1 bin.out txt.out") != 0) {
+	printf("error uncompressing received data\n");
+	exit(EXIT_FAILURE);
+      }
+      printf("displaying...\n");
+      system("cat txt.out");
+      printf("\n");
+      printf("Finished!\n");
+      fprintf(fp, "FF\r\n");
+      printf("FF\n");
+#if 0
       while ((line = wl2kgetline(fp)) != NULL) {
 	printf("%s\n", line);
 	if (line[0] == '\x1a') {
@@ -247,7 +384,7 @@ main(int argc, char *argv[])
 	printf("Connection closed by foreign host.\n");
 	exit(EXIT_FAILURE);
       }
-
+#endif
     } else if (strncmp("FQ", line, 2) == 0) {
       goto out;
     }
