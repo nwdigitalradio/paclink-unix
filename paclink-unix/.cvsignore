@@ -1,8 +1,13 @@
-autom4te.cache
-configure
-config.h
-config.h.in
+.deps
 Makefile
 Makefile.in
+autom4te.cache
+config.h
+config.h.in
+config.log
+config.status
+configure
+stamp-h1
+
 lzhuf_1
 wl2ktelnet

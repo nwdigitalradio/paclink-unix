@@ -11,10 +11,10 @@ AC_PROG_CC
 AC_SEARCH_LIBS(socket, socket)
 AC_SEARCH_LIBS(gethostbyname, nsl)
 
+dnl checks stdlib.h stdarg.h string.h float.h defines STDC_HEADERS
 AC_HEADER_STDC
-AC_HEADER_TIME
 
-AC_CHECK_HEADERS([stdlib.h string.h sys/socket.h netinet/in.h arpa/inet.h netdb.h unistd.h fcntl.h bstring.h])
+AC_CHECK_HEADERS([sys/socket.h netinet/in.h arpa/inet.h netdb.h unistd.h])
 
 AC_C_CONST
 

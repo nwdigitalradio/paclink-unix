@@ -1,17 +1,14 @@
 # $Id$
 
-SUBDIRS	=	
-
-EXTRA_DIST = 	ascmail binmail.uue license.txt
-
-ETC	=	$(DESTDIR)$(sysconfdir)
+EXTRA_DIST=ascmail binmail.uue license.txt
 
 clean-local:
-	rm -f *~ .*~ *.orig *.rej *.o core *.core TAGS .depend foo bar baz binmail *.test
-
-test:
-	@echo "The 'make test' option has been replaced with 'make check'";
+	rm -f *~ .*~ *.orig *.rej core *.core TAGS .depend foo bar baz binmail *.test
 
 all:
 
-bin_PROGRAMS	= lzhuf_1 wl2ktelnet
+bin_PROGRAMS=lzhuf_1 wl2ktelnet
+
+lzhuf_1_SOURCES=lzhuf_1.c
+
+wl2ktelnet_SOURCES=wl2ktelnet.c strupper.c progname.h strupper.h

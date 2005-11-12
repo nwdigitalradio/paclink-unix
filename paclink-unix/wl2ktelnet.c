@@ -14,8 +14,9 @@ __RCSID("$Id$");
 #if HAVE_STRING_H
 # include <string.h>
 #endif
-#include <ctype.h>
-#include <errno.h>
+#if HAVE_UNISTD_H
+# include <unistd.h>
+#endif
 #ifdef HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
 #endif
@@ -27,25 +28,6 @@ __RCSID("$Id$");
 #endif
 #ifdef HAVE_NETDB_H
 # include <netdb.h>
-#endif
-#if HAVE_UNISTD_H
-# include <unistd.h>
-#endif
-#if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
-#else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
-#endif
-#if HAVE_FCNTL_H
-# include <fcntl.h>
-#endif
-#if HAVE_BSTRING_H
-# include <bstring.h>
 #endif
 
 #include "strupper.h"
