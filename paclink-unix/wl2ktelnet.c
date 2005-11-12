@@ -32,6 +32,7 @@ __RCSID("$Id$");
 
 #include "strupper.h"
 #include "progname.h"
+#include "timeout.h"
 
 char *wl2kgetline(FILE *fp);
 void usage(void);
@@ -44,6 +45,7 @@ wl2kgetline(FILE *fp)
   int c;
 
   for (i = 0; i < 2047; i++) {
+    resettimeout();
     if ((c = fgetc(fp)) == EOF) {
       return NULL;
     }
@@ -59,7 +61,7 @@ wl2kgetline(FILE *fp)
 void
 usage(void)
 {
-  fprintf(stderr, "usage:  %s mycall hostname port timeout password\n", progname);
+  fprintf(stderr, "usage:  %s mycall hostname port timeoutsecs password\n", progname);
 }
 
 int
@@ -79,12 +81,12 @@ main(int argc, char *argv[])
   int i;
   int c;
   char *cp;
-  int timeout;
+  unsigned int timeoutsecs;
 
 #define MYCALL argv[1]
 #define HOSTNAME argv[2]
 #define PORT argv[3]
-#define TIMEOUT argv[4]
+#define TIMEOUTSECS argv[4]
 #define PASSWORD argv[5]
 
   setlinebuf(stdout);
@@ -98,7 +100,7 @@ main(int argc, char *argv[])
     usage();
     exit(EXIT_FAILURE);
   }
-  timeout = (int) strtol(TIMEOUT, &endp, 10);
+  timeoutsecs = (int) strtol(TIMEOUTSECS, &endp, 10);
   if (*endp != '\0') {
     usage();
     exit(EXIT_FAILURE);
@@ -123,11 +125,14 @@ main(int argc, char *argv[])
   }
   s_in.sin_port = htons(port);
   printf("Connecting to %s %s ...\n", HOSTNAME, PORT);
+
+  settimeout(timeoutsecs);
   if (connect(s, (struct sockaddr *) &s_in, sizeof(struct sockaddr_in)) != 0) {
     close(s);
     perror("connect()");
     exit(EXIT_FAILURE);
   }
+  resettimeout();
 
   printf("Connected.\n");
 

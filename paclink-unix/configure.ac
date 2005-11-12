@@ -14,7 +14,7 @@ AC_SEARCH_LIBS(gethostbyname, nsl)
 dnl checks stdlib.h stdarg.h string.h float.h defines STDC_HEADERS
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS([sys/socket.h netinet/in.h arpa/inet.h netdb.h unistd.h])
+AC_CHECK_HEADERS([sys/socket.h netinet/in.h arpa/inet.h netdb.h unistd.h signal.h])
 
 AC_C_CONST
 
