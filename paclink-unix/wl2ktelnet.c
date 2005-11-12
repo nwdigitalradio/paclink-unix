@@ -347,44 +347,45 @@ main(int argc, char *argv[])
       fprintf(fp, "\r\n");
       printf("\n");
 
-      i = proposals;
-      ofp = fopen("bin.out", "w");
-      if (ofp == NULL) {
-	perror("fopen()");
-	exit(EXIT_FAILURE);
+      for (i = 0; i < proposals; i++) {
+	ofp = fopen("bin.out", "w");
+	if (ofp == NULL) {
+	  perror("fopen()");
+	  exit(EXIT_FAILURE);
+	}
+	if (getcompressed(fp, ofp) != COMPRESSED_GOOD) {
+	  printf("error receiving compressed data\n");
+	  exit(EXIT_FAILURE);
+	}
+	if (fclose(ofp) != 0) {
+	  printf("error closing compressed data\n");
+	  exit(EXIT_FAILURE);
+	}
+	system("ls -l bin.out");
+	printf("extracting...\n");
+	if (system("./lzhuf_1 d1 bin.out txt.out") != 0) {
+	  printf("error uncompressing received data\n");
+	  exit(EXIT_FAILURE);
+	}
+	printf("displaying...\n");
+	system("cat txt.out");
+	printf("\n");
+	printf("Finished!\n");
+#if 0
+	while ((line = wl2kgetline(fp)) != NULL) {
+	  printf("%s\n", line);
+	  if (line[0] == '\x1a') {
+	    printf("yeeble\n");
+	  }
+	}
+	if (line == NULL) {
+	  printf("Connection closed by foreign host.\n");
+	  exit(EXIT_FAILURE);
+	}
+#endif
       }
-      if (getcompressed(fp, ofp) != COMPRESSED_GOOD) {
-	printf("error receiving compressed data\n");
-	exit(EXIT_FAILURE);
-      }
-      if (fclose(ofp) != 0) {
-	printf("error closing compressed data\n");
-	exit(EXIT_FAILURE);
-      }
-      system("ls -l bin.out");
-      printf("extracting...\n");
-      if (system("./lzhuf_1 d1 bin.out txt.out") != 0) {
-	printf("error uncompressing received data\n");
-	exit(EXIT_FAILURE);
-      }
-      printf("displaying...\n");
-      system("cat txt.out");
-      printf("\n");
-      printf("Finished!\n");
       fprintf(fp, "FF\r\n");
       printf("FF\n");
-#if 0
-      while ((line = wl2kgetline(fp)) != NULL) {
-	printf("%s\n", line);
-	if (line[0] == '\x1a') {
-	  printf("yeeble\n");
-	}
-      }
-      if (line == NULL) {
-	printf("Connection closed by foreign host.\n");
-	exit(EXIT_FAILURE);
-      }
-#endif
     } else if (strncmp("FQ", line, 2) == 0) {
       goto out;
     }
