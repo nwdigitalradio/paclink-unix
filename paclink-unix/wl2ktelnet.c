@@ -34,6 +34,7 @@ __RCSID("$Id$");
 #include "progname.h"
 
 char *wl2kgetline(FILE *fp);
+void usage(void);
 
 char *
 wl2kgetline(FILE *fp)
