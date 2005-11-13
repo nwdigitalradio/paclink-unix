@@ -123,7 +123,7 @@ main(int argc, char *argv[])
     putchar('\n');
   }
   if (line == NULL) {
-    printf("Connection closed by foreign host.\n");
+    fprintf(stderr, "Connection closed by foreign host.\n");
     exit(EXIT_FAILURE);
   }
 
@@ -135,7 +135,7 @@ main(int argc, char *argv[])
     }
   }
   if (line == NULL) {
-    printf("Connection closed by foreign host.\n");
+    fprintf(stderr, "Connection closed by foreign host.\n");
     exit(EXIT_FAILURE);
   }
 
