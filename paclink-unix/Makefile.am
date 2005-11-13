@@ -1,6 +1,6 @@
 # $Id$
 
-EXTRA_DIST=ascmail binmail.uue license.txt
+EXTRA_DIST=ascmail binmail.uue
 
 clean-local:
 	rm -f *~ .*~ *.orig *.rej core *.core TAGS .depend foo bar baz binmail *.test
