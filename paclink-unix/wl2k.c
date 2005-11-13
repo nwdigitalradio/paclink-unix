@@ -255,7 +255,7 @@ wl2kexchange(FILE *fp)
   char sfn[17] = "";
   FILE *sfp;
   int fd = -1;
-  char cmd[4096]; /* XXX */
+  char *cmd;
 
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("%s\n", line);
@@ -354,11 +354,15 @@ wl2kexchange(FILE *fp)
 	  exit(EXIT_FAILURE);
 	}
 	printf("extracting...\n");
-	sprintf(cmd, "./lzhuf_1 d1 %s %s", sfn, proplist[i].id);
+	if (asprintf(&cmd, "./lzhuf_1 d1 %s %s", sfn, proplist[i].id) == -1) {
+	  perror("asprintf()");
+	  exit(EXIT_FAILURE);
+	}
 	if (system(cmd) != 0) {
 	  fprintf(stderr, "error uncompressing received data\n");
 	  exit(EXIT_FAILURE);
 	}
+	free(cmd);
 	printf("\n");
 	printf("Finished!\n");
 	unlink(sfn);
