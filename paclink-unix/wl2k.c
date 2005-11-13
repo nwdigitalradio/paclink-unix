@@ -22,6 +22,8 @@ __RCSID("$Id$");
 #include "wl2k.h"
 #include "timeout.h"
 
+#define PROPLIMIT 5
+
 #define WL2KBUF 2048
 
 static int getrawchar(FILE *fp);
@@ -207,16 +209,19 @@ parse_proposal(char *propline)
       fprintf(stderr, "malformed proposal 8\n");
       return NULL;
     }
-    return &prop;
     break;
   case 'A':
   case 'B':
   default:
+    prop.type = 'X';
+    prop.id[0] = '\0';
+    prop.usize = 0;
+    prop.csize = 0;
+    break;
     fprintf(stderr, "unsupported proposal type %c\n", prop.code);
-    return NULL;
     break;
   }
-
+  return &prop;
 }
 
 char *
@@ -246,12 +251,12 @@ wl2kexchange(FILE *fp)
   char *cp;
   int proposals = 0;
   int i;
-  const char *sid = "[PaclinkUNIX-1.0-B2FHM]";
+  const char *sid = "[PaclinkUNIX-1.0-FHM]";
   char *inboundsid = NULL;
   char *inboundsidcodes = NULL;
   char *line;
   struct proposal *prop;
-  struct proposal proplist[5];
+  struct proposal proplist[PROPLIMIT];
   char sfn[17] = "";
   FILE *sfp;
   int fd = -1;
@@ -280,7 +285,7 @@ wl2kexchange(FILE *fp)
     }
   }
   if (line == NULL) {
-    fprintf(stderr, "Lost connection.\n");
+    fprintf(stderr, "Lost connection. 1\n");
     exit(EXIT_FAILURE);
   }
 
@@ -295,98 +300,131 @@ wl2kexchange(FILE *fp)
     }
   }
   if (line == NULL) {
-    fprintf(stderr, "Lost connection.\n");
+    fprintf(stderr, "Lost connection. 2\n");
     exit(EXIT_FAILURE);
   }
 
   proposals = 0;
 
   while ((line = wl2kgetline(fp)) != NULL) {
-    printf("%s\n", line);
-    if (strncmp("FA", line, 2) == 0) {
-      proposals++;
-    } else if (strncmp("FB", line, 2) == 0) {
-      proposals++;
-    } else if (strncmp("FC", line, 2) == 0) {
-      if ((prop = parse_proposal(line)) == NULL) {
-	fprintf(stderr, "failed to parse proposal\n");
-	exit(EXIT_FAILURE);
-      }
-      printf("proposal code %c type %c id %s usize %u csize %u\n",
-	     prop->code, prop->type, prop->id, prop->usize, prop->csize);
-      memcpy(&proplist[proposals], prop, sizeof(struct proposal));
-      printf("proposal code %c type %c id %s usize %u csize %u\n",
-	     proplist[proposals].code,
-	     proplist[proposals].type,
-	     proplist[proposals].id,
-	     proplist[proposals].usize,
-	     proplist[proposals].csize);
-      proposals++;
-    } else if (strncmp("F>", line, 2) == 0) {
-      printf("%d proposals\n", proposals);
-      fprintf(fp, "FS ");
-      printf("FS ");
-      for (i = 0; i < proposals; i++) {
-	putc('+', fp);
-	putchar('+');
-      }
-      fprintf(fp, "\r\n");
-      printf("\n");
-
-      for (i = 0; i < proposals; i++) {
-	strlcpy(sfn, "/tmp/wl2k.XXXXXX", sizeof(sfn));
-	if ((fd = mkstemp(sfn)) == -1 ||
-	    (sfp = fdopen(fd, "w+")) == NULL) {
-	  if (fd != -1) {
-	    unlink(sfn);
-	    close(fd);
+    printf("#%s#\n", line);
+    switch(line[0]) {
+    case 'F':
+      switch(line[1]) {
+      case 'A':
+      case 'B':
+      case 'C':
+	if (proposals == PROPLIMIT) {
+	  fprintf(stderr, "too many proposals\n");
+	  exit(EXIT_FAILURE);
+	}
+	if ((prop = parse_proposal(line)) == NULL) {
+	  fprintf(stderr, "failed to parse proposal\n");
+	  exit(EXIT_FAILURE);
+	}
+	printf("proposal code %c type %c id %s usize %u csize %u\n",
+	       prop->code, prop->type, prop->id, prop->usize, prop->csize);
+	memcpy(&proplist[proposals], prop, sizeof(struct proposal));
+	printf("proposal code %c type %c id %s usize %u csize %u\n",
+	       proplist[proposals].code,
+	       proplist[proposals].type,
+	       proplist[proposals].id,
+	       proplist[proposals].usize,
+	       proplist[proposals].csize);
+	proposals++;
+	break;
+      case '>':
+	printf("%d proposals\n", proposals);
+	if (proposals == 0) {
+	  fprintf(fp, "FF\r\n");
+	  printf("FF\n");
+	  /*	  return;*/
+	  break;
+	}
+	fprintf(fp, "FS ");
+	printf("FS ");
+	for (i = 0; i < proposals; i++) {
+	  if (proplist[i].code == 'C') {
+	    putc('+', fp);
+	    putchar('+');
+	  } else {
+	    putc('N', fp);
+	    putchar('N');
 	  }
-	  perror(sfn);
-	  exit(EXIT_FAILURE);
 	}
-
-	if (getcompressed(fp, sfp) != WL2K_COMPRESSED_GOOD) {
-	  fprintf(stderr, "error receiving compressed data\n");
-	  exit(EXIT_FAILURE);
-	}
-	if (fclose(sfp) != 0) {
-	  fprintf(stderr, "error closing compressed data\n");
-	  exit(EXIT_FAILURE);
-	}
-	printf("extracting...\n");
-	if (asprintf(&cmd, "./lzhuf_1 d1 %s %s", sfn, proplist[i].id) == -1) {
-	  perror("asprintf()");
-	  exit(EXIT_FAILURE);
-	}
-	if (system(cmd) != 0) {
-	  fprintf(stderr, "error uncompressing received data\n");
-	  exit(EXIT_FAILURE);
-	}
-	free(cmd);
+	fprintf(fp, "\r\n");
 	printf("\n");
-	printf("Finished!\n");
-	unlink(sfn);
-#if 0
-	while ((line = wl2kgetline(fp)) != NULL) {
-	  printf("%s\n", line);
-	  if (line[0] == '\x1a') {
-	    printf("yeeble\n");
+
+	for (i = 0; i < proposals; i++) {
+	  if (proplist[i].code != 'C') {
+	    continue;
 	  }
-	}
-	if (line == NULL) {
-	  fprintf(stderr, "Lost connection.\n");
-	  exit(EXIT_FAILURE);
-	}
+	  strlcpy(sfn, "/tmp/wl2k.XXXXXX", sizeof(sfn));
+	  if ((fd = mkstemp(sfn)) == -1 ||
+	      (sfp = fdopen(fd, "w+")) == NULL) {
+	    if (fd != -1) {
+	      unlink(sfn);
+	      close(fd);
+	    }
+	    perror(sfn);
+	    exit(EXIT_FAILURE);
+	  }
+
+	  if (getcompressed(fp, sfp) != WL2K_COMPRESSED_GOOD) {
+	    fprintf(stderr, "error receiving compressed data\n");
+	    exit(EXIT_FAILURE);
+	  }
+	  if (fclose(sfp) != 0) {
+	    fprintf(stderr, "error closing compressed data\n");
+	    exit(EXIT_FAILURE);
+	  }
+	  printf("extracting...\n");
+	  if (asprintf(&cmd, "./lzhuf_1 d1 %s %s", sfn, proplist[i].id) == -1) {
+	    perror("asprintf()");
+	    exit(EXIT_FAILURE);
+	  }
+	  if (system(cmd) != 0) {
+	    fprintf(stderr, "error uncompressing received data\n");
+	    exit(EXIT_FAILURE);
+	  }
+	  free(cmd);
+	  printf("\n");
+	  printf("Finished!\n");
+	  unlink(sfn);
+#if 0
+	  while ((line = wl2kgetline(fp)) != NULL) {
+	    printf("%s\n", line);
+	    if (line[0] == '\x1a') {
+	      printf("yeeble\n");
+	    }
+	  }
+	  if (line == NULL) {
+	    fprintf(stderr, "Lost connection. 3\n");
+	    exit(EXIT_FAILURE);
+	  }
 #endif
+	}
+	proposals = 0;
+	fprintf(fp, "FF\r\n");
+	printf("FF\n");
+	break;
+      case 'Q':
+	return;
+	break;
+      default:
+	fprintf(stderr, "malformed proposal: %s\n", line);
+	exit(EXIT_FAILURE);
+	break;
       }
-      fprintf(fp, "FF\r\n");
-      printf("FF\n");
-    } else if (strncmp("FQ", line, 2) == 0) {
-      return;
+      break;
+    default:
+      fprintf(stderr, "malformed proposal: %s\n", line);
+      exit(EXIT_FAILURE);
+      break;
     }
   }
   if (line == NULL) {
-    fprintf(stderr, "Lost connection.\n");
+    fprintf(stderr, "Lost connection. 4\n");
     exit(EXIT_FAILURE);
   }
 }
