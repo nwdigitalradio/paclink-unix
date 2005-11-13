@@ -14,6 +14,9 @@ __RCSID("$Id$");
 #if HAVE_STRING_H
 # include <string.h>
 #endif
+#if HAVE_UNISTD_H
+# include <unistd.h>
+#endif
 
 #include "strupper.h"
 #include "wl2k.h"
@@ -23,6 +26,7 @@ __RCSID("$Id$");
 
 static int getrawchar(FILE *fp);
 static int getcompressed(FILE *fp, FILE *ofp);
+static struct proposal *parse_proposal(char *propline);
 
 static int
 getrawchar(FILE *fp)
@@ -108,7 +112,7 @@ getcompressed(FILE *fp, FILE *ofp)
       while (len--) {
 	c = getrawchar(fp);
 	if (fputc(c, ofp) == EOF) {
-	  printf("write error\n");
+	  perror("fputc()");
 	  return WL2K_COMPRESSED_BAD;
 	}
 	cksum = (cksum + c) % 256;
@@ -119,18 +123,100 @@ getcompressed(FILE *fp, FILE *ofp)
       c = getrawchar(fp);
       cksum = (cksum + c) % 256;
       if (cksum != 0) {
-	printf("bad cksum\n");
+	fprintf(stderr, "bad cksum\n");
 	return WL2K_COMPRESSED_BAD;
       }
       return WL2K_COMPRESSED_GOOD;
       break;
     default:
-      printf("huh?\n");
+      fprintf(stderr, "unexpected character in compressed stream\n");
       return WL2K_COMPRESSED_BAD;
       break;
     }
   }
   return WL2K_COMPRESSED_BAD;
+}
+
+struct proposal {
+  char code;
+  char type;
+  char id[13];
+  unsigned int usize;
+  unsigned int csize;
+};
+
+static struct proposal *
+parse_proposal(char *propline)
+{
+  char *cp = propline;
+  static struct proposal prop;
+  int i;
+  char *endp;
+
+  if (!cp) {
+    return NULL;
+  }
+  if (*cp++ != 'F') {
+    return NULL;
+  }
+  prop.code = *cp++;
+  switch (prop.code) {
+  case 'C':
+    if (*cp++ != ' ') {
+      fprintf(stderr, "malformed proposal 1\n");
+      return NULL;
+    }
+    prop.type = *cp++;
+    if ((prop.type != 'C') && (prop.type != 'E')) {
+      fprintf(stderr, "malformed proposal 2\n");
+    }
+    if (*cp++ != 'M') {
+      fprintf(stderr, "malformed proposal 3\n");
+    }
+    if (*cp++ != ' ') {
+      fprintf(stderr, "malformed proposal 4\n");
+      return NULL;
+    }
+    for (i = 0; i < 12; i++) {
+      prop.id[i] = *cp++;
+      if (prop.id[i] == ' ') {
+	prop.id[i] = '\0';
+	cp--;
+	break;
+      } else {
+	if (prop.id[i] == '\0') {
+	  fprintf(stderr, "malformed proposal 5\n");
+	  return NULL;
+	}
+      }
+    }
+    prop.id[12] = '\0';
+    if (*cp++ != ' ') {
+      fprintf(stderr, "malformed proposal 6\n");
+      return NULL;
+    }
+    prop.usize = (unsigned int) strtoul(cp, &endp, 10);
+    cp = endp;
+    if (*cp++ != ' ') {
+      fprintf(stderr, "malformed proposal 7\n");
+      return NULL;
+    }
+    prop.csize = (unsigned int) strtoul(cp, &endp, 10);
+    cp = endp;
+    if (*cp != ' ') {
+      fprintf(stderr, "malformed proposal 8\n");
+      return NULL;
+    }
+    return &prop;
+    break;
+  case 'A':
+  case 'B':
+  default:
+    fprintf(stderr, "unsupported proposal type %c\n", prop.code);
+    return NULL;
+    break;
+  }
+
 }
 
 char *
@@ -157,7 +243,6 @@ wl2kgetline(FILE *fp)
 void
 wl2kexchange(FILE *fp)
 {
-  FILE *ofp;
   char *cp;
   int proposals = 0;
   int i;
@@ -165,31 +250,37 @@ wl2kexchange(FILE *fp)
   char *inboundsid = NULL;
   char *inboundsidcodes = NULL;
   char *line;
+  struct proposal *prop;
+  struct proposal proplist[5];
+  char sfn[17] = "";
+  FILE *sfp;
+  int fd = -1;
+  char cmd[4096]; /* XXX */
 
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("%s\n", line);
     if (line[0] == '[') {
       inboundsid = strdup(line);
       if ((cp = strrchr(inboundsid, '-')) == NULL) {
-	printf("bad sid %s\n", inboundsid);
+	fprintf(stderr, "bad sid %s\n", inboundsid);
 	exit(EXIT_FAILURE);
       }
       inboundsidcodes = strdup(cp);
       if ((cp = strrchr(inboundsidcodes, ']')) == NULL) {
-	printf("bad sid %s\n", inboundsid);
+	fprintf(stderr, "bad sid %s\n", inboundsid);
 	exit(EXIT_FAILURE);
       }
       *cp = '\0';
       strupper(inboundsidcodes);
       if (strchr(inboundsidcodes, 'F') == NULL) {
-	printf("sid %s does not support FBB protocol\n", inboundsid);
+	fprintf(stderr, "sid %s does not support FBB protocol\n", inboundsid);
 	exit(EXIT_FAILURE);
       }
       break;
     }
   }
   if (line == NULL) {
-    printf("Connection closed by foreign host.\n");
+    fprintf(stderr, "Lost connection.\n");
     exit(EXIT_FAILURE);
   }
 
@@ -204,7 +295,7 @@ wl2kexchange(FILE *fp)
     }
   }
   if (line == NULL) {
-    printf("Connection closed by foreign host.\n");
+    fprintf(stderr, "Lost connection.\n");
     exit(EXIT_FAILURE);
   }
 
@@ -217,6 +308,19 @@ wl2kexchange(FILE *fp)
     } else if (strncmp("FB", line, 2) == 0) {
       proposals++;
     } else if (strncmp("FC", line, 2) == 0) {
+      if ((prop = parse_proposal(line)) == NULL) {
+	fprintf(stderr, "failed to parse proposal\n");
+	exit(EXIT_FAILURE);
+      }
+      printf("proposal code %c type %c id %s usize %u csize %u\n",
+	     prop->code, prop->type, prop->id, prop->usize, prop->csize);
+      memcpy(&proplist[proposals], prop, sizeof(struct proposal));
+      printf("proposal code %c type %c id %s usize %u csize %u\n",
+	     proplist[proposals].code,
+	     proplist[proposals].type,
+	     proplist[proposals].id,
+	     proplist[proposals].usize,
+	     proplist[proposals].csize);
       proposals++;
     } else if (strncmp("F>", line, 2) == 0) {
       printf("%d proposals\n", proposals);
@@ -230,29 +334,34 @@ wl2kexchange(FILE *fp)
       printf("\n");
 
       for (i = 0; i < proposals; i++) {
-	ofp = fopen("bin.out", "w");
-	if (ofp == NULL) {
-	  perror("fopen()");
+	strlcpy(sfn, "/tmp/wl2k.XXXXXX", sizeof(sfn));
+	if ((fd = mkstemp(sfn)) == -1 ||
+	    (sfp = fdopen(fd, "w+")) == NULL) {
+	  if (fd != -1) {
+	    unlink(sfn);
+	    close(fd);
+	  }
+	  perror(sfn);
 	  exit(EXIT_FAILURE);
 	}
-	if (getcompressed(fp, ofp) != WL2K_COMPRESSED_GOOD) {
-	  printf("error receiving compressed data\n");
+
+	if (getcompressed(fp, sfp) != WL2K_COMPRESSED_GOOD) {
+	  fprintf(stderr, "error receiving compressed data\n");
 	  exit(EXIT_FAILURE);
 	}
-	if (fclose(ofp) != 0) {
-	  printf("error closing compressed data\n");
+	if (fclose(sfp) != 0) {
+	  fprintf(stderr, "error closing compressed data\n");
 	  exit(EXIT_FAILURE);
 	}
-	system("ls -l bin.out");
 	printf("extracting...\n");
-	if (system("./lzhuf_1 d1 bin.out txt.out") != 0) {
-	  printf("error uncompressing received data\n");
+	sprintf(cmd, "./lzhuf_1 d1 %s %s", sfn, proplist[i].id);
+	if (system(cmd) != 0) {
+	  fprintf(stderr, "error uncompressing received data\n");
 	  exit(EXIT_FAILURE);
 	}
-	printf("displaying...\n");
-	system("cat txt.out");
 	printf("\n");
 	printf("Finished!\n");
+	unlink(sfn);
 #if 0
 	while ((line = wl2kgetline(fp)) != NULL) {
 	  printf("%s\n", line);
@@ -261,7 +370,7 @@ wl2kexchange(FILE *fp)
 	  }
 	}
 	if (line == NULL) {
-	  printf("Connection closed by foreign host.\n");
+	  fprintf(stderr, "Lost connection.\n");
 	  exit(EXIT_FAILURE);
 	}
 #endif
@@ -273,7 +382,7 @@ wl2kexchange(FILE *fp)
     }
   }
   if (line == NULL) {
-    printf("Connection closed by foreign host.\n");
+    fprintf(stderr, "Lost connection.\n");
     exit(EXIT_FAILURE);
   }
 }
