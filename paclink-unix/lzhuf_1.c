@@ -78,7 +78,7 @@ char wterr[] = "Can't write.";
 
 void Error(const char *message)
 {
-        printf("\n%s\n", message);
+        fprintf(stderr, "\n%s\n", message);
         exit(EXIT_FAILURE);
 }
 
@@ -628,7 +628,7 @@ void Encode(void)  /* compression */
 						InsertNode(r);
 				}
 				if ((textsize += i) > printcount) {
-						printf("%12ld\r", textsize);
+						fprintf(stderr, "%12ld\r", textsize);
 						printcount += 1024;
 				}
 				while (i++ < last_match_length) {
@@ -640,7 +640,7 @@ void Encode(void)  /* compression */
 		} while (len > 0);
 		EncodeEnd();
 
-		printf("\n");
+		fprintf(stderr, "\n");
 		if (version_1)
 		{
 			/* Writes the CRC in the beginning of the file */
@@ -650,12 +650,12 @@ void Encode(void)  /* compression */
 			if (ferror(outfile)) {
 				Error(wterr);
 			}
-			printf("CRC: %04x\n", crc);
+			fprintf(stderr, "CRC: %04x\n", crc);
 		}
 
-		printf("In : %ld bytes\n", textsize);
-		printf("Out: %ld bytes\n", codesize);
-		printf("Out/In: %.3f\n", (double)codesize / textsize);
+		fprintf(stderr, "In : %ld bytes\n", textsize);
+		fprintf(stderr, "Out: %ld bytes\n", codesize);
+		fprintf(stderr, "Out/In: %.3f\n", (double)codesize / textsize);
 }
 
 void Decode(void)  /* recover */
@@ -671,7 +671,7 @@ void Decode(void)  /* recover */
 			if (feof(infile) || ferror(infile)) {
 				Error("Can't read");
 			}
-			printf("File CRC  = %04x\n", crc_read);
+			fprintf(stderr, "File CRC  = %04x\n", crc_read);
 		}
 
 		crc = 0;
@@ -684,7 +684,7 @@ void Decode(void)  /* recover */
 			Error("Can't read");
 		}
 
-		printf("File Size = %lu\n", textsize);
+		fprintf(stderr, "File Size = %lu\n", textsize);
 
 		if (textsize == 0)
 				return;
@@ -716,14 +716,14 @@ void Decode(void)  /* recover */
                         }
                 }
 				if (count > printcount) {
-						printf("%12ld\r", count);
+						fprintf(stderr, "%12ld\r", count);
 						printcount += 1024;
 				}
         }
-		printf("%12ld\n", count);
+		fprintf(stderr, "%12ld\n", count);
 
 		if (version_1)
-			printf("Computed CRC = %04x\n", crc);
+			fprintf(stderr, "Computed CRC = %04x\n", crc);
 
 }
 
@@ -732,14 +732,14 @@ int main(int argc, char *argv[])
         char  *s;
 
         if (argc != 4) {
-				printf("'lzhuf e[1] file1 file2' encodes file1 into file2.\n"
+				fprintf(stderr, "'lzhuf e[1] file1 file2' encodes file1 into file2.\n"
 						   "'lzhuf d[1] file2 file1' decodes file2 into file1.\n");
 				exit(EXIT_FAILURE);
 		}
 		if ((s = argv[1], strpbrk(s, "D1E1d1e1") == NULL)
 		 || (s = argv[2], (infile  = fopen(s, "rb")) == NULL)
 		 || (s = argv[3], (outfile = fopen(s, "wb")) == NULL)) {
-				printf("??? %s\n", s);
+				fprintf(stderr, "??? %s\n", s);
 				exit(EXIT_FAILURE);
 		}
 
