@@ -17,19 +17,34 @@ __RCSID("$Id$");
 #if HAVE_UNISTD_H
 # include <unistd.h>
 #endif
+#include <dirent.h>
+#include <sys/stat.h>
 
 #include "strupper.h"
 #include "wl2k.h"
 #include "timeout.h"
 
 #define PROPLIMIT 5
-
 #define WL2KBUF 2048
+#define WL2K_TEMPFILE_TEMPLATE "/tmp/wl2k.XXXXXX"
+#define PENDING "pending"
 
 static int getrawchar(FILE *fp);
 static int getcompressed(FILE *fp, FILE *ofp);
 static struct proposal *parse_proposal(char *propline);
-static int b2outboundproposal(FILE *fp, char *lastcommand);
+static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal *oproplist);
+static void printprop(struct proposal *prop);
+
+struct proposal {
+  char code;
+  char type;
+  char id[13];
+  unsigned long usize;
+  unsigned long csize;
+  struct proposal *next;
+  char *path;
+  unsigned char *cdata;
+};
 
 static int
 getrawchar(FILE *fp)
@@ -140,14 +155,6 @@ getcompressed(FILE *fp, FILE *ofp)
   return WL2K_COMPRESSED_BAD;
 }
 
-struct proposal {
-  char code;
-  char type;
-  char id[13];
-  unsigned int usize;
-  unsigned int csize;
-};
-
 static struct proposal *
 parse_proposal(char *propline)
 {
@@ -172,9 +179,11 @@ parse_proposal(char *propline)
     prop.type = *cp++;
     if ((prop.type != 'C') && (prop.type != 'E')) {
       fprintf(stderr, "malformed proposal 2\n");
+      return NULL;
     }
     if (*cp++ != 'M') {
       fprintf(stderr, "malformed proposal 3\n");
+      return NULL;
     }
     if (*cp++ != ' ') {
       fprintf(stderr, "malformed proposal 4\n");
@@ -198,7 +207,7 @@ parse_proposal(char *propline)
       fprintf(stderr, "malformed proposal 6\n");
       return NULL;
     }
-    prop.usize = (unsigned int) strtoul(cp, &endp, 10);
+    prop.usize = strtoul(cp, &endp, 10);
     cp = endp;
     if (*cp++ != ' ') {
       fprintf(stderr, "malformed proposal 7\n");
@@ -222,7 +231,185 @@ parse_proposal(char *propline)
     fprintf(stderr, "unsupported proposal type %c\n", prop.code);
     break;
   }
+  prop.next = NULL;
+  prop.path = NULL;
+
   return &prop;
+}
+
+static void
+printprop(struct proposal *prop)
+{
+  printf("proposal code %c type %c id %s usize %lu csize %lu next %p path %s cdata %p\n",
+	 prop->code,
+	 prop->type,
+	 prop->id,
+	 prop->usize,
+	 prop->csize,
+	 prop->next,
+	 prop->path,
+	 prop->cdata);
+}
+
+static struct proposal *
+prepare_outbound_proposals(void)
+{
+  struct proposal *prop;
+  struct proposal **opropnext;
+  struct proposal *oproplist = NULL;
+  DIR *dirp;
+  struct dirent *dp;
+  struct stat sb;
+  char *sfn;
+  FILE *sfp;
+  char *tfn;
+  char *cmd;
+
+#if 0
+  /* XXX */
+  return NULL;
+#endif
+
+  opropnext = &oproplist;
+  if ((dirp = opendir(PENDING)) == NULL) {
+    perror("opendir()");
+    exit(EXIT_FAILURE);
+  }
+  while ((dp = readdir(dirp)) != NULL) {
+    if (dp->d_type != DT_REG) {
+      continue;
+    }
+    if (strlen(dp->d_name) > 12) {
+      fprintf(stderr,
+	      "warning: skipping bad filename %s in pending directory %s\n",
+	      dp->d_name, PENDING);
+      continue;
+    }
+    printf("%s\n", dp->d_name);
+    if ((prop = malloc(sizeof(struct proposal))) == NULL) {
+      perror("malloc()");
+      exit(EXIT_FAILURE);
+    }
+    prop->code = 'C';
+    prop->type = 'E';
+    strlcpy(prop->id, dp->d_name, 13);
+    if (asprintf(&prop->path, "%s/%s", PENDING, dp->d_name) == -1) {
+      perror("asprintf()");
+      exit(EXIT_FAILURE);
+    }
+
+    if (stat(prop->path, &sb) != 0) {
+      perror("stat()");
+      exit(EXIT_FAILURE);
+    }
+
+    prop->usize = (unsigned long) sb.st_size;
+
+    if ((sfn = strdup(WL2K_TEMPFILE_TEMPLATE)) == NULL) {
+      perror("strdup()");
+      exit(EXIT_FAILURE);
+    }
+
+    /* XXX */
+    if ((tfn = mktemp(sfn)) == NULL) {
+      perror(sfn);
+      exit(EXIT_FAILURE);
+    }
+
+    if (asprintf(&cmd, "./lzhuf_1 e1 %s %s", prop->path, tfn) == -1) {
+      perror("asprintf()");
+      exit(EXIT_FAILURE);
+    }
+    if (system(cmd) != 0) {
+      fprintf(stderr, "error uncompressing received data\n");
+      exit(EXIT_FAILURE);
+    }
+    free(cmd);
+
+    if (stat(tfn, &sb) != 0) {
+      perror("stat()");
+      exit(EXIT_FAILURE);
+    }
+    prop->csize = (unsigned long) sb.st_size;
+    if ((prop->cdata = malloc(prop->csize * sizeof(unsigned char))) == NULL) {
+      perror("malloc()");
+      exit(EXIT_FAILURE);
+    }
+
+    if ((sfp = fopen(tfn, "r")) == NULL) {
+      perror("fopen()");
+      exit(EXIT_FAILURE);
+    }
+
+    printf("sfp %p prop->path %s tfn %s\n", sfp, prop->path, tfn);
+
+    if (fread(prop->cdata, prop->csize, 1, sfp) != 1) {
+      perror("fread()");
+      exit(EXIT_FAILURE);
+    }
+    fclose(sfp);
+    unlink(tfn);
+    free(sfn);
+
+    prop->next = NULL;
+
+    *opropnext = prop;
+    opropnext = &prop->next;
+  }
+  closedir(dirp);
+
+  printf("---\n");
+
+  for (prop = oproplist; prop != NULL; prop = prop->next) {
+    printprop(prop);
+  }
+
+  return oproplist;
+}
+
+static int
+b2outboundproposal(FILE *fp, char *lastcommand, struct proposal *oproplist)
+{
+  int i;
+  char *sp;
+  char *cp;
+  int cksum = 0;
+
+  if (oproplist) {
+    for (i = 0; i < PROPLIMIT; i++) {
+      if (asprintf(&sp, "F%c %cM %s %lu %lu 0\r",
+		  oproplist->code,
+		  oproplist->type,
+		  oproplist->id,
+		  oproplist->usize,
+		  oproplist->csize) == -1) {
+	perror("asprintf()");
+	exit(EXIT_FAILURE);
+      }
+      printf("%s\n", sp);
+      fprintf(fp, "%s", sp);
+      for (cp = sp; *cp; cp++) {
+	cksum += (unsigned char) *cp;
+      }
+      free(sp);
+      if ((oproplist = oproplist->next) == NULL) {
+	break;
+      }
+    }
+    cksum = -cksum & 0xff;
+    printf("F> %2X\n", cksum);
+    fprintf(fp, "F> %2X\r", cksum);
+    fflush(fp);
+    return 0;
+  } else if (strncmp(lastcommand, "FF", 2) == 0) {
+    fprintf(fp, "FQ\r\n");
+    printf("FQ\n");
+    return -1;
+  } else {
+    fprintf(fp, "FF\r\n");
+    printf("FF\n");
+    return 0;
+  }
 }
 
 char *
@@ -246,22 +433,6 @@ wl2kgetline(FILE *fp)
   return NULL;
 }
 
-static int
-b2outboundproposal(FILE *fp, char *lastcommand)
-{
-  if (0) {
-    /* XXX send outbound proposals */
-  } else if (strncmp(lastcommand, "FF", 2) == 0) {
-    fprintf(fp, "FQ\r\n");
-    printf("FQ\n");
-    return -1;
-  } else {
-    fprintf(fp, "FF\r\n");
-    printf("FF\n");
-    return 0;
-  }
-}
-
 void
 wl2kexchange(FILE *fp)
 {
@@ -274,13 +445,16 @@ wl2kexchange(FILE *fp)
   char *inboundsidcodes = NULL;
   char *line;
   struct proposal *prop;
-  struct proposal proplist[PROPLIMIT];
-  char sfn[17] = "";
+  struct proposal ipropary[PROPLIMIT];
+  struct proposal *oproplist;
+  char *sfn;
   FILE *sfp;
   int fd = -1;
   char *cmd;
   unsigned long sentcksum;
   char *endp;
+
+  oproplist = prepare_outbound_proposals();
 
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("/%s/\n", line);
@@ -316,7 +490,7 @@ wl2kexchange(FILE *fp)
     exit(EXIT_FAILURE);
   }
 
-  if (b2outboundproposal(fp, line) != 0) {
+  if (b2outboundproposal(fp, line, oproplist) != 0) {
     return;
   }
 
@@ -342,15 +516,8 @@ wl2kexchange(FILE *fp)
 	fprintf(stderr, "failed to parse proposal\n");
 	exit(EXIT_FAILURE);
       }
-      printf("proposal code %c type %c id %s usize %u csize %u\n",
-	     prop->code, prop->type, prop->id, prop->usize, prop->csize);
-      memcpy(&proplist[proposals], prop, sizeof(struct proposal));
-      printf("proposal code %c type %c id %s usize %u csize %u\n",
-	     proplist[proposals].code,
-	     proplist[proposals].type,
-	     proplist[proposals].id,
-	     proplist[proposals].usize,
-	     proplist[proposals].csize);
+      memcpy(&ipropary[proposals], prop, sizeof(struct proposal));
+      printprop(&ipropary[proposals]);
       proposals++;
     } else if (strncmp(line, "FF", 2) == 0) {
       /*
@@ -358,7 +525,7 @@ wl2kexchange(FILE *fp)
 	B2ConfirmSentMessages();
       }
       */
-      if (b2outboundproposal(fp, line) != 0) {
+      if (b2outboundproposal(fp, line, oproplist) != 0) {
 	return;
       }
     } else if (strncmp(line, "S", 1) == 0) {
@@ -388,7 +555,7 @@ wl2kexchange(FILE *fp)
 	fprintf(fp, "FS ");
 	printf("FS ");
 	for (i = 0; i < proposals; i++) {
-	  if (proplist[i].code == 'C') {
+	  if (ipropary[i].code == 'C') {
 	    putc('+', fp);
 	    putchar('+');
 	  } else {
@@ -400,10 +567,13 @@ wl2kexchange(FILE *fp)
 	printf("\n");
 
 	for (i = 0; i < proposals; i++) {
-	  if (proplist[i].code != 'C') {
+	  if (ipropary[i].code != 'C') {
 	    continue;
 	  }
-	  strlcpy(sfn, "/tmp/wl2k.XXXXXX", sizeof(sfn));
+	  if ((sfn = strdup(WL2K_TEMPFILE_TEMPLATE)) == NULL) {
+	    perror("strdup()");
+	    exit(EXIT_FAILURE);
+	  }
 	  if ((fd = mkstemp(sfn)) == -1 ||
 	      (sfp = fdopen(fd, "w+")) == NULL) {
 	    if (fd != -1) {
@@ -423,7 +593,7 @@ wl2kexchange(FILE *fp)
 	    exit(EXIT_FAILURE);
 	  }
 	  printf("extracting...\n");
-	  if (asprintf(&cmd, "./lzhuf_1 d1 %s %s", sfn, proplist[i].id) == -1) {
+	  if (asprintf(&cmd, "./lzhuf_1 d1 %s %s", sfn, ipropary[i].id) == -1) {
 	    perror("asprintf()");
 	    exit(EXIT_FAILURE);
 	  }
@@ -451,20 +621,20 @@ wl2kexchange(FILE *fp)
       }
       proposals = 0;
       proposalcksum = 0;
-      if (b2outboundproposal(fp, line) != 0) {
+      if (b2outboundproposal(fp, line, oproplist) != 0) {
 	return;
       }
     } else if (line[strlen(line - 1)] == '>') {
       /*
       if (bNeedAcknowledgement) {
 	B2ConfirmSentMessages();
-	if (b2outboundproposal(fp, line) != 0) {
+	if (b2outboundproposal(fp, line, oproplist) != 0) {
 	  return;
         }
       }
       */
     } else {
-      fprintf(stderr, "malformed proposal: %s\n", line);
+      fprintf(stderr, "unrecognized command: %s\n", line);
       exit(EXIT_FAILURE);
     }
   }
