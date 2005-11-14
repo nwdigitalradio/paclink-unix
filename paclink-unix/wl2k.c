@@ -29,6 +29,7 @@ __RCSID("$Id$");
 static int getrawchar(FILE *fp);
 static int getcompressed(FILE *fp, FILE *ofp);
 static struct proposal *parse_proposal(char *propline);
+static int b2outboundproposal(FILE *fp, char *lastcommand);
 
 static int
 getrawchar(FILE *fp)
@@ -245,13 +246,30 @@ wl2kgetline(FILE *fp)
   return NULL;
 }
 
+static int
+b2outboundproposal(FILE *fp, char *lastcommand)
+{
+  if (0) {
+    /* XXX send outbound proposals */
+  } else if (strncmp(lastcommand, "FF", 2) == 0) {
+    fprintf(fp, "FQ\r\n");
+    printf("FQ\n");
+    return -1;
+  } else {
+    fprintf(fp, "FF\r\n");
+    printf("FF\n");
+    return 0;
+  }
+}
+
 void
 wl2kexchange(FILE *fp)
 {
   char *cp;
   int proposals = 0;
+  int proposalcksum = 0;
   int i;
-  const char *sid = "[PaclinkUNIX-1.0-FHM]";
+  const char *sid = "[PaclinkUNIX-1.0-B2FHM]";
   char *inboundsid = NULL;
   char *inboundsidcodes = NULL;
   char *line;
@@ -261,9 +279,11 @@ wl2kexchange(FILE *fp)
   FILE *sfp;
   int fd = -1;
   char *cmd;
+  unsigned long sentcksum;
+  char *endp;
 
   while ((line = wl2kgetline(fp)) != NULL) {
-    printf("%s\n", line);
+    printf("/%s/\n", line);
     if (line[0] == '[') {
       inboundsid = strdup(line);
       if ((cp = strrchr(inboundsid, '-')) == NULL) {
@@ -277,10 +297,17 @@ wl2kexchange(FILE *fp)
       }
       *cp = '\0';
       strupper(inboundsidcodes);
-      if (strchr(inboundsidcodes, 'F') == NULL) {
-	fprintf(stderr, "sid %s does not support FBB protocol\n", inboundsid);
+      if (strstr(inboundsidcodes, "B2F") == NULL) {
+	fprintf(stderr, "sid %s does not support B2F protocol\n", inboundsid);
 	exit(EXIT_FAILURE);
       }
+    } else if (line[strlen(line) - 1] == '>') {
+      if (strchr(inboundsidcodes, 'I')) {
+	/* XXX */
+	/* printf("; %s DE %s QTC %d", remotecall, localcall, trafficcount);*/
+      }
+      fprintf(fp, "%s\r\n", sid);
+      printf("%s\n", sid);
       break;
     }
   }
@@ -289,58 +316,75 @@ wl2kexchange(FILE *fp)
     exit(EXIT_FAILURE);
   }
 
-  while ((line = wl2kgetline(fp)) != NULL) {
-    printf("%s\n", line);
-    if (strchr(line, '>')) {
-      fprintf(fp, "%s\r\n", sid);
-      printf("%s\n", sid);
-      fprintf(fp, "FF\r\n");
-      printf("FF\n");
-      break;
-    }
-  }
-  if (line == NULL) {
-    fprintf(stderr, "Lost connection. 2\n");
-    exit(EXIT_FAILURE);
+  if (b2outboundproposal(fp, line) != 0) {
+    return;
   }
 
-  proposals = 0;
-
   while ((line = wl2kgetline(fp)) != NULL) {
-    printf("#%s#\n", line);
-    switch(line[0]) {
-    case 'F':
-      switch(line[1]) {
-      case 'A':
-      case 'B':
-      case 'C':
-	if (proposals == PROPLIMIT) {
-	  fprintf(stderr, "too many proposals\n");
-	  exit(EXIT_FAILURE);
-	}
-	if ((prop = parse_proposal(line)) == NULL) {
-	  fprintf(stderr, "failed to parse proposal\n");
-	  exit(EXIT_FAILURE);
-	}
-	printf("proposal code %c type %c id %s usize %u csize %u\n",
-	       prop->code, prop->type, prop->id, prop->usize, prop->csize);
-	memcpy(&proplist[proposals], prop, sizeof(struct proposal));
-	printf("proposal code %c type %c id %s usize %u csize %u\n",
-	       proplist[proposals].code,
-	       proplist[proposals].type,
-	       proplist[proposals].id,
-	       proplist[proposals].usize,
-	       proplist[proposals].csize);
-	proposals++;
-	break;
-      case '>':
-	printf("%d proposals\n", proposals);
-	if (proposals == 0) {
-	  fprintf(fp, "FF\r\n");
-	  printf("FF\n");
-	  /*	  return;*/
-	  break;
-	}
+    printf("/%s/\n", line);
+    if (strncmp(line, ";", 1) == 0) {
+      /* do nothing */
+    } else if (strncmp(line, "FC", 2) == 0) {
+      for (cp = line; *cp; cp++) {
+	proposalcksum += (unsigned char) *cp;
+      }
+      proposalcksum += '\r'; /* bletch */
+      if (proposals == PROPLIMIT) {
+	fprintf(stderr, "too many proposals\n");
+	exit(EXIT_FAILURE);
+      }
+      /*
+      if (bNeedAcknowledgement) {
+	B2ConfirmSentMessages();
+      }
+      */
+      if ((prop = parse_proposal(line)) == NULL) {
+	fprintf(stderr, "failed to parse proposal\n");
+	exit(EXIT_FAILURE);
+      }
+      printf("proposal code %c type %c id %s usize %u csize %u\n",
+	     prop->code, prop->type, prop->id, prop->usize, prop->csize);
+      memcpy(&proplist[proposals], prop, sizeof(struct proposal));
+      printf("proposal code %c type %c id %s usize %u csize %u\n",
+	     proplist[proposals].code,
+	     proplist[proposals].type,
+	     proplist[proposals].id,
+	     proplist[proposals].usize,
+	     proplist[proposals].csize);
+      proposals++;
+    } else if (strncmp(line, "FF", 2) == 0) {
+      /*
+      if (bNeedAcknowledgement) {
+	B2ConfirmSentMessages();
+      }
+      */
+      if (b2outboundproposal(fp, line) != 0) {
+	return;
+      }
+    } else if (strncmp(line, "S", 1) == 0) {
+      /* Send("[441] - Command:""" & sCommand & """ not recognized - disconnecting") */
+      return;
+    } else if (strncmp(line, "B", 1) == 0) {
+      return;
+    } else if (strncmp(line, "FQ", 2) == 0) {
+      /*
+      if (bNeedAcknowledgement) {
+	B2ConfirmSentMessages();
+      }
+      */
+      return;
+    } else if (strncmp(line, "F>", 2) == 0) {
+      proposalcksum = (-proposalcksum) & 0xff;
+      sentcksum = strtoul(line + 2, &endp, 16);
+
+      if (sentcksum != (unsigned long) proposalcksum) {
+	fprintf(stderr, "proposal cksum mismatch\n");
+	exit(EXIT_FAILURE);
+      }
+      
+      printf("%d proposals\n", proposals);
+
+      if (proposals != 0) {
 	fprintf(fp, "FS ");
 	printf("FS ");
 	for (i = 0; i < proposals; i++) {
@@ -404,23 +448,24 @@ wl2kexchange(FILE *fp)
 	  }
 #endif
 	}
-	proposals = 0;
-	fprintf(fp, "FF\r\n");
-	printf("FF\n");
-	break;
-      case 'Q':
-	return;
-	break;
-      default:
-	fprintf(stderr, "malformed proposal: %s\n", line);
-	exit(EXIT_FAILURE);
-	break;
       }
-      break;
-    default:
+      proposals = 0;
+      proposalcksum = 0;
+      if (b2outboundproposal(fp, line) != 0) {
+	return;
+      }
+    } else if (line[strlen(line - 1)] == '>') {
+      /*
+      if (bNeedAcknowledgement) {
+	B2ConfirmSentMessages();
+	if (b2outboundproposal(fp, line) != 0) {
+	  return;
+        }
+      }
+      */
+    } else {
       fprintf(stderr, "malformed proposal: %s\n", line);
       exit(EXIT_FAILURE);
-      break;
     }
   }
   if (line == NULL) {
