@@ -32,8 +32,9 @@ __RCSID("$Id$");
 static int getrawchar(FILE *fp);
 static int getcompressed(FILE *fp, FILE *ofp);
 static struct proposal *parse_proposal(char *propline);
-static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal *oproplist);
+static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist);
 static void printprop(struct proposal *prop);
+static void putcompressed(struct proposal *prop, FILE *fp);
 
 struct proposal {
   char code;
@@ -53,6 +54,10 @@ getrawchar(FILE *fp)
 
   resettimeout();
   c = fgetc(fp);
+  if (c == EOF) {
+    fprintf(stderr, "lost connection in getrawchar()\n");
+    exit(EXIT_FAILURE);
+  }
   return c;
 }
 
@@ -114,6 +119,7 @@ getcompressed(FILE *fp, FILE *ofp)
     return WL2K_COMPRESSED_BAD;
   }
   if (strcmp(offset, "0") != 0) {
+    /* XXX */
     return WL2K_COMPRESSED_BAD;
   }
 
@@ -153,6 +159,65 @@ getcompressed(FILE *fp, FILE *ofp)
     }
   }
   return WL2K_COMPRESSED_BAD;
+}
+
+static void
+putcompressed(struct proposal *prop, FILE *fp)
+{
+  int len;
+  int i;
+  unsigned char title[81];
+  unsigned char offset[7];
+  int cksum = 0;
+  char *cp;
+  long rem;
+  int off = 0; /* XXX */
+
+  strcpy(title, "test"); /* XXX */
+  snprintf(offset, sizeof(offset), "%d", off); /* XXX */
+
+  len = strlen(title) + strlen(offset) + 2;
+  fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL);
+
+  rem = prop->csize;
+  cp = prop->cdata;
+
+  if (rem < 6) {
+    fprintf(stderr, "invalid compressed data\n");
+    exit(EXIT_FAILURE);
+  }
+  fprintf(fp, "%c%c", CHRSTX, 6);
+  for (i = 0; i < 6; i++) {
+    cksum += *cp;
+    fputc(*cp++, fp);
+  }
+  rem -= 6;
+
+  cp += off;
+  rem -= off;
+
+  if (rem < 0) {
+    fprintf(stderr, "invalid offset\n");
+    exit(EXIT_FAILURE);
+  }
+
+  while (rem > 0) {
+    printf("... %ld\n", rem);
+    if (rem > 250) {
+      len = 250;
+    } else {
+      len = rem;
+    }
+    fprintf(fp, "%c%c", CHRSTX, len);
+    while (rem--) {
+      cksum += *cp;
+      fputc(*cp++, fp);
+      len--;
+    }
+  }
+
+  cksum = -cksum & 0xff;
+  fprintf(fp, "%c%c", CHREOT, cksum);
 }
 
 static struct proposal *
@@ -265,11 +330,6 @@ prepare_outbound_proposals(void)
   char *tfn;
   char *cmd;
 
-#if 0
-  /* XXX */
-  return NULL;
-#endif
-
   opropnext = &oproplist;
   if ((dirp = opendir(PENDING)) == NULL) {
     perror("opendir()");
@@ -368,21 +428,24 @@ prepare_outbound_proposals(void)
 }
 
 static int
-b2outboundproposal(FILE *fp, char *lastcommand, struct proposal *oproplist)
+b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 {
   int i;
   char *sp;
   char *cp;
   int cksum = 0;
+  char *line;
+  struct proposal *prop;
 
-  if (oproplist) {
+  if (*oproplist) {
+    prop = *oproplist;
     for (i = 0; i < PROPLIMIT; i++) {
       if (asprintf(&sp, "F%c %cM %s %lu %lu 0\r",
-		  oproplist->code,
-		  oproplist->type,
-		  oproplist->id,
-		  oproplist->usize,
-		  oproplist->csize) == -1) {
+		  prop->code,
+		  prop->type,
+		  prop->id,
+		  prop->usize,
+		  prop->csize) == -1) {
 	perror("asprintf()");
 	exit(EXIT_FAILURE);
       }
@@ -392,14 +455,28 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal *oproplist)
 	cksum += (unsigned char) *cp;
       }
       free(sp);
-      if ((oproplist = oproplist->next) == NULL) {
+      if ((prop = prop->next) == NULL) {
 	break;
       }
     }
     cksum = -cksum & 0xff;
     printf("F> %2X\n", cksum);
     fprintf(fp, "F> %2X\r", cksum);
-    fflush(fp);
+    if ((line = wl2kgetline(fp)) == NULL) {
+      fprintf(stderr, "connection closed\n");
+      exit(EXIT_FAILURE);
+    }
+    printf("proposal response: %s\n", line);
+    /* XXX parse proposal response */
+
+    prop = *oproplist;
+    for (i = 0; i < PROPLIMIT; i++) {
+      putcompressed(prop, fp);
+      if ((prop = prop->next) == NULL) {
+	break;
+      }
+    }
+    *oproplist = prop;
     return 0;
   } else if (strncmp(lastcommand, "FF", 2) == 0) {
     fprintf(fp, "FQ\r\n");
@@ -490,7 +567,7 @@ wl2kexchange(FILE *fp)
     exit(EXIT_FAILURE);
   }
 
-  if (b2outboundproposal(fp, line, oproplist) != 0) {
+  if (b2outboundproposal(fp, line, &oproplist) != 0) {
     return;
   }
 
@@ -525,7 +602,7 @@ wl2kexchange(FILE *fp)
 	B2ConfirmSentMessages();
       }
       */
-      if (b2outboundproposal(fp, line, oproplist) != 0) {
+      if (b2outboundproposal(fp, line, &oproplist) != 0) {
 	return;
       }
     } else if (strncmp(line, "S", 1) == 0) {
@@ -556,8 +633,8 @@ wl2kexchange(FILE *fp)
 	printf("FS ");
 	for (i = 0; i < proposals; i++) {
 	  if (ipropary[i].code == 'C') {
-	    putc('+', fp);
-	    putchar('+');
+	    putc('Y', fp);
+	    putchar('Y');
 	  } else {
 	    putc('N', fp);
 	    putchar('N');
@@ -621,14 +698,14 @@ wl2kexchange(FILE *fp)
       }
       proposals = 0;
       proposalcksum = 0;
-      if (b2outboundproposal(fp, line, oproplist) != 0) {
+      if (b2outboundproposal(fp, line, &oproplist) != 0) {
 	return;
       }
     } else if (line[strlen(line - 1)] == '>') {
       /*
       if (bNeedAcknowledgement) {
 	B2ConfirmSentMessages();
-	if (b2outboundproposal(fp, line, oproplist) != 0) {
+	if (b2outboundproposal(fp, line, &oproplist) != 0) {
 	  return;
         }
       }
