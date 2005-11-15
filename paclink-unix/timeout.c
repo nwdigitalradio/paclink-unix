@@ -22,7 +22,7 @@ __RCSID("$Id$");
 unsigned int timeoutsecs;
 
 void
-sigalrm(int sig __attribute__((__unused__)))
+sigalrm(int sig ATTRIBUTE_UNUSED)
 {
   const char msg[] = "Timed out, exiting!\n";
   write(STDERR_FILENO, msg, sizeof(msg));
