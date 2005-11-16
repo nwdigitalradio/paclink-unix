@@ -227,6 +227,7 @@ AX_PATH_BDB_STUFF DB_VERSION_MAJOR,DB_VERSION_MINOR,DB_VERSION_PATCH
     fi  
 
     if test "$ax_path_bdb_no_options_DONE" = "no" ; then
+ax_compare_version=no
       # Check for highest in /usr/local/BerkeleyDB*
       AX_PATH_BDB_PATH_FIND_HIGHEST([
         if test "$ax_path_bdb_no_options_ok" = "yes" ; then
