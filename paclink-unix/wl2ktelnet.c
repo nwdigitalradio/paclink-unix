@@ -33,13 +33,14 @@ __RCSID("$Id$");
 #include "progname.h"
 #include "timeout.h"
 #include "wl2k.h"
+#include "strupper.h"
 
 static void usage(void);
 
 static void
 usage(void)
 {
-  fprintf(stderr, "usage:  %s mycall hostname port timeoutsecs password\n", progname);
+  fprintf(stderr, "usage:  %s mycall yourcall hostname port timeoutsecs password\n", progname);
 }
 
 int
@@ -55,17 +56,22 @@ main(int argc, char *argv[])
   int timeoutsecs;
 
 #define MYCALL argv[1]
-#define HOSTNAME argv[2]
-#define PORT argv[3]
-#define TIMEOUTSECS argv[4]
-#define PASSWORD argv[5]
+#define YOURCALL argv[2]
+#define HOSTNAME argv[3]
+#define PORT argv[4]
+#define TIMEOUTSECS argv[5]
+#define PASSWORD argv[6]
 
   setlinebuf(stdout);
 
-  if (argc != 6) {
+  if (argc != 7) {
     usage();
     exit(EXIT_FAILURE);
   }
+
+  strupper(MYCALL);
+  strupper(YOURCALL);
+
   port = (int) strtol(PORT, &endp, 10);
   if (*endp != '\0') {
     usage();
@@ -139,7 +145,7 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  wl2kexchange(fp);
+  wl2kexchange(MYCALL, YOURCALL, fp);
 
   fclose(fp);
   exit(EXIT_SUCCESS);

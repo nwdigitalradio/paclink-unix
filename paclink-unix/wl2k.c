@@ -14,11 +14,15 @@ __RCSID("$Id$");
 #if HAVE_STRING_H
 # include <string.h>
 #endif
+#if HAVE_STRINGS_H
+# include <strings.h>
+#endif
 #if HAVE_UNISTD_H
 # include <unistd.h>
 #endif
 #include <dirent.h>
 #include <sys/stat.h>
+#include <ctype.h>
 
 #include "strupper.h"
 #include "wl2k.h"
@@ -27,14 +31,7 @@ __RCSID("$Id$");
 #define PROPLIMIT 5
 #define WL2KBUF 2048
 #define WL2K_TEMPFILE_TEMPLATE "/tmp/wl2k.XXXXXX"
-#define PENDING "pending"
-
-static int getrawchar(FILE *fp);
-static int getcompressed(FILE *fp, FILE *ofp);
-static struct proposal *parse_proposal(char *propline);
-static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist);
-static void printprop(struct proposal *prop);
-static void putcompressed(struct proposal *prop, FILE *fp);
+#define PENDING "pending" /* XXX */
 
 struct proposal {
   char code;
@@ -45,7 +42,17 @@ struct proposal {
   struct proposal *next;
   char *path;
   unsigned char *cdata;
+  char *title;
+  unsigned long offset;
 };
+
+static int getrawchar(FILE *fp);
+static int getcompressed(FILE *fp, FILE *ofp);
+static struct proposal *parse_proposal(char *propline);
+static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist);
+static void printprop(struct proposal *prop);
+static void putcompressed(struct proposal *prop, FILE *fp);
+static char *getline(FILE *fp, int terminator);
 
 static int
 getrawchar(FILE *fp)
@@ -119,7 +126,6 @@ getcompressed(FILE *fp, FILE *ofp)
     return WL2K_COMPRESSED_BAD;
   }
   if (strcmp(offset, "0") != 0) {
-    /* XXX */
     return WL2K_COMPRESSED_BAD;
   }
 
@@ -171,10 +177,9 @@ putcompressed(struct proposal *prop, FILE *fp)
   int cksum = 0;
   char *cp;
   long rem;
-  int off = 0; /* XXX */
 
-  strcpy(title, "test"); /* XXX */
-  snprintf(offset, sizeof(offset), "%d", off); /* XXX */
+  strlcpy(title, prop->title, sizeof(title));
+  snprintf(offset, sizeof(offset), "%lu", prop->offset);
 
   len = strlen(title) + strlen(offset) + 2;
   fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL);
@@ -193,8 +198,8 @@ putcompressed(struct proposal *prop, FILE *fp)
   }
   rem -= 6;
 
-  cp += off;
-  rem -= off;
+  cp += prop->offset;
+  rem -= prop->offset;
 
   if (rem < 0) {
     fprintf(stderr, "invalid offset\n");
@@ -329,6 +334,8 @@ prepare_outbound_proposals(void)
   FILE *sfp;
   char *tfn;
   char *cmd;
+  char *line;
+  unsigned char *cp;
 
   opropnext = &oproplist;
   if ((dirp = opendir(PENDING)) == NULL) {
@@ -411,6 +418,34 @@ prepare_outbound_proposals(void)
     unlink(tfn);
     free(sfn);
 
+    prop->title = NULL;
+
+    if ((sfp = fopen(prop->path, "r")) == NULL) {
+      perror("fopen()");
+      exit(EXIT_FAILURE);
+    }
+
+    while ((line = getline(sfp, '\n')) != NULL) {
+      if (strncasecmp(line, "Subject:", 8) == 0) {
+	if ((cp = strchr(line, '\n')) != NULL) {
+	  *cp = '\0';
+	}
+	cp = line + 8;
+	while (isspace(*cp)) {
+	  cp++;
+	}
+	if (strlen(cp) > 80) {
+	  cp[80] = '\0';
+	}
+	prop->title = strdup(cp);
+      }
+    }
+    fclose(sfp);
+
+    if (prop->title == NULL) {
+      prop->title = strdup("No subject");
+    }
+
     prop->next = NULL;
 
     *opropnext = prop;
@@ -449,7 +484,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 	perror("asprintf()");
 	exit(EXIT_FAILURE);
       }
-      printf("%s\n", sp);
+      printf(">%s\n", sp);
       fprintf(fp, "%s", sp);
       for (cp = sp; *cp; cp++) {
 	cksum += (unsigned char) *cp;
@@ -460,13 +495,13 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
       }
     }
     cksum = -cksum & 0xff;
-    printf("F> %2X\n", cksum);
+    printf(">F> %2X\n", cksum);
     fprintf(fp, "F> %2X\r", cksum);
     if ((line = wl2kgetline(fp)) == NULL) {
       fprintf(stderr, "connection closed\n");
       exit(EXIT_FAILURE);
     }
-    printf("proposal response: %s\n", line);
+    printf("<%s\n", line);
     /* XXX parse proposal response */
 
     prop = *oproplist;
@@ -479,29 +514,46 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     *oproplist = prop;
     return 0;
   } else if (strncmp(lastcommand, "FF", 2) == 0) {
-    fprintf(fp, "FQ\r\n");
-    printf("FQ\n");
+    printf(">FQ\n");
+    fprintf(fp, "FQ\r");
     return -1;
   } else {
-    fprintf(fp, "FF\r\n");
-    printf("FF\n");
+    printf(">FF\n");
+    fprintf(fp, "FF\r");
     return 0;
   }
 }
 
-char *
-wl2kgetline(FILE *fp)
+#define CHUNK 1
+
+static char *
+getline(FILE *fp, int terminator)
 {
-  static char buf[WL2KBUF];
-  int i;
+  static char *buf = NULL;
+  static int buflen = 0;
+  int i = 0;
   int c;
 
-  for (i = 0; i < WL2KBUF; i++) {
+  if (buflen == 0) {
+    buflen = CHUNK;
+    if ((buf = malloc(buflen * sizeof(char))) == NULL) {
+      perror("malloc()");
+      exit(EXIT_FAILURE);
+    }
+  }
+  for (i = 0; ; i++) {
+    if (i == buflen) {
+      buflen += CHUNK;
+      if ((buf = realloc(buf, buflen * sizeof(char))) == NULL) {
+	perror("realloc()");
+	exit(EXIT_FAILURE);
+      }
+    }
     resettimeout();
     if ((c = fgetc(fp)) == EOF) {
       return NULL;
     }
-    if (c == '\r') {
+    if (c == terminator) {
       buf[i] = '\0';
       return buf;
     }
@@ -510,8 +562,15 @@ wl2kgetline(FILE *fp)
   return NULL;
 }
 
+char *
+wl2kgetline(FILE *fp)
+{
+
+  return getline(fp, '\r');
+}
+
 void
-wl2kexchange(FILE *fp)
+wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 {
   char *cp;
   int proposals = 0;
@@ -530,11 +589,16 @@ wl2kexchange(FILE *fp)
   char *cmd;
   unsigned long sentcksum;
   char *endp;
+  int opropcount = 0;
 
   oproplist = prepare_outbound_proposals();
 
+  for (prop = oproplist; prop; prop = prop->next) {
+    opropcount++;
+  }
+
   while ((line = wl2kgetline(fp)) != NULL) {
-    printf("/%s/\n", line);
+    printf("<%s\n", line);
     if (line[0] == '[') {
       inboundsid = strdup(line);
       if ((cp = strrchr(inboundsid, '-')) == NULL) {
@@ -554,11 +618,13 @@ wl2kexchange(FILE *fp)
       }
     } else if (line[strlen(line) - 1] == '>') {
       if (strchr(inboundsidcodes, 'I')) {
-	/* XXX */
-	/* printf("; %s DE %s QTC %d", remotecall, localcall, trafficcount);*/
+#if 1
+	printf(">; %s DE %s QTC %d\n", yourcall, mycall, opropcount);
+	fprintf(fp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount);
+#endif
       }
-      fprintf(fp, "%s\r\n", sid);
-      printf("%s\n", sid);
+      printf(">%s\n", sid);
+      fprintf(fp, "%s\r", sid);
       break;
     }
   }
@@ -572,7 +638,7 @@ wl2kexchange(FILE *fp)
   }
 
   while ((line = wl2kgetline(fp)) != NULL) {
-    printf("/%s/\n", line);
+    printf("<%s\n", line);
     if (strncmp(line, ";", 1) == 0) {
       /* do nothing */
     } else if (strncmp(line, "FC", 2) == 0) {
@@ -640,8 +706,8 @@ wl2kexchange(FILE *fp)
 	    putchar('N');
 	  }
 	}
-	fprintf(fp, "\r\n");
 	printf("\n");
+	fprintf(fp, "\n");
 
 	for (i = 0; i < proposals; i++) {
 	  if (ipropary[i].code != 'C') {

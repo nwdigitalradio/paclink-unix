@@ -27,7 +27,7 @@ dnl =======================================================================
 dnl checks stdlib.h stdarg.h string.h float.h defines STDC_HEADERS
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS([sys/socket.h netinet/in.h arpa/inet.h netdb.h unistd.h signal.h])
+AC_CHECK_HEADERS([sys/socket.h netinet/in.h arpa/inet.h netdb.h unistd.h signal.h strings.h])
 
 dnl =======================================================================
 dnl Checks for typedefs, structures, and compiler characteristics.
