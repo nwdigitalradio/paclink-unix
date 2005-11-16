@@ -13,12 +13,20 @@ dnl =======================================================================
 
 AC_PROG_CC
 
+CPPFLAGS="$CPPFLAGS -I/usr/pkg/include/db4 -I/usr/pkg/include/db3"
+LDFLAGS="-L/usr/pkg/lib -Wl,-rpath,/usr/pkg/lib"
+
 dnl =======================================================================
 dnl Checks for libraries.
 dnl =======================================================================
 
 AC_SEARCH_LIBS(socket, socket)
 AC_SEARCH_LIBS(gethostbyname, nsl)
+AX_PATH_BDB([3], [
+		 LIBS="$BDB_LIBS $LIBS"
+		 LDFLAGS="$BDB_LDFLAGS $LDFLAGS"
+		 CPPFLAGS="$CPPFLAGS $BDB_CPPFLAGS"
+])
 
 dnl =======================================================================
 dnl Checks for header files.

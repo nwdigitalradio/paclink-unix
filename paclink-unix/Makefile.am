@@ -1,5 +1,7 @@
 # $Id$
 
+ACLOCAL_AMFLAGS=-I m4
+
 EXTRA_DIST=ascmail binmail.uue
 
 clean-local:
