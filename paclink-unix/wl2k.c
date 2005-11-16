@@ -181,6 +181,8 @@ putcompressed(struct proposal *prop, FILE *fp)
   strlcpy(title, prop->title, sizeof(title));
   snprintf(offset, sizeof(offset), "%lu", prop->offset);
 
+  printf("transmitting [%s] [offset %s]\n", title, offset);
+
   len = strlen(title) + strlen(offset) + 2;
   fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL);
 
@@ -419,6 +421,7 @@ prepare_outbound_proposals(void)
     free(sfn);
 
     prop->title = NULL;
+    prop->offset = 0;
 
     if ((sfp = fopen(prop->path, "r")) == NULL) {
       perror("fopen()");
@@ -427,6 +430,9 @@ prepare_outbound_proposals(void)
 
     while ((line = getline(sfp, '\n')) != NULL) {
       if (strncasecmp(line, "Subject:", 8) == 0) {
+	if ((cp = strchr(line, '\r')) != NULL) {
+	  *cp = '\0';
+	}
 	if ((cp = strchr(line, '\n')) != NULL) {
 	  *cp = '\0';
 	}
