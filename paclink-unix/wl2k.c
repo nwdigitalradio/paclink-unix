@@ -388,6 +388,7 @@ prepare_outbound_proposals(void)
       exit(EXIT_FAILURE);
     }
 
+    /* XXX */
     if (asprintf(&cmd, "./lzhuf_1 e1 %s %s", prop->path, tfn) == -1) {
       perror("asprintf()");
       exit(EXIT_FAILURE);
@@ -679,10 +680,8 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
       }
     } else if (line[strlen(line) - 1] == '>') {
       if (strchr(inboundsidcodes, 'I')) {
-#if 1
 	printf(">; %s DE %s QTC %d\n", yourcall, mycall, opropcount);
 	fprintf(fp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount);
-#endif
       }
       printf(">%s\n", sid);
       fprintf(fp, "%s\r", sid);
@@ -711,7 +710,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	fprintf(stderr, "too many proposals\n");
 	exit(EXIT_FAILURE);
       }
-      /*
+      /* XXX
       if (bNeedAcknowledgement) {
 	B2ConfirmSentMessages();
       }
@@ -724,7 +723,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
       printprop(&ipropary[proposals]);
       proposals++;
     } else if (strncmp(line, "FF", 2) == 0) {
-      /*
+      /* XXX
       if (bNeedAcknowledgement) {
 	B2ConfirmSentMessages();
       }
@@ -733,12 +732,12 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	return;
       }
     } else if (strncmp(line, "S", 1) == 0) {
-      /* Send("[441] - Command:""" & sCommand & """ not recognized - disconnecting") */
+      /* XXX Send("[441] - Command:""" & sCommand & """ not recognized - disconnecting") */
       return;
     } else if (strncmp(line, "B", 1) == 0) {
       return;
     } else if (strncmp(line, "FQ", 2) == 0) {
-      /*
+      /* XXX
       if (bNeedAcknowledgement) {
 	B2ConfirmSentMessages();
       }
@@ -833,7 +832,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	return;
       }
     } else if (line[strlen(line - 1)] == '>') {
-      /*
+      /* XXX
       if (bNeedAcknowledgement) {
 	B2ConfirmSentMessages();
 	if (b2outboundproposal(fp, line, &oproplist) != 0) {
