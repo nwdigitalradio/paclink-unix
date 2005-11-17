@@ -27,6 +27,7 @@ __RCSID("$Id$");
 #include "strupper.h"
 #include "wl2k.h"
 #include "timeout.h"
+#include "midseen.h"
 
 #define PROPLIMIT 5
 #define WL2KBUF 2048
@@ -36,7 +37,7 @@ __RCSID("$Id$");
 struct proposal {
   char code;
   char type;
-  char id[13];
+  char mid[13];
   unsigned long usize;
   unsigned long csize;
   struct proposal *next;
@@ -262,19 +263,19 @@ parse_proposal(char *propline)
       return NULL;
     }
     for (i = 0; i < 12; i++) {
-      prop.id[i] = *cp++;
-      if (prop.id[i] == ' ') {
-	prop.id[i] = '\0';
+      prop.mid[i] = *cp++;
+      if (prop.mid[i] == ' ') {
+	prop.mid[i] = '\0';
 	cp--;
 	break;
       } else {
-	if (prop.id[i] == '\0') {
+	if (prop.mid[i] == '\0') {
 	  fprintf(stderr, "malformed proposal 5\n");
 	  return NULL;
 	}
       }
     }
-    prop.id[12] = '\0';
+    prop.mid[12] = '\0';
     if (*cp++ != ' ') {
       fprintf(stderr, "malformed proposal 6\n");
       return NULL;
@@ -296,7 +297,7 @@ parse_proposal(char *propline)
   case 'B':
   default:
     prop.type = 'X';
-    prop.id[0] = '\0';
+    prop.mid[0] = '\0';
     prop.usize = 0;
     prop.csize = 0;
     break;
@@ -312,10 +313,10 @@ parse_proposal(char *propline)
 static void
 printprop(struct proposal *prop)
 {
-  printf("proposal code %c type %c id %s usize %lu csize %lu next %p path %s cdata %p\n",
+  printf("proposal code %c type %c mid %s usize %lu csize %lu next %p path %s cdata %p\n",
 	 prop->code,
 	 prop->type,
-	 prop->id,
+	 prop->mid,
 	 prop->usize,
 	 prop->csize,
 	 prop->next,
@@ -361,7 +362,7 @@ prepare_outbound_proposals(void)
     }
     prop->code = 'C';
     prop->type = 'E';
-    strlcpy(prop->id, dp->d_name, 13);
+    strlcpy(prop->mid, dp->d_name, 13);
     if (asprintf(&prop->path, "%s/%s", PENDING, dp->d_name) == -1) {
       perror("asprintf()");
       exit(EXIT_FAILURE);
@@ -484,7 +485,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
       if (asprintf(&sp, "F%c %cM %s %lu %lu 0\r",
 		  prop->code,
 		  prop->type,
-		  prop->id,
+		  prop->mid,
 		  prop->usize,
 		  prop->csize) == -1) {
 	perror("asprintf()");
@@ -596,6 +597,9 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
   unsigned long sentcksum;
   char *endp;
   int opropcount = 0;
+  char responsechar;
+
+  expire_mids();
 
   oproplist = prepare_outbound_proposals();
 
@@ -701,19 +705,23 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
       printf("%d proposals\n", proposals);
 
       if (proposals != 0) {
-	fprintf(fp, "FS ");
 	printf("FS ");
+	fprintf(fp, "FS ");
 	for (i = 0; i < proposals; i++) {
 	  if (ipropary[i].code == 'C') {
-	    putc('Y', fp);
-	    putchar('Y');
+	    if (check_mid(ipropary[i].mid)) {
+	      responsechar = 'N';
+	    } else {
+	      responsechar = 'Y';
+	    }
 	  } else {
-	    putc('N', fp);
-	    putchar('N');
+	    responsechar = 'L';
 	  }
+	  putchar(responsechar);
+	  putc(responsechar, fp);
 	}
 	printf("\n");
-	fprintf(fp, "\n");
+	fprintf(fp, "\r");
 
 	for (i = 0; i < proposals; i++) {
 	  if (ipropary[i].code != 'C') {
@@ -742,7 +750,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	    exit(EXIT_FAILURE);
 	  }
 	  printf("extracting...\n");
-	  if (asprintf(&cmd, "./lzhuf_1 d1 %s %s", sfn, ipropary[i].id) == -1) {
+	  if (asprintf(&cmd, "./lzhuf_1 d1 %s %s", sfn, ipropary[i].mid) == -1) {
 	    perror("asprintf()");
 	    exit(EXIT_FAILURE);
 	  }
@@ -751,9 +759,9 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	    exit(EXIT_FAILURE);
 	  }
 	  free(cmd);
-	  printf("\n");
-	  printf("Finished!\n");
 	  unlink(sfn);
+	  record_mid(ipropary[i].mid);
+	  printf("Finished!\n");
 #if 0
 	  while ((line = wl2kgetline(fp)) != NULL) {
 	    printf("%s\n", line);
