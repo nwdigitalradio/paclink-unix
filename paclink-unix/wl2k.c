@@ -56,6 +56,7 @@ static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **opr
 static void printprop(struct proposal *prop);
 static void putcompressed(struct proposal *prop, FILE *fp);
 static char *getline(FILE *fp, int terminator);
+static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 
 static int
 getrawchar(FILE *fp)
@@ -326,6 +327,23 @@ printprop(struct proposal *prop)
 	 prop->cdata);
 }
 
+static void
+dodelete(struct proposal **oproplist, struct proposal **nproplist)
+{
+  if ((oproplist == NULL) || (nproplist == NULL)) {
+    fprintf(stderr, "bad call to dodelete()\n");
+    exit(EXIT_FAILURE);
+  }
+  while (*oproplist != *nproplist) {
+    if (((*oproplist)->delete) && ((*oproplist)->path)) {
+      printf("DELETING PROPOSAL: ");
+      printprop(*oproplist);
+      unlink((*oproplist)->path);
+    }
+    oproplist = &((*oproplist)->next);
+  }
+}
+
 static struct proposal *
 prepare_outbound_proposals(void)
 {
@@ -566,6 +584,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     prop = *oproplist;
     for (i = 0; i < PROPLIMIT; i++) {
       putcompressed(prop, fp);
+      prop->delete = 1;
       if ((prop = prop->next) == NULL) {
 	break;
       }
@@ -642,6 +661,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
   struct proposal *prop;
   struct proposal ipropary[PROPLIMIT];
   struct proposal *oproplist;
+  struct proposal *nproplist;
   char *sfn;
   FILE *sfp;
   int fd = -1;
@@ -693,7 +713,8 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
     exit(EXIT_FAILURE);
   }
 
-  if (b2outboundproposal(fp, line, &oproplist) != 0) {
+  nproplist = oproplist;
+  if (b2outboundproposal(fp, line, &nproplist) != 0) {
     return;
   }
 
@@ -702,6 +723,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
     if (strncmp(line, ";", 1) == 0) {
       /* do nothing */
     } else if (strncmp(line, "FC", 2) == 0) {
+      dodelete(&oproplist, &nproplist);
       for (cp = line; *cp; cp++) {
 	proposalcksum += (unsigned char) *cp;
       }
@@ -710,11 +732,6 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	fprintf(stderr, "too many proposals\n");
 	exit(EXIT_FAILURE);
       }
-      /* XXX
-      if (bNeedAcknowledgement) {
-	B2ConfirmSentMessages();
-      }
-      */
       if ((prop = parse_proposal(line)) == NULL) {
 	fprintf(stderr, "failed to parse proposal\n");
 	exit(EXIT_FAILURE);
@@ -723,12 +740,8 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
       printprop(&ipropary[proposals]);
       proposals++;
     } else if (strncmp(line, "FF", 2) == 0) {
-      /* XXX
-      if (bNeedAcknowledgement) {
-	B2ConfirmSentMessages();
-      }
-      */
-      if (b2outboundproposal(fp, line, &oproplist) != 0) {
+      dodelete(&oproplist, &nproplist);
+      if (b2outboundproposal(fp, line, &nproplist) != 0) {
 	return;
       }
     } else if (strncmp(line, "S", 1) == 0) {
@@ -737,11 +750,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
     } else if (strncmp(line, "B", 1) == 0) {
       return;
     } else if (strncmp(line, "FQ", 2) == 0) {
-      /* XXX
-      if (bNeedAcknowledgement) {
-	B2ConfirmSentMessages();
-      }
-      */
+      dodelete(&oproplist, &nproplist);
       return;
     } else if (strncmp(line, "F>", 2) == 0) {
       proposalcksum = (-proposalcksum) & 0xff;
@@ -828,18 +837,14 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
       }
       proposals = 0;
       proposalcksum = 0;
-      if (b2outboundproposal(fp, line, &oproplist) != 0) {
+      if (b2outboundproposal(fp, line, &nproplist) != 0) {
 	return;
       }
     } else if (line[strlen(line - 1)] == '>') {
-      /* XXX
-      if (bNeedAcknowledgement) {
-	B2ConfirmSentMessages();
-	if (b2outboundproposal(fp, line, &oproplist) != 0) {
-	  return;
-        }
+      dodelete(&oproplist, &nproplist);
+      if (b2outboundproposal(fp, line, &nproplist) != 0) {
+	return;
       }
-      */
     } else {
       fprintf(stderr, "unrecognized command: %s\n", line);
       exit(EXIT_FAILURE);
