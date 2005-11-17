@@ -531,7 +531,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
   }
 }
 
-#define CHUNK 1
+#define CHUNK 1024
 
 static char *
 getline(FILE *fp, int terminator)
