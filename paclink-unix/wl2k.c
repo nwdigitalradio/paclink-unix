@@ -744,9 +744,6 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
       if (b2outboundproposal(fp, line, &nproplist) != 0) {
 	return;
       }
-    } else if (strncmp(line, "S", 1) == 0) {
-      /* XXX Send("[441] - Command:""" & sCommand & """ not recognized - disconnecting") */
-      return;
     } else if (strncmp(line, "B", 1) == 0) {
       return;
     } else if (strncmp(line, "FQ", 2) == 0) {
