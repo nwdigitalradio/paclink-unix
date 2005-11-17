@@ -45,6 +45,8 @@ struct proposal {
   unsigned char *cdata;
   char *title;
   unsigned long offset;
+  int accepted;
+  int delete;
 };
 
 static int getrawchar(FILE *fp);
@@ -423,6 +425,8 @@ prepare_outbound_proposals(void)
 
     prop->title = NULL;
     prop->offset = 0;
+    prop->accepted = 0;
+    prop->delete = 0;
 
     if ((sfp = fopen(prop->path, "r")) == NULL) {
       perror("fopen()");
@@ -474,10 +478,11 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 {
   int i;
   char *sp;
-  char *cp;
+  unsigned char *cp;
   int cksum = 0;
   char *line;
   struct proposal *prop;
+  char *endp;
 
   if (*oproplist) {
     prop = *oproplist;
@@ -509,7 +514,53 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
       exit(EXIT_FAILURE);
     }
     printf("<%s\n", line);
-    /* XXX parse proposal response */
+
+    if (strncmp(line, "FS ", 3) != 0) {
+      fprintf(stderr, "b2 protocol error\n");
+      exit(EXIT_FAILURE);
+    }
+    prop = *oproplist;
+    i = 0;
+    cp = line + 3;
+    while (*cp && isspace(*cp)) {
+      cp++;
+    }
+    while (*cp && prop) {
+      if (i == PROPLIMIT) {
+	fprintf(stderr, "B2 protocol error\n");
+	exit(EXIT_FAILURE);
+      }
+      prop->accepted = 0;
+      prop->delete = 0;
+      prop->offset = 0;
+      switch(*cp) {
+      case 'Y': case 'y':
+      case 'H': case 'h':
+      case '+':
+	prop->accepted = 1;
+	break;
+      case 'N': case 'n':
+      case 'R': case 'r':
+      case '-':
+	prop->delete = 1;
+	break;
+      case 'L': case 'l':
+      case '=':
+	break;
+      case 'A': case 'a':
+      case '!':
+	prop->accepted = 1;
+	prop->offset = strtoul(cp, &endp, 10);
+	cp = endp - 1;
+	break;
+      default:
+	fprintf(stderr, "B2 protocol error\n");
+	exit(EXIT_FAILURE);
+	break;
+      }
+      cp++;
+      prop = prop->next;
+    }
 
     prop = *oproplist;
     for (i = 0; i < PROPLIMIT; i++) {
