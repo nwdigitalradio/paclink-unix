@@ -764,11 +764,13 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	printf("FS ");
 	fprintf(fp, "FS ");
 	for (i = 0; i < proposals; i++) {
+	  ipropary[i].accepted = 0;
 	  if (ipropary[i].code == 'C') {
 	    if (check_mid(ipropary[i].mid)) {
 	      responsechar = 'N';
 	    } else {
 	      responsechar = 'Y';
+	      ipropary[i].accepted = 1;
 	    }
 	  } else {
 	    responsechar = 'L';
@@ -780,7 +782,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	fprintf(fp, "\r");
 
 	for (i = 0; i < proposals; i++) {
-	  if (ipropary[i].code != 'C') {
+	  if (ipropary[i].accepted != 1) {
 	    continue;
 	  }
 	  if ((sfn = strdup(WL2K_TEMPFILE_TEMPLATE)) == NULL) {
