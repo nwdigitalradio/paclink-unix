@@ -12,9 +12,7 @@ dnl Checks for programs.
 dnl =======================================================================
 
 AC_PROG_CC
-
-CPPFLAGS="$CPPFLAGS -I/usr/pkg/include/db4 -I/usr/pkg/include/db3"
-LDFLAGS="-L/usr/pkg/lib -Wl,-rpath,/usr/pkg/lib"
+AM_PROG_MKDIR_P
 
 dnl =======================================================================
 dnl Checks for libraries.
@@ -22,6 +20,17 @@ dnl =======================================================================
 
 AC_SEARCH_LIBS(socket, socket)
 AC_SEARCH_LIBS(gethostbyname, nsl)
+
+AC_CHECK_FILE(/usr/pkg/include/db4/db.h,
+[
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include/db4"
+		LDFLAGS="-L/usr/pkg/lib -Wl,-rpath,/usr/pkg/lib"
+])
+AC_CHECK_FILE(/usr/pkg/include/db3/db.h,
+[
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include/db3"
+		LDFLAGS="-L/usr/pkg/lib -Wl,-rpath,/usr/pkg/lib"
+])
 AX_PATH_BDB([3], [
 		 LIBS="$BDB_LIBS $LIBS"
 		 LDFLAGS="$BDB_LDFLAGS $LDFLAGS"
@@ -55,6 +64,8 @@ AC_MSG_RESULT($compiler_has_attribute_unused)
 if test x"$compiler_has_attribute_unused" = xyes; then
    AC_DEFINE(ATTRIBUTE_UNUSED, __attribute__((__unused__)), [Define to attribute for unused variables])
 fi
+
+CPPFLAGS="$CPPFLAGS -DLOCALSTATEDIR=\\\"${localstatedir}\\\""
 
 dnl =======================================================================
 dnl Output our results.

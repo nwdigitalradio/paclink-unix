@@ -32,7 +32,7 @@ __RCSID("$Id$");
 #define PROPLIMIT 5
 #define WL2KBUF 2048
 #define WL2K_TEMPFILE_TEMPLATE "/tmp/wl2k.XXXXXX"
-#define PENDING "pending" /* XXX */
+#define PENDING LOCALSTATEDIR "/wl2k/pending"
 
 struct proposal {
   char code;
