@@ -28,6 +28,7 @@ __RCSID("$Id$");
 #include "wl2k.h"
 #include "timeout.h"
 #include "midseen.h"
+#include "buffer.h"
 
 #define PROPLIMIT 5
 #define WL2KBUF 2048
@@ -602,40 +603,36 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
   }
 }
 
-#define CHUNK 1024
-
 static char *
 getline(FILE *fp, int terminator)
 {
-  static char *buf = NULL;
-  static int buflen = 0;
-  int i = 0;
+  static struct buffer *buf = NULL;
   int c;
 
-  if (buflen == 0) {
-    buflen = CHUNK;
-    if ((buf = malloc(buflen * sizeof(char))) == NULL) {
-      perror("malloc()");
+  if (buf == NULL) {
+    if ((buf = buffer_new()) == NULL) {
+      perror("buffer_new()");
       exit(EXIT_FAILURE);
     }
+  } else {
+    buffer_truncate(buf);
   }
-  for (i = 0; ; i++) {
-    if (i == buflen) {
-      buflen += CHUNK;
-      if ((buf = realloc(buf, buflen * sizeof(char))) == NULL) {
-	perror("realloc()");
-	exit(EXIT_FAILURE);
-      }
-    }
+  for (;;) {
     resettimeout();
     if ((c = fgetc(fp)) == EOF) {
       return NULL;
     }
     if (c == terminator) {
-      buf[i] = '\0';
-      return buf;
+      if (buffer_addchar(buf, '\0') == -1) {
+	perror("buffer_addchar()");
+	exit(EXIT_FAILURE);
+      }
+      return buf->data;
     }
-    buf[i] = c;
+    if (buffer_addchar(buf, c) == -1) {
+      perror("buffer_addchar()");
+      exit(EXIT_FAILURE);
+    }
   }
   return NULL;
 }
