@@ -651,7 +651,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
   int proposals = 0;
   int proposalcksum = 0;
   int i;
-  const char *sid = "[PaclinkUNIX-1.0-B2FHM]";
+  const char *sid = "[PaclinkUNIX-1.0-B2FIHM$]";
   char *inboundsid = NULL;
   char *inboundsidcodes = NULL;
   char *line;
