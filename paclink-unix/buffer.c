@@ -7,6 +7,7 @@
 __RCSID("$Id$");
 #endif
 
+#include <stdio.h>
 #ifdef HAVE_STDLIB_H
 # include <stdlib.h>
 #endif
@@ -23,6 +24,7 @@ buffer_new(void)
   }
   b->alen = 1;
   b->dlen = 0;
+  b->i = 0;
   if ((b->data = malloc(b->alen * sizeof(unsigned char))) == NULL) {
     return NULL;
   }
@@ -76,6 +78,23 @@ buffer_setstring(struct buffer *b, unsigned char *s)
 
   buffer_truncate(b);
   return buffer_addstring(b, s);
+}
+
+void
+buffer_rewind(struct buffer *b)
+{
+
+  b->i = 0;
+}
+
+int
+buffer_iterchar(struct buffer *b)
+{
+
+  if (b->i >= b->dlen) {
+    return EOF;
+  }
+  return b->data[b->i++];
 }
 
 void
