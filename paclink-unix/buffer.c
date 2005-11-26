@@ -13,8 +13,6 @@ __RCSID("$Id$");
 
 #include "buffer.h"
 
-#define BUFFER_CHUNK 1024
-
 struct buffer *
 buffer_new(void)
 {
@@ -23,7 +21,7 @@ buffer_new(void)
   if ((b = malloc(sizeof(struct buffer))) == NULL) {
     return NULL;
   }
-  b->alen = BUFFER_CHUNK;
+  b->alen = 1;
   b->dlen = 0;
   if ((b->data = malloc(b->alen * sizeof(unsigned char))) == NULL) {
     return NULL;
@@ -45,17 +43,39 @@ int
 buffer_addchar(struct buffer *b, int c)
 {
   unsigned char *d;
+  unsigned long newlen;
 
   if (b->dlen == b->alen) {
-    b->alen += BUFFER_CHUNK;
-    if ((d = realloc(b->data, b->alen * sizeof(unsigned char))) == NULL) {
-      b->alen -= BUFFER_CHUNK;
+    newlen = b->alen * 2;
+    if ((d = realloc(b->data, newlen * sizeof(unsigned char))) == NULL) {
       return -1;
     }
     b->data = d;
+    b->alen = newlen;
   }
   b->data[b->dlen++] = (unsigned char) c;
   return 0;
+}
+
+int
+buffer_addstring(struct buffer *b, unsigned char *s)
+{
+  int r;
+
+  for ( ; *s; s++) {
+    if ((r = buffer_addchar(b, *s)) != 0) {
+      return r;
+    }
+  }
+  return 0;
+}
+
+int
+buffer_setstring(struct buffer *b, unsigned char *s)
+{
+
+  buffer_truncate(b);
+  return buffer_addstring(b, s);
 }
 
 void
