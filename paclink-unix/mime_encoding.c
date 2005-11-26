@@ -65,7 +65,7 @@ base64_encode(struct buffer *inbuf)
       break;      
     }
     if (++linelen > 76) {
-      linelen %= 76;
+      linelen = 1;
       if (buffer_addstring(buf, "\r\n") == -1) {
 	perror("buffer_addstring()");
 	exit(EXIT_FAILURE);
@@ -80,7 +80,7 @@ base64_encode(struct buffer *inbuf)
   }
   while (state % 4) {
     if (++linelen > 76) {
-      linelen %= 76;
+      linelen = 1;
       if (buffer_addstring(buf, "\r\n") == -1) {
 	perror("buffer_addstring()");
 	exit(EXIT_FAILURE);
@@ -158,6 +158,159 @@ base64_decode(struct buffer *inbuf)
     }
     state++;
     state = state % 4;
+  }
+  return buf;
+}
+
+struct buffer *
+qp_encode(struct buffer *inbuf, int istext)
+{
+  struct buffer *buf;
+  int c;
+  int lc;
+  int pc = 0;
+  unsigned long linelen = 0;
+  char hexbuf[4];
+
+  if ((buf = buffer_new()) == NULL) {
+    perror("buffer_new()");
+    exit(EXIT_FAILURE);
+  }
+
+  buffer_rewind(inbuf);
+
+  while ((c = buffer_iterchar(inbuf)) != EOF) {
+    if (linelen > 70) {
+      linelen = 0;
+      if (buffer_addstring(buf, "=\r\n") == -1) {
+	perror("buffer_addstring()");
+	exit(EXIT_FAILURE);
+      }
+    }
+    if (istext) {
+      if (pc) {
+	pc = 0;
+	if (c == '\n') {
+	  lc = buffer_lastchar(buf);
+	  if ((lc == 9) || (lc == 32)) {
+	    if (buffer_addstring(buf, "=\r\n") == -1) {
+	      perror("buffer_addstring()");
+	      exit(EXIT_FAILURE);
+	    }
+	  }
+	  if (buffer_addstring(buf, "\r\n") == -1) {
+	    perror("buffer_addstring()");
+	    exit(EXIT_FAILURE);
+	  }
+	  linelen = 0;
+	  continue;
+	}
+	if (buffer_addstring(buf, "=0D") == -1) {
+	  perror("buffer_addstring()");
+	  exit(EXIT_FAILURE);
+	}
+	linelen += 3;
+      }
+      if (c == '\r') {
+	pc = 1;
+	continue;
+      }
+    }
+    if (((c >= 33) && (c <= 60))
+	|| ((c >= 62) && (c <= 126))
+	|| (c == 9)
+	|| (c == 32)) {
+      if (buffer_addchar(buf, c) == -1) {
+	perror("buffer_addchar()");
+	exit(EXIT_FAILURE);
+      }
+      linelen += 1;
+    } else {
+      sprintf(hexbuf, "=%02X", c);
+      if (buffer_addstring(buf, hexbuf) == -1) {
+	perror("buffer_addstring()");
+	exit(EXIT_FAILURE);
+      }
+      linelen += 3;
+    }
+  }
+  if (buffer_addstring(buf, "=\r\n") == -1) {
+    perror("buffer_addstring()");
+    exit(EXIT_FAILURE);
+  }
+  if (istext && pc) {
+    if (buffer_addstring(buf, "=0D=\r\n") == -1) {
+      perror("buffer_addstring()");
+      exit(EXIT_FAILURE);
+    }
+  }
+  return buf;
+}
+
+struct buffer *
+qp_decode(struct buffer *inbuf)
+{
+  struct buffer *buf;
+  int c;
+  int c1;
+  int c2;
+  unsigned long x;
+  char hexbuf[3];
+  char *endp;
+
+  if ((buf = buffer_new()) == NULL) {
+    perror("buffer_new()");
+    exit(EXIT_FAILURE);
+  }
+
+  buffer_rewind(inbuf);
+
+  while ((c = buffer_iterchar(inbuf)) != EOF) {
+    if (c == '=') {
+      if ((c1 = buffer_iterchar(inbuf)) == EOF) {
+	if (buffer_addchar(buf, c) == -1) {
+	  perror("buffer_addchar()");
+	  exit(EXIT_FAILURE);
+	}
+	return buf;
+      }
+      if ((c2 = buffer_iterchar(inbuf)) == EOF) {
+	if (buffer_addchar(buf, c) == -1) {
+	  perror("buffer_addchar()");
+	  exit(EXIT_FAILURE);
+	}
+	if (buffer_addchar(buf, c1) == -1) {
+	  perror("buffer_addchar()");
+	  exit(EXIT_FAILURE);
+	}
+	return buf;
+      }
+      if ((c1 == '\r') && (c2 == '\n')) {
+	continue;
+      }
+      sprintf(hexbuf, "%c%c", c1, c2);
+      x = strtoul(hexbuf, &endp, 16);
+      if ((endp != hexbuf + 2) || (*endp != '\0')) {
+	if (buffer_addchar(buf, c) == -1) {
+	  perror("buffer_addchar()");
+	  exit(EXIT_FAILURE);
+	}
+	if (buffer_addchar(buf, c1) == -1) {
+	  perror("buffer_addchar()");
+	  exit(EXIT_FAILURE);
+	}
+	if (buffer_addchar(buf, c2) == -1) {
+	  perror("buffer_addchar()");
+	  exit(EXIT_FAILURE);
+	}
+	continue;
+      }
+      c = x;
+    }
+    if (buffer_addchar(buf, c) == -1) {
+      perror("buffer_addchar()");
+      exit(EXIT_FAILURE);
+    }
   }
   return buf;
 }

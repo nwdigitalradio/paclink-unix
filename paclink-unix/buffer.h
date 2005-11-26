@@ -17,6 +17,7 @@ int buffer_addstring(struct buffer *b, const unsigned char *s);
 int buffer_setstring(struct buffer *b, const unsigned char *s);
 void buffer_rewind(struct buffer *b);
 int buffer_iterchar(struct buffer *b);
+int buffer_lastchar(struct buffer *b);
 void buffer_truncate(struct buffer *b);
 
 #endif

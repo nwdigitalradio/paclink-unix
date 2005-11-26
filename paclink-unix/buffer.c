@@ -97,6 +97,16 @@ buffer_iterchar(struct buffer *b)
   return b->data[b->i++];
 }
 
+int
+buffer_lastchar(struct buffer *b)
+{
+
+  if (b->dlen == 0) {
+    return EOF;
+  }
+  return b->data[b->dlen - 1];
+}
+
 void
 buffer_truncate(struct buffer *b)
 {
