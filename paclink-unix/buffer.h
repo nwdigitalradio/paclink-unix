@@ -13,8 +13,8 @@ struct buffer {
 struct buffer *buffer_new(void);
 void buffer_free(struct buffer *b);
 int buffer_addchar(struct buffer *b, int c);
-int buffer_addstring(struct buffer *b, unsigned char *s);
-int buffer_setstring(struct buffer *b, unsigned char *s);
+int buffer_addstring(struct buffer *b, const unsigned char *s);
+int buffer_setstring(struct buffer *b, const unsigned char *s);
 void buffer_rewind(struct buffer *b);
 int buffer_iterchar(struct buffer *b);
 void buffer_truncate(struct buffer *b);

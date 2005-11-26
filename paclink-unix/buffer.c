@@ -60,7 +60,7 @@ buffer_addchar(struct buffer *b, int c)
 }
 
 int
-buffer_addstring(struct buffer *b, unsigned char *s)
+buffer_addstring(struct buffer *b, const unsigned char *s)
 {
   int r;
 
@@ -73,7 +73,7 @@ buffer_addstring(struct buffer *b, unsigned char *s)
 }
 
 int
-buffer_setstring(struct buffer *b, unsigned char *s)
+buffer_setstring(struct buffer *b, const unsigned char *s)
 {
 
   buffer_truncate(b);
