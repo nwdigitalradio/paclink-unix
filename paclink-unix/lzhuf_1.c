@@ -13,6 +13,7 @@
 #include <ctype.h>
 
 #include "buffer.h"
+#include "lzhuf_1.h"
 
 static void InitTree(void);
 static void InsertNode(int r);
@@ -28,11 +29,6 @@ static int EncodePosition(unsigned c, struct buffer *outbuf);
 static int EncodeEnd(struct buffer *outbuf);
 static int DecodeChar(struct buffer *inbuf);
 static int DecodePosition(struct buffer *inbuf);
-
-int Encode(struct buffer *inbuf, struct buffer *outbuf);
-int version_1_Encode(struct buffer *inbuf, struct buffer *outbuf);
-int Decode(struct buffer *inbuf, struct buffer *outbuf);
-int version_1_Decode(struct buffer *inbuf, struct buffer *outbuf);
 
 /* crctab calculated by Mark G. Mendel, Network Systems Corporation */
 static unsigned short crctab[256] = {
@@ -72,7 +68,7 @@ static unsigned short crctab[256] = {
 
 #define updcrc(cp, crc) ((crc << 8) ^ crctab[(cp & 0xff) ^ (crc >> 8)])
 
-static unsigned long int textsize = 0, codesize = 0, printcount = 0;
+static unsigned long int textsize = 0, codesize = 0;
 static unsigned short crc;
 static unsigned putbuf;
 static unsigned char putlen;
@@ -586,32 +582,46 @@ DecodePosition(struct buffer *inbuf)
 }
 
 /* compression */
-int
-Encode(struct buffer *inbuf, struct buffer *outbuf)
+struct buffer *
+Encode(struct buffer *inbuf)
 {
   int i, c, len, r, s, last_match_length;
+#ifdef LZHUF_1_MAIN
+  unsigned int printcount;
+#endif
+  struct buffer *outbuf;
 
   crc = 0;
   putbuf = 0;
   putlen = 0;
+#ifdef LZHUF_1_MAIN
+  printcount = 1;
+#endif
 
   textsize = inbuf->dlen;
 
+  if ((outbuf = buffer_new()) == NULL) {
+    return NULL;
+  }
   if (crc_fputc((int)(textsize & 0xff), outbuf) == -1) {
-    return -1;
+    buffer_free(outbuf);
+    return NULL;
   }
   if (crc_fputc((int)((textsize >> 8) & 0xff), outbuf) == -1) {
-    return -1;
+    buffer_free(outbuf);
+    return NULL;
   }
   if (crc_fputc((int)((textsize >> 16) & 0xff), outbuf) == -1) {
-    return -1;
+    buffer_free(outbuf);
+    return NULL;
   }
   if (crc_fputc((int)((textsize >> 24) & 0xff), outbuf) == -1) {
-    return -1;
+    buffer_free(outbuf);
+    return NULL;
   }
 
   if (textsize == 0)
-    return 0;
+    return outbuf;
   buffer_rewind(inbuf);
   textsize = 0;                   /* rewind and re-read */
   StartHuff();
@@ -632,14 +642,17 @@ Encode(struct buffer *inbuf, struct buffer *outbuf)
     if (match_length <= THRESHOLD) {
       match_length = 1;
       if (EncodeChar(text_buf[r], outbuf) == -1) {
-	return -1;
+	buffer_free(outbuf);
+	return NULL;
       }
     } else {
       if (EncodeChar((unsigned) (255 - THRESHOLD + match_length), outbuf) == -1) {
-	return -1;
+	buffer_free(outbuf);
+	return NULL;
       }
       if (EncodePosition((unsigned) match_position, outbuf) == -1) {
-	return -1;
+	buffer_free(outbuf);
+	return NULL;
       }
     }
     last_match_length = match_length;
@@ -668,7 +681,8 @@ Encode(struct buffer *inbuf, struct buffer *outbuf)
     }
   } while (len > 0);
   if (EncodeEnd(outbuf) == -1) {
-    return -1;
+    buffer_free(outbuf);
+    return NULL;
   }
 
 #ifdef LZHUF_1_MAIN
@@ -676,27 +690,32 @@ Encode(struct buffer *inbuf, struct buffer *outbuf)
   fprintf(stderr, "Out: %ld bytes\n", codesize);
   fprintf(stderr, "Out/In: %.3f\n", (double) codesize / textsize);
 #endif
-  return 0;
+  return outbuf;
 }
 
-int
-version_1_Encode(struct buffer *inbuf, struct buffer *outbuf)
+struct buffer *
+version_1_Encode(struct buffer *inbuf)
 {
-  struct buffer *tmpoutbuf;
   int c;
+  struct buffer *tmpoutbuf;
+  struct buffer *outbuf;
 
-  if ((tmpoutbuf = buffer_new()) == NULL) {
-    perror("buffer_new()");
-    exit(EXIT_FAILURE);
+  if ((tmpoutbuf = Encode(inbuf)) == NULL) {
+    return NULL;
   }
-  if (Encode(inbuf, tmpoutbuf) == -1) {
-    return -1;
+  if ((outbuf = buffer_new()) == NULL) {
+    buffer_free(tmpoutbuf);
+    return NULL;
   }
   if (buffer_addchar(outbuf, (int) (crc & 0xff)) == -1) {
-    return -1;
+    buffer_free(tmpoutbuf);
+    buffer_free(outbuf);
+    return NULL;
   }
   if (buffer_addchar(outbuf, (int) ((crc >> 8) & 0xff)) == -1) {
-    return -1;
+    buffer_free(tmpoutbuf);
+    buffer_free(outbuf);
+    return NULL;
   }
 #ifdef LZHUF_1_MAIN
   fprintf(stderr, "CRC: %04x\n", crc);
@@ -704,48 +723,61 @@ version_1_Encode(struct buffer *inbuf, struct buffer *outbuf)
   buffer_rewind(tmpoutbuf);
   while ((c = buffer_iterchar(tmpoutbuf)) != EOF) {
     if (buffer_addchar(outbuf, c) == -1) {
-      return -1;
+      buffer_free(tmpoutbuf);
+      buffer_free(outbuf);
+      return NULL;
     }
   }
   buffer_free(tmpoutbuf);
-  return 0;
+  return outbuf;
 }
 
 /* recover */
-int
-Decode(struct buffer *inbuf, struct buffer *outbuf)
+struct buffer *
+Decode(struct buffer *inbuf)
 {
   int i, j, k, r, c;
   unsigned long int count;
   int x;
-
+#ifdef LZHUF_1_MAIN
+  unsigned int printcount;
+#endif
   getbuf = 0;
   getlen = 0;
+#ifdef LZHUF_1_MAIN
+  printcount = 0;
+#endif
+  struct buffer *outbuf;
 
   crc = 0;
 
   if ((x = crc_fgetc(inbuf)) == EOF) {
-    return -1;
+    return NULL;
   }
   textsize = x;
   if ((x = crc_fgetc(inbuf)) == EOF) {
-    return -1;
+    return NULL;
   }
   textsize |= (x << 8);
   if ((x = crc_fgetc(inbuf)) == EOF) {
-    return -1;
+    return NULL;
   }
   textsize |= (x << 16);
   if ((x = crc_fgetc(inbuf)) == EOF) {
-    return -1;
+    return NULL;
   }
   textsize |= (x << 24);
 
 #ifdef LZHUF_1_MAIN
   fprintf(stderr, "File Size = %lu\n", textsize);
 #endif
+  if ((outbuf = buffer_new()) == NULL) {
+    perror("buffer_new()");
+    exit(EXIT_FAILURE);
+  }
+
   if (textsize == 0)
-    return 0;
+    return outbuf;
 
   StartHuff();
   for (i = 0; i < N - F; i++)
@@ -755,7 +787,8 @@ Decode(struct buffer *inbuf, struct buffer *outbuf)
     c = DecodeChar(inbuf);
     if (c < 256) {
       if (buffer_addchar(outbuf, c) == EOF) {
-	return -1;
+	buffer_free(outbuf);
+	return NULL;
       }
       text_buf[r++] = c;
       r &= (N - 1);
@@ -766,7 +799,8 @@ Decode(struct buffer *inbuf, struct buffer *outbuf)
       for (k = 0; k < j; k++) {
 	c = text_buf[(i + k) & (N - 1)];
 	if (buffer_addchar(outbuf, c) == EOF) {
-	  return -1;
+	  buffer_free(outbuf);
+	  return NULL;
 	}
 	text_buf[r++] = c;
 	r &= (N - 1);
@@ -783,29 +817,29 @@ Decode(struct buffer *inbuf, struct buffer *outbuf)
 #ifdef LZHUF_1_MAIN
   fprintf(stderr, "%12ld\n", count);
 #endif
-  return 0;
+  return outbuf;
 }
 
-int
-version_1_Decode(struct buffer *inbuf, struct buffer *outbuf)
+struct buffer *
+version_1_Decode(struct buffer *inbuf)
 {
-  int r;
   int x;
   unsigned short crc_read;
+  struct buffer *outbuf;
 
   if ((x = crc_fgetc(inbuf)) == EOF) {
-    return -1;
+    return NULL;
   }
   crc_read = x;
   if ((x = crc_fgetc(inbuf)) == EOF) {
-    return -1;
+    return NULL;
   }
   crc_read |= (x << 8);
 #ifdef LZHUF_1_MAIN
   fprintf(stderr, "File CRC  = %04x\n", crc_read);
 #endif
 
-  r = Decode(inbuf, outbuf);
+  outbuf = Decode(inbuf);
   
 #ifdef LZHUF_1_MAIN
   fprintf(stderr, "Computed CRC = %04x\n", crc);
@@ -815,10 +849,11 @@ version_1_Decode(struct buffer *inbuf, struct buffer *outbuf)
 #ifdef LZHUF_1_MAIN
     fprintf(stderr, "CRC mismatch\n");
 #endif
-    return -1;
+    buffer_free(outbuf);
+    return NULL;
   }
 
-  return r;
+  return outbuf;
 }
 
 #ifdef LZHUF_1_MAIN
@@ -838,7 +873,6 @@ main(int argc, char *argv[])
   int version_1;
   struct buffer *inbuf;
   struct buffer *outbuf;
-  int r;
 
   if ((argc != 4)
       || (strlen(argv[1]) < 1)
@@ -855,27 +889,22 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  if ((outbuf = buffer_new()) == NULL) {
-    perror("buffer_new()");
-    exit(EXIT_FAILURE);
-  }
-
   if (toupper((unsigned char) *argv[1]) == 'E') {
     if (version_1) {
-      r = version_1_Encode(inbuf, outbuf);
+      outbuf = version_1_Encode(inbuf);
     } else {
-      r = Encode(inbuf, outbuf);
+      outbuf = Encode(inbuf);
     }
   } else {
     if (version_1) {
-      r = version_1_Decode(inbuf, outbuf);
+      outbuf = version_1_Decode(inbuf);
     } else {
-      r = Decode(inbuf, outbuf);
+      outbuf = Decode(inbuf);
     }
   }
   fprintf(stderr, "\n");
 
-  if (r == -1) {
+  if (outbuf == NULL) {
     exit(EXIT_FAILURE);
   }
 

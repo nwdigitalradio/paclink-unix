@@ -21,7 +21,6 @@ __RCSID("$Id$");
 # include <unistd.h>
 #endif
 #include <dirent.h>
-#include <sys/stat.h>
 #include <ctype.h>
 
 #include "strupper.h"
@@ -29,10 +28,9 @@ __RCSID("$Id$");
 #include "timeout.h"
 #include "midseen.h"
 #include "buffer.h"
+#include "lzhuf_1.h"
 
 #define PROPLIMIT 5
-#define WL2KBUF 2048
-#define WL2K_TEMPFILE_TEMPLATE "/tmp/wl2k.XXXXXX"
 #define PENDING LOCALSTATEDIR "/wl2k/pending"
 
 struct proposal {
@@ -43,7 +41,8 @@ struct proposal {
   unsigned long csize;
   struct proposal *next;
   char *path;
-  unsigned char *cdata;
+  struct buffer *ubuf;
+  struct buffer *cbuf;
   char *title;
   unsigned long offset;
   int accepted;
@@ -51,7 +50,7 @@ struct proposal {
 };
 
 static int getrawchar(FILE *fp);
-static int getcompressed(FILE *fp, FILE *ofp);
+static struct buffer *getcompressed(FILE *fp);
 static struct proposal *parse_proposal(char *propline);
 static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist);
 static void printprop(struct proposal *prop);
@@ -78,8 +77,8 @@ getrawchar(FILE *fp)
 #define CHRSTX 2
 #define CHREOT 4
 
-static int
-getcompressed(FILE *fp, FILE *ofp)
+struct buffer *
+getcompressed(FILE *fp)
 {
   int c;
   int len;
@@ -87,10 +86,15 @@ getcompressed(FILE *fp, FILE *ofp)
   unsigned char title[81];
   unsigned char offset[7];
   int cksum = 0;
+  struct buffer *buf;
 
+  if ((buf = buffer_new()) == NULL) {
+    return NULL;
+  }
   c = getrawchar(fp);
   if (c != CHRSOH) {
-    return WL2K_COMPRESSED_BAD;
+    buffer_free(buf);
+    return NULL;
   }
   len = getrawchar(fp);
   title[80] = '\0';
@@ -107,7 +111,8 @@ getcompressed(FILE *fp, FILE *ofp)
   c = getrawchar(fp);
   len--;
   if (c != CHRNUL) {
-    return WL2K_COMPRESSED_BAD;
+    buffer_free(buf);
+    return NULL;
   }
   printf("title: %s\n", title);
   offset[6] = '\0';
@@ -124,14 +129,17 @@ getcompressed(FILE *fp, FILE *ofp)
   c = getrawchar(fp);
   len--;
   if (c != CHRNUL) {
-    return WL2K_COMPRESSED_BAD;
+    buffer_free(buf);
+    return NULL;
   }
   printf("offset: %s\n", offset);
   if (len != 0) {
-    return WL2K_COMPRESSED_BAD;
+    buffer_free(buf);
+    return NULL;
   }
   if (strcmp(offset, "0") != 0) {
-    return WL2K_COMPRESSED_BAD;
+    buffer_free(buf);
+    return NULL;
   }
 
   for (;;) {
@@ -146,9 +154,9 @@ getcompressed(FILE *fp, FILE *ofp)
       printf("len %d\n", len);
       while (len--) {
 	c = getrawchar(fp);
-	if (fputc(c, ofp) == EOF) {
-	  perror("fputc()");
-	  return WL2K_COMPRESSED_BAD;
+	if (buffer_addchar(buf, c) == EOF) {
+	  buffer_free(buf);
+	  return NULL;
 	}
 	cksum = (cksum + c) % 256;
       }
@@ -159,17 +167,20 @@ getcompressed(FILE *fp, FILE *ofp)
       cksum = (cksum + c) % 256;
       if (cksum != 0) {
 	fprintf(stderr, "bad cksum\n");
-	return WL2K_COMPRESSED_BAD;
+	buffer_free(buf);
+	return NULL;
       }
-      return WL2K_COMPRESSED_GOOD;
+      return buf;
       break;
     default:
       fprintf(stderr, "unexpected character in compressed stream\n");
-      return WL2K_COMPRESSED_BAD;
+      buffer_free(buf);
+      return NULL;
       break;
     }
   }
-  return WL2K_COMPRESSED_BAD;
+  buffer_free(buf);
+  return NULL;
 }
 
 static void
@@ -192,7 +203,7 @@ putcompressed(struct proposal *prop, FILE *fp)
   fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL);
 
   rem = prop->csize;
-  cp = prop->cdata;
+  cp = prop->cbuf->data;
 
   if (rem < 6) {
     fprintf(stderr, "invalid compressed data\n");
@@ -310,6 +321,9 @@ parse_proposal(char *propline)
   }
   prop.next = NULL;
   prop.path = NULL;
+  prop.cbuf = NULL;
+  prop.ubuf = NULL;
+  prop.delete = 0;
 
   return &prop;
 }
@@ -317,7 +331,7 @@ parse_proposal(char *propline)
 static void
 printprop(struct proposal *prop)
 {
-  printf("proposal code %c type %c mid %s usize %lu csize %lu next %p path %s cdata %p\n",
+  printf("proposal code %c type %c mid %s usize %lu csize %lu next %p path %s ubuf %p cbuf %p\n",
 	 prop->code,
 	 prop->type,
 	 prop->mid,
@@ -325,7 +339,8 @@ printprop(struct proposal *prop)
 	 prop->csize,
 	 prop->next,
 	 prop->path,
-	 prop->cdata);
+	 prop->ubuf,
+	 prop->cbuf);
 }
 
 static void
@@ -339,7 +354,9 @@ dodelete(struct proposal **oproplist, struct proposal **nproplist)
     if (((*oproplist)->delete) && ((*oproplist)->path)) {
       printf("DELETING PROPOSAL: ");
       printprop(*oproplist);
+#if 1
       unlink((*oproplist)->path);
+#endif
     }
     oproplist = &((*oproplist)->next);
   }
@@ -353,11 +370,7 @@ prepare_outbound_proposals(void)
   struct proposal *oproplist = NULL;
   DIR *dirp;
   struct dirent *dp;
-  struct stat sb;
-  char *sfn;
   FILE *sfp;
-  char *tfn;
-  char *cmd;
   char *line;
   unsigned char *cp;
 
@@ -389,59 +402,18 @@ prepare_outbound_proposals(void)
       exit(EXIT_FAILURE);
     }
 
-    if (stat(prop->path, &sb) != 0) {
-      perror("stat()");
+    if ((prop->ubuf = buffer_readfile(prop->path)) == NULL) {
+      perror(prop->path);
+      exit(EXIT_FAILURE);
+    }
+    prop->usize = prop->ubuf->dlen;
+
+    if ((prop->cbuf = version_1_Encode(prop->ubuf)) == NULL) {
+      perror("version_1_Encode()");
       exit(EXIT_FAILURE);
     }
 
-    prop->usize = (unsigned long) sb.st_size;
-
-    if ((sfn = strdup(WL2K_TEMPFILE_TEMPLATE)) == NULL) {
-      perror("strdup()");
-      exit(EXIT_FAILURE);
-    }
-
-    /* XXX */
-    if ((tfn = mktemp(sfn)) == NULL) {
-      perror(sfn);
-      exit(EXIT_FAILURE);
-    }
-
-    /* XXX */
-    if (asprintf(&cmd, "./lzhuf_1 e1 %s %s", prop->path, tfn) == -1) {
-      perror("asprintf()");
-      exit(EXIT_FAILURE);
-    }
-    if (system(cmd) != 0) {
-      fprintf(stderr, "error uncompressing received data\n");
-      exit(EXIT_FAILURE);
-    }
-    free(cmd);
-
-    if (stat(tfn, &sb) != 0) {
-      perror("stat()");
-      exit(EXIT_FAILURE);
-    }
-    prop->csize = (unsigned long) sb.st_size;
-    if ((prop->cdata = malloc(prop->csize * sizeof(unsigned char))) == NULL) {
-      perror("malloc()");
-      exit(EXIT_FAILURE);
-    }
-
-    if ((sfp = fopen(tfn, "r")) == NULL) {
-      perror("fopen()");
-      exit(EXIT_FAILURE);
-    }
-
-    printf("sfp %p prop->path %s tfn %s\n", sfp, prop->path, tfn);
-
-    if (fread(prop->cdata, prop->csize, 1, sfp) != 1) {
-      perror("fread()");
-      exit(EXIT_FAILURE);
-    }
-    fclose(sfp);
-    unlink(tfn);
-    free(sfn);
+    prop->csize = (unsigned long) prop->cbuf->dlen;
 
     prop->title = NULL;
     prop->offset = 0;
@@ -659,10 +631,6 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
   struct proposal ipropary[PROPLIMIT];
   struct proposal *oproplist;
   struct proposal *nproplist;
-  char *sfn;
-  FILE *sfp;
-  int fd = -1;
-  char *cmd;
   unsigned long sentcksum;
   char *endp;
   int opropcount = 0;
@@ -782,53 +750,27 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	  if (ipropary[i].accepted != 1) {
 	    continue;
 	  }
-	  if ((sfn = strdup(WL2K_TEMPFILE_TEMPLATE)) == NULL) {
-	    perror("strdup()");
-	    exit(EXIT_FAILURE);
-	  }
-	  if ((fd = mkstemp(sfn)) == -1 ||
-	      (sfp = fdopen(fd, "w+")) == NULL) {
-	    if (fd != -1) {
-	      unlink(sfn);
-	      close(fd);
-	    }
-	    perror(sfn);
-	    exit(EXIT_FAILURE);
-	  }
 
-	  if (getcompressed(fp, sfp) != WL2K_COMPRESSED_GOOD) {
+	  if ((ipropary[i].cbuf = getcompressed(fp)) == NULL) {
 	    fprintf(stderr, "error receiving compressed data\n");
 	    exit(EXIT_FAILURE);
 	  }
-	  if (fclose(sfp) != 0) {
-	    fprintf(stderr, "error closing compressed data\n");
-	    exit(EXIT_FAILURE);
-	  }
+
 	  printf("extracting...\n");
-	  if (asprintf(&cmd, "./lzhuf_1 d1 %s %s", sfn, ipropary[i].mid) == -1) {
-	    perror("asprintf()");
+	  if ((ipropary[i].ubuf = version_1_Decode(ipropary[i].cbuf)) == NULL) {
+	    perror("version_1_Decode()");
 	    exit(EXIT_FAILURE);
 	  }
-	  if (system(cmd) != 0) {
-	    fprintf(stderr, "error uncompressing received data\n");
+	  if (buffer_writefile(ipropary[i].mid, ipropary[i].ubuf) != 0) {
+	    perror("buffer_writefile()");
 	    exit(EXIT_FAILURE);
 	  }
-	  free(cmd);
-	  unlink(sfn);
 	  record_mid(ipropary[i].mid);
+	  buffer_free(ipropary[i].ubuf);
+	  ipropary[i].ubuf = NULL;
+	  buffer_free(ipropary[i].cbuf);
+	  ipropary[i].cbuf = NULL;
 	  printf("Finished!\n");
-#if 0
-	  while ((line = wl2kgetline(fp)) != NULL) {
-	    printf("%s\n", line);
-	    if (line[0] == '\x1a') {
-	      printf("yeeble\n");
-	    }
-	  }
-	  if (line == NULL) {
-	    fprintf(stderr, "Lost connection. 3\n");
-	    exit(EXIT_FAILURE);
-	  }
-#endif
 	}
       }
       proposals = 0;
