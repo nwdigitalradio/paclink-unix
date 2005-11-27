@@ -3,32 +3,36 @@
         written by Haruyasu Yoshizaki 11/20/1988
         some minor changes 4/6/1989
         comments translated by Haruhiko Okumura 4/7/1989
-        ported to UNIX by Nicholas S. Castellano N2QZ 11/9/2005
+
+        ported to UNIX and modified for paclink-unix by
+        Nicholas S. Castellano N2QZ
 **************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
-void Error(const char *message);
-void InitTree(void);
-void InsertNode(int r);
-void DeleteNode(int p);
-int GetBit(void);
-int GetByte(void);
-void Putcode(int l, unsigned c);
-void StartHuff(void);
-void reconst(void);
-void update(int c);
-void EncodeChar(unsigned c);
-void EncodePosition(unsigned c);
-void EncodeEnd(void);
-int DecodeChar(void);
-int DecodePosition(void);
-void Encode(void);
-void Decode(void);
-void EncodeChar(unsigned c);
-void EncodePosition(unsigned c);
+#include "buffer.h"
+
+static void InitTree(void);
+static void InsertNode(int r);
+static void DeleteNode(int p);
+static int GetBit(struct buffer *inbuf);
+static int GetByte(struct buffer *inbuf);
+static int Putcode(int l, unsigned c, struct buffer *outbuf);
+static void StartHuff(void);
+static void reconst(void);
+static void update(int c);
+static int EncodeChar(unsigned c, struct buffer *outbuf);
+static int EncodePosition(unsigned c, struct buffer *outbuf);
+static int EncodeEnd(struct buffer *outbuf);
+static int DecodeChar(struct buffer *inbuf);
+static int DecodePosition(struct buffer *inbuf);
+
+int Encode(struct buffer *inbuf, struct buffer *outbuf);
+int version_1_Encode(struct buffer *inbuf, struct buffer *outbuf);
+int Decode(struct buffer *inbuf, struct buffer *outbuf);
+int version_1_Decode(struct buffer *inbuf, struct buffer *outbuf);
 
 /* crctab calculated by Mark G. Mendel, Network Systems Corporation */
 static unsigned short crctab[256] = {
@@ -68,18 +72,10 @@ static unsigned short crctab[256] = {
 
 #define updcrc(cp, crc) ((crc << 8) ^ crctab[(cp & 0xff) ^ (crc >> 8)])
 
-FILE *infile, *outfile;
-unsigned long int textsize = 0, codesize = 0, printcount = 0;
-unsigned short crc;
-int version_1;
-char wterr[] = "Can't write.";
-
-void
-Error(const char *message)
-{
-  fprintf(stderr, "\n%s\n", message);
-  exit(EXIT_FAILURE);
-}
+static unsigned long int textsize = 0, codesize = 0, printcount = 0;
+static unsigned short crc;
+static unsigned putbuf;
+static unsigned char putlen;
 
 /********** LZSS compression **********/
 
@@ -94,25 +90,26 @@ int match_length;
 int lson[N + 1], rson[N + 257], dad[N + 1];
 
 static int
-crc_fputc(int c, FILE *crcoutfile)
+crc_fputc(int c, struct buffer *crcoutbuf)
 {
   crc = updcrc(c, crc);
-  return(putc(c, crcoutfile));
+  return(buffer_addchar(crcoutbuf, c));
 }
 
 static int
-crc_fgetc(FILE *crcinfile)
+crc_fgetc(struct buffer *crcinbuf)
 {
-  int retour = getc(crcinfile);
+  int retour;
 
-  if (retour != EOF) {
+  if ((retour = buffer_iterchar(crcinbuf)) != EOF) {
     crc = updcrc(retour, crc);
   }
   return(retour);
 }
 
-void
-InitTree(void) /* initialize trees */
+/* initialize trees */
+static void
+InitTree(void)
 {
   int i;
 
@@ -122,8 +119,9 @@ InitTree(void) /* initialize trees */
     dad[i] = NIL;                   /* node */
 }
 
-void
-InsertNode(int r) /* insert to tree */
+/* insert to tree */
+static void
+InsertNode(int r)
 {
   int i, p, cmp;
   unsigned char *key;
@@ -180,9 +178,11 @@ InsertNode(int r) /* insert to tree */
   dad[p] = NIL;  /* remove p */
 }
 
-void DeleteNode(int p)  /* remove from tree */
+/* remove from tree */
+static void
+DeleteNode(int p)
 {
-  int  q;
+  int q;
 
   if (dad[p] == NIL)
     return;                 /* not registered */
@@ -221,12 +221,11 @@ void DeleteNode(int p)  /* remove from tree */
 #define R               (T - 1)                 /* position of root */
 #define MAX_FREQ        0x8000          /* updates tree when the */
                                         /* root frequency comes to this value. */
-typedef unsigned char uchar;
 
 /* table for encoding and decoding the upper 6 bits of position */
 
 /* for encoding */
-uchar p_len[64] = {
+static unsigned char p_len[64] = {
   0x03, 0x04, 0x04, 0x04, 0x05, 0x05, 0x05, 0x05,
   0x05, 0x05, 0x05, 0x05, 0x06, 0x06, 0x06, 0x06,
   0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
@@ -237,7 +236,7 @@ uchar p_len[64] = {
   0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08
 };
 
-uchar p_code[64] = {
+static unsigned char p_code[64] = {
   0x00, 0x20, 0x30, 0x40, 0x50, 0x58, 0x60, 0x68,
   0x70, 0x78, 0x80, 0x88, 0x90, 0x94, 0x98, 0x9C,
   0xA0, 0xA4, 0xA8, 0xAC, 0xB0, 0xB4, 0xB8, 0xBC,
@@ -249,7 +248,7 @@ uchar p_code[64] = {
 };
 
 /* for decoding */
-uchar d_code[256] = {
+static unsigned char d_code[256] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -284,7 +283,7 @@ uchar d_code[256] = {
   0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
 };
 
-uchar d_len[256] = {
+static unsigned char d_len[256] = {
   0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
   0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
   0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
@@ -319,24 +318,25 @@ uchar d_len[256] = {
   0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
 };
 
-unsigned freq[T + 1];   /* frequency table */
+static unsigned freq[T + 1];   /* frequency table */
 
-int prnt[T + N_CHAR];   /* pointers to parent nodes, except for the */
+static int prnt[T + N_CHAR];   /* pointers to parent nodes, except for the */
                         /* elements [T..T + N_CHAR - 1] which are used to get */
                         /* the positions of leaves corresponding to the codes. */
 
-int son[T];             /* pointers to child nodes (son[], son[] + 1) */
+static int son[T];             /* pointers to child nodes (son[], son[] + 1) */
 
-unsigned getbuf = 0;
-uchar getlen = 0;
+static unsigned getbuf;
+static unsigned char getlen;
 
-int
-GetBit(void)        /* get one bit */
+/* get one bit */
+static int
+GetBit(struct buffer *inbuf)
 {
   unsigned int i;
 
   while (getlen <= 8) {
-    if ((int) (i = crc_fgetc(infile)) == EOF)
+    if ((int) (i = crc_fgetc(inbuf)) == EOF)
       i = 0;
     getbuf |= i << (8 - getlen);
     getlen += 8;
@@ -347,13 +347,14 @@ GetBit(void)        /* get one bit */
   return (i & 0x8000) ? 1 : 0;
 }
 
-int
-GetByte(void)       /* get one byte */
+/* get one byte */
+static int
+GetByte(struct buffer *inbuf)
 {
   unsigned i;
 
   while (getlen <= 8) {
-    if ((int) (i = crc_fgetc(infile)) == EOF)
+    if ((int) (i = crc_fgetc(inbuf)) == EOF)
       i = 0;
     getbuf |= i << (8 - getlen);
     getlen += 8;
@@ -364,20 +365,18 @@ GetByte(void)       /* get one byte */
   return (i >> 8) & 0xff;
 }
 
-unsigned putbuf = 0;
-uchar putlen = 0;
-
-void
-Putcode(int l, unsigned c)         /* output c bits of code */
+/* output c bits of code */
+static int
+Putcode(int l, unsigned c, struct buffer *outbuf)
 {
   putbuf |= c >> putlen;
   if ((putlen += l) >= 8) {
-    if (crc_fputc((int) (putbuf >> 8), outfile) == EOF) {
-      Error(wterr);
+    if (crc_fputc((int) (putbuf >> 8), outbuf) == EOF) {
+      return -1;
     }
     if ((putlen -= 8) >= 8) {
-      if (crc_fputc((int)putbuf, outfile) == EOF) {
-	Error(wterr);
+      if (crc_fputc((int)putbuf, outbuf) == EOF) {
+	return -1;
       }
       codesize += 2;
       putlen -= 8;
@@ -387,12 +386,11 @@ Putcode(int l, unsigned c)         /* output c bits of code */
       codesize++;
     }
   }
+  return 0;
 }
 
-
 /* initialization of tree */
-
-void
+static void
 StartHuff(void)
 {
   int i, j;
@@ -415,10 +413,9 @@ StartHuff(void)
   prnt[R] = 0;
 }
 
-
 /* reconstruction of tree */
-
-void reconst(void)
+static void
+reconst(void)
 {
   int i, j, k;
   unsigned f, l;
@@ -455,10 +452,8 @@ void reconst(void)
   }
 }
 
-
 /* increment frequency of given code by one, and update tree */
-
-void
+static void
 update(int c)
 {
   int i, j;
@@ -497,8 +492,8 @@ update(int c)
   } while ((c = prnt[c]) != 0);   /* repeat up to root */
 }
 
-void
-EncodeChar(unsigned c)
+static int
+EncodeChar(unsigned c, struct buffer *outbuf)
 {
   unsigned i;
   int j, k;
@@ -516,36 +511,45 @@ EncodeChar(unsigned c)
 
     j++;
   } while ((k = prnt[k]) != R);
-  Putcode(j, i);
+  if (Putcode(j, i, outbuf) == -1) {
+    return -1;
+  }
   update((int) c);
+  return 0;
 }
 
-void
-EncodePosition(unsigned c)
+static int
+EncodePosition(unsigned c, struct buffer *outbuf)
 {
   unsigned i;
 
   /* output upper 6 bits by table lookup */
   i = c >> 6;
-  Putcode(p_len[i], (unsigned) p_code[i] << 8);
+  if (Putcode(p_len[i], (unsigned) p_code[i] << 8, outbuf) == -1) {
+    return -1;
+  }
 
   /* output lower 6 bits verbatim */
-  Putcode(6, (c & 0x3f) << 10);
+  if (Putcode(6, (c & 0x3f) << 10, outbuf) == -1) {
+    return -1;
+  }
+  return 0;
 }
 
-void
-EncodeEnd(void)
+static int
+EncodeEnd(struct buffer *outbuf)
 {
   if (putlen) {
-    if (crc_fputc((int) (putbuf >> 8), outfile) == EOF) {
-      Error(wterr);
+    if (crc_fputc((int) (putbuf >> 8), outbuf) == EOF) {
+      return -1;
     }
     codesize++;
   }
+  return 0;
 }
 
-int
-DecodeChar(void)
+static int
+DecodeChar(struct buffer *inbuf)
 {
   unsigned c;
 
@@ -555,7 +559,7 @@ DecodeChar(void)
   /* choosing the smaller child node (son[]) if the read bit is 0, */
   /* the bigger (son[]+1} if 1 */
   while (c < T) {
-    c += GetBit();
+    c += GetBit(inbuf);
     c = son[c];
   }
   c -= T;
@@ -564,53 +568,51 @@ DecodeChar(void)
 }
 
 int
-DecodePosition(void)
+DecodePosition(struct buffer *inbuf)
 {
   unsigned i, j, c;
 
   /* recover upper 6 bits from table */
-  i = GetByte();
+  i = GetByte(inbuf);
   c = (unsigned) d_code[i] << 6;
   j = d_len[i];
 
   /* read lower 6 bits verbatim */
   j -= 2;
   while (j--) {
-    i = (i << 1) + GetBit();
+    i = (i << 1) + GetBit(inbuf);
   }
   return c | (i & 0x3f);
 }
 
 /* compression */
-
-void
-Encode(void)  /* compression */
+int
+Encode(struct buffer *inbuf, struct buffer *outbuf)
 {
   int i, c, len, r, s, last_match_length;
 
   crc = 0;
+  putbuf = 0;
+  putlen = 0;
 
-  if (version_1) {
-    /* Reserves two bytes for the CRC */
-    if (fseek(outfile, 2L, SEEK_CUR) < 0) {
-      Error(wterr);
-    }
+  textsize = inbuf->dlen;
+
+  if (crc_fputc((int)(textsize & 0xff), outbuf) == -1) {
+    return -1;
+  }
+  if (crc_fputc((int)((textsize >> 8) & 0xff), outbuf) == -1) {
+    return -1;
+  }
+  if (crc_fputc((int)((textsize >> 16) & 0xff), outbuf) == -1) {
+    return -1;
+  }
+  if (crc_fputc((int)((textsize >> 24) & 0xff), outbuf) == -1) {
+    return -1;
   }
 
-  fseek(infile, 0L, SEEK_END);
-  textsize = ftell(infile);
-
-  crc_fputc((int)(textsize & 0xff), outfile);
-  crc_fputc((int)((textsize >> 8) & 0xff), outfile);
-  crc_fputc((int)((textsize >> 16) & 0xff), outfile);
-  crc_fputc((int)((textsize >> 24) & 0xff), outfile);
-
-  if (ferror(outfile)) {
-    Error(wterr);
-  }
   if (textsize == 0)
-    return;
-  rewind(infile);
+    return 0;
+  buffer_rewind(inbuf);
   textsize = 0;                   /* rewind and re-read */
   StartHuff();
   InitTree();
@@ -618,7 +620,7 @@ Encode(void)  /* compression */
   r = N - F;
   for (i = s; i < r; i++)
     text_buf[i] = ' ';
-  for (len = 0; len < F && (c = getc(infile)) != EOF; len++)
+  for (len = 0; len < F && (c = buffer_iterchar(inbuf)) != EOF; len++)
     text_buf[r + len] = c;
   textsize = len;
   for (i = 1; i <= F; i++)
@@ -629,14 +631,20 @@ Encode(void)  /* compression */
       match_length = len;
     if (match_length <= THRESHOLD) {
       match_length = 1;
-      EncodeChar(text_buf[r]);
+      if (EncodeChar(text_buf[r], outbuf) == -1) {
+	return -1;
+      }
     } else {
-      EncodeChar((unsigned) (255 - THRESHOLD + match_length));
-      EncodePosition((unsigned) match_position);
+      if (EncodeChar((unsigned) (255 - THRESHOLD + match_length), outbuf) == -1) {
+	return -1;
+      }
+      if (EncodePosition((unsigned) match_position, outbuf) == -1) {
+	return -1;
+      }
     }
     last_match_length = match_length;
     for (i = 0; i < last_match_length &&
-	   (c = getc(infile)) != EOF; i++) {
+	   (c = buffer_iterchar(inbuf)) != EOF; i++) {
       DeleteNode(s);
       text_buf[s] = c;
       if (s < F - 1)
@@ -645,10 +653,12 @@ Encode(void)  /* compression */
       r = (r + 1) & (N - 1);
       InsertNode(r);
     }
+#ifdef LZHUF_1_MAIN
     if ((textsize += i) > printcount) {
       fprintf(stderr, "%12ld\r", textsize);
       printcount += 1024;
     }
+#endif
     while (i++ < last_match_length) {
       DeleteNode(s);
       s = (s + 1) & (N - 1);
@@ -657,98 +667,172 @@ Encode(void)  /* compression */
 	InsertNode(r);
     }
   } while (len > 0);
-  EncodeEnd();
-
-  fprintf(stderr, "\n");
-  if (version_1) {
-    /* Writes the CRC in the beginning of the file */
-    rewind(outfile);
-    fputc((int) (crc & 0xff), outfile);
-    fputc((int) ((crc >> 8) & 0xff), outfile);
-    if (ferror(outfile)) {
-      Error(wterr);
-    }
-    fprintf(stderr, "CRC: %04x\n", crc);
+  if (EncodeEnd(outbuf) == -1) {
+    return -1;
   }
 
+#ifdef LZHUF_1_MAIN
   fprintf(stderr, "In : %ld bytes\n", textsize);
   fprintf(stderr, "Out: %ld bytes\n", codesize);
   fprintf(stderr, "Out/In: %.3f\n", (double) codesize / textsize);
+#endif
+  return 0;
 }
 
-void
-Decode(void)  /* recover */
+int
+version_1_Encode(struct buffer *inbuf, struct buffer *outbuf)
 {
-  int  i, j, k, r, c;
-  unsigned long int  count;
-  unsigned short  crc_read;
+  struct buffer *tmpoutbuf;
+  int c;
 
-  if (version_1) {
-    crc_read = crc_fgetc(infile);
-    crc_read |= (crc_fgetc(infile) << 8);
-    if (feof(infile) || ferror(infile)) {
-      Error("Can't read");
-    }
-    fprintf(stderr, "File CRC  = %04x\n", crc_read);
+  if ((tmpoutbuf = buffer_new()) == NULL) {
+    perror("buffer_new()");
+    exit(EXIT_FAILURE);
   }
+  if (Encode(inbuf, tmpoutbuf) == -1) {
+    return -1;
+  }
+  if (buffer_addchar(outbuf, (int) (crc & 0xff)) == -1) {
+    return -1;
+  }
+  if (buffer_addchar(outbuf, (int) ((crc >> 8) & 0xff)) == -1) {
+    return -1;
+  }
+#ifdef LZHUF_1_MAIN
+  fprintf(stderr, "CRC: %04x\n", crc);
+#endif
+  buffer_rewind(tmpoutbuf);
+  while ((c = buffer_iterchar(tmpoutbuf)) != EOF) {
+    if (buffer_addchar(outbuf, c) == -1) {
+      return -1;
+    }
+  }
+  buffer_free(tmpoutbuf);
+  return 0;
+}
+
+/* recover */
+int
+Decode(struct buffer *inbuf, struct buffer *outbuf)
+{
+  int i, j, k, r, c;
+  unsigned long int count;
+  int x;
+
+  getbuf = 0;
+  getlen = 0;
 
   crc = 0;
 
-  textsize = crc_fgetc(infile);
-  textsize |= (crc_fgetc(infile) << 8);
-  textsize |= (crc_fgetc(infile) << 16);
-  textsize |= (crc_fgetc(infile) << 24);
-  if (feof(infile) || ferror(infile)) {
-    Error("Can't read");
+  if ((x = crc_fgetc(inbuf)) == EOF) {
+    return -1;
   }
+  textsize = x;
+  if ((x = crc_fgetc(inbuf)) == EOF) {
+    return -1;
+  }
+  textsize |= (x << 8);
+  if ((x = crc_fgetc(inbuf)) == EOF) {
+    return -1;
+  }
+  textsize |= (x << 16);
+  if ((x = crc_fgetc(inbuf)) == EOF) {
+    return -1;
+  }
+  textsize |= (x << 24);
 
+#ifdef LZHUF_1_MAIN
   fprintf(stderr, "File Size = %lu\n", textsize);
-
+#endif
   if (textsize == 0)
-    return;
+    return 0;
 
   StartHuff();
   for (i = 0; i < N - F; i++)
     text_buf[i] = ' ';
   r = N - F;
   for (count = 0; count < textsize; ) {
-    c = DecodeChar();
+    c = DecodeChar(inbuf);
     if (c < 256) {
-      if (putc(c, outfile) == EOF) {
-	Error(wterr);
+      if (buffer_addchar(outbuf, c) == EOF) {
+	return -1;
       }
       text_buf[r++] = c;
       r &= (N - 1);
       count++;
     } else {
-      i = (r - DecodePosition() - 1) & (N - 1);
+      i = (r - DecodePosition(inbuf) - 1) & (N - 1);
       j = c - 255 + THRESHOLD;
       for (k = 0; k < j; k++) {
 	c = text_buf[(i + k) & (N - 1)];
-	if (putc(c, outfile) == EOF) {
-	  Error(wterr);
+	if (buffer_addchar(outbuf, c) == EOF) {
+	  return -1;
 	}
 	text_buf[r++] = c;
 	r &= (N - 1);
 	count++;
       }
     }
+#ifdef LZHUF_1_MAIN
     if (count > printcount) {
       fprintf(stderr, "%12ld\r", count);
       printcount += 1024;
     }
+#endif
   }
+#ifdef LZHUF_1_MAIN
   fprintf(stderr, "%12ld\n", count);
-
-  if (version_1)
-    fprintf(stderr, "Computed CRC = %04x\n", crc);
-
+#endif
+  return 0;
 }
 
 int
+version_1_Decode(struct buffer *inbuf, struct buffer *outbuf)
+{
+  int r;
+  int x;
+  unsigned short crc_read;
+
+  if ((x = crc_fgetc(inbuf)) == EOF) {
+    return -1;
+  }
+  crc_read = x;
+  if ((x = crc_fgetc(inbuf)) == EOF) {
+    return -1;
+  }
+  crc_read |= (x << 8);
+#ifdef LZHUF_1_MAIN
+  fprintf(stderr, "File CRC  = %04x\n", crc_read);
+#endif
+
+  r = Decode(inbuf, outbuf);
+  
+#ifdef LZHUF_1_MAIN
+  fprintf(stderr, "Computed CRC = %04x\n", crc);
+#endif
+
+  if (crc != crc_read) {
+#ifdef LZHUF_1_MAIN
+    fprintf(stderr, "CRC mismatch\n");
+#endif
+    return -1;
+  }
+
+  return r;
+}
+
+#ifdef LZHUF_1_MAIN
+int
 main(int argc, char *argv[])
 {
-  char  *s;
+  int version_1;
+  char *s;
+  FILE *infile;
+  FILE *outfile;
+  int c;
+  struct buffer *inbuf;
+  struct buffer *outbuf;
+  int r;
 
   if (argc != 4) {
     fprintf(stderr, "'lzhuf e[1] file1 file2' encodes file1 into file2.\n"
@@ -764,12 +848,51 @@ main(int argc, char *argv[])
 
   version_1 = (argv[1][1] == '1');
 
-  if (toupper((unsigned char) *argv[1]) == 'E')
-    Encode();
-  else
-    Decode();
+  if ((inbuf = buffer_new()) == NULL) {
+    perror("buffer_new()");
+    exit(EXIT_FAILURE);
+  }
+  while ((c = fgetc(infile)) != EOF) {
+    if (buffer_addchar(inbuf, c) == -1) {
+      perror("buffer_addchar()");
+      exit(EXIT_FAILURE);
+    }
+  }
   fclose(infile);
+
+  if ((outbuf = buffer_new()) == NULL) {
+    perror("buffer_new()");
+    exit(EXIT_FAILURE);
+  }
+
+  if (toupper((unsigned char) *argv[1]) == 'E') {
+    if (version_1) {
+      r = version_1_Encode(inbuf, outbuf);
+    } else {
+      r = Encode(inbuf, outbuf);
+    }
+  } else {
+    if (version_1) {
+      r = version_1_Decode(inbuf, outbuf);
+    } else {
+      r = Decode(inbuf, outbuf);
+    }
+  }
+  fprintf(stderr, "\n");
+
+  if (r == -1) {
+    exit(EXIT_FAILURE);
+  }
+
+  buffer_rewind(outbuf);
+  while ((c = buffer_iterchar(outbuf)) != EOF) {
+    if (fputc(c, outfile) == EOF) {
+      perror("fputc()");
+      exit(EXIT_FAILURE);
+    }
+  }
   fclose(outfile);
   exit(EXIT_SUCCESS);
   return 0;
 }
+#endif

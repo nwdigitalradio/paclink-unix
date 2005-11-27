@@ -9,7 +9,8 @@ clean-local:
 
 bin_PROGRAMS=lzhuf_1 wl2ktelnet test_mime_encoding
 
-lzhuf_1_SOURCES=lzhuf_1.c
+lzhuf_1_CPPFLAGS=-DLZHUF_1_MAIN
+lzhuf_1_SOURCES=lzhuf_1.c buffer.c buffer.h
 
 wl2ktelnet_SOURCES=wl2ktelnet.c progname.h strupper.c strupper.h timeout.c timeout.h wl2k.c wl2k.h midseen.c midseen.h buffer.c buffer.h
 
