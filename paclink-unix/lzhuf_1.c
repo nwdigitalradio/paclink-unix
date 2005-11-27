@@ -822,43 +822,38 @@ version_1_Decode(struct buffer *inbuf, struct buffer *outbuf)
 }
 
 #ifdef LZHUF_1_MAIN
+void usage(void);
+
+void
+usage(void)
+{
+  fprintf(stderr, "'lzhuf e[1] file1 file2' encodes file1 into file2.\n"
+	  "'lzhuf d[1] file2 file1' decodes file2 into file1.\n");
+  exit(EXIT_FAILURE);
+}
+
 int
 main(int argc, char *argv[])
 {
   int version_1;
-  char *s;
-  FILE *infile;
-  FILE *outfile;
-  int c;
   struct buffer *inbuf;
   struct buffer *outbuf;
   int r;
 
-  if (argc != 4) {
-    fprintf(stderr, "'lzhuf e[1] file1 file2' encodes file1 into file2.\n"
-	    "'lzhuf d[1] file2 file1' decodes file2 into file1.\n");
-    exit(EXIT_FAILURE);
-  }
-  if ((s = argv[1], strpbrk(s, "D1E1d1e1") == NULL)
-      || (s = argv[2], (infile = fopen(s, "rb")) == NULL)
-      || (s = argv[3], (outfile = fopen(s, "wb")) == NULL)) {
-    fprintf(stderr, "??? %s\n", s);
-    exit(EXIT_FAILURE);
+  if ((argc != 4)
+      || (strlen(argv[1]) < 1)
+      || (strlen(argv[1]) > 2)
+      || (strchr("EeDd", argv[1][0]) == NULL)
+      || ((strlen(argv[1]) == 2) && (argv[1][1] != '1'))) {
+    usage();
   }
 
   version_1 = (argv[1][1] == '1');
 
-  if ((inbuf = buffer_new()) == NULL) {
-    perror("buffer_new()");
+  if ((inbuf = buffer_readfile(argv[2])) == NULL) {
+    perror("buffer_readfile()");
     exit(EXIT_FAILURE);
   }
-  while ((c = fgetc(infile)) != EOF) {
-    if (buffer_addchar(inbuf, c) == -1) {
-      perror("buffer_addchar()");
-      exit(EXIT_FAILURE);
-    }
-  }
-  fclose(infile);
 
   if ((outbuf = buffer_new()) == NULL) {
     perror("buffer_new()");
@@ -884,14 +879,11 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  buffer_rewind(outbuf);
-  while ((c = buffer_iterchar(outbuf)) != EOF) {
-    if (fputc(c, outfile) == EOF) {
-      perror("fputc()");
-      exit(EXIT_FAILURE);
-    }
+  if (buffer_writefile(argv[3], outbuf) != 0) {
+    perror("buffer_writefile()");
+    exit(EXIT_FAILURE);
   }
-  fclose(outfile);
+
   exit(EXIT_SUCCESS);
   return 0;
 }

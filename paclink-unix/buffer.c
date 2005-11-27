@@ -113,3 +113,53 @@ buffer_truncate(struct buffer *b)
 
   b->dlen = 0;
 }
+
+struct buffer *
+buffer_readfile(const char *path)
+{
+  FILE *fp;
+  int c;
+  struct buffer *buf;
+
+  if ((fp = fopen(path, "rb")) == NULL) {
+    return NULL;
+  }
+  if ((buf = buffer_new()) == NULL) {
+    fclose(fp);
+    return NULL;
+  }
+  while ((c = fgetc(fp)) != EOF) {
+    if (buffer_addchar(buf, c) == -1) {
+      fclose(fp);
+      buffer_free(buf);
+      return NULL;
+    }
+  }
+  if (fclose(fp) != 0) {
+    buffer_free(buf);
+    return NULL;
+  }
+  return buf;
+}
+
+int
+buffer_writefile(const char *path, struct buffer *buf)
+{
+  FILE *fp;
+  int c;
+
+  if ((fp = fopen(path, "wb")) == NULL) {
+    return -1;
+  }
+  buffer_rewind(buf);
+  while ((c = buffer_iterchar(buf)) != EOF) {
+    if (fputc(c, fp) == EOF) {
+      fclose(fp);
+      return -1;
+    }
+  }
+  if (fclose(fp) != 0) {
+    return -1;
+  }
+  return 0;
+}

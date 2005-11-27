@@ -13,7 +13,7 @@ uudecode ${srcdir}/binmail.uue
 
 trap 'cleanup ; exit 1' 0
 
-./lzhuf_1 e2 ${srcdir}/ascmail binmail.test
+./lzhuf_1 e ${srcdir}/ascmail binmail.test
 cmp binmail binmail.test
 ./lzhuf_1 e1 ${srcdir}/ascmail binmail1.test
 ./lzhuf_1 d1 binmail1.test ascmail1.test

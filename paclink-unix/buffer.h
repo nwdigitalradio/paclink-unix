@@ -19,5 +19,7 @@ void buffer_rewind(struct buffer *b);
 int buffer_iterchar(struct buffer *b);
 int buffer_lastchar(struct buffer *b);
 void buffer_truncate(struct buffer *b);
+struct buffer *buffer_readfile(const char *path);
+int buffer_writefile(const char *path, struct buffer *buf);
 
 #endif
