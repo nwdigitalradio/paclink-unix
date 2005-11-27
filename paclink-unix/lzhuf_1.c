@@ -1,3 +1,12 @@
+#if HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include <sys/types.h>
+#ifdef __RCSID
+__RCSID("$Id$");
+#endif
+
 /**************************************************************
         lzhuf.c
         written by Haruyasu Yoshizaki 11/20/1988
@@ -8,8 +17,12 @@
         Nicholas S. Castellano N2QZ
 **************************************************************/
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#if HAVE_STDLIB_H
+# include <stdlib.h>
+#endif
+#if HAVE_STRING_H
+# include <string.h>
+#endif
 #include <ctype.h>
 
 #include "buffer.h"
