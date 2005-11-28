@@ -200,7 +200,11 @@ putcompressed(struct proposal *prop, FILE *fp)
   printf("transmitting [%s] [offset %s]\n", title, offset);
 
   len = strlen(title) + strlen(offset) + 2;
-  fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL);
+  resettimeout();
+  if (fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL) == -1) {
+    perror("fprintf()");
+    exit(EXIT_FAILURE);
+  }
 
   rem = prop->csize;
   cp = prop->cbuf->data;
@@ -209,10 +213,18 @@ putcompressed(struct proposal *prop, FILE *fp)
     fprintf(stderr, "invalid compressed data\n");
     exit(EXIT_FAILURE);
   }
-  fprintf(fp, "%c%c", CHRSTX, 6);
+  resettimeout();
+  if (fprintf(fp, "%c%c", CHRSTX, 6) == -1) {
+    perror("fprintf()");
+    exit(EXIT_FAILURE);
+  }
   for (i = 0; i < 6; i++) {
+    resettimeout();
     cksum += *cp;
-    fputc(*cp++, fp);
+    if (fputc(*cp++, fp) == EOF) {
+      perror("fputc()");
+      exit(EXIT_FAILURE);
+    }
   }
   rem -= 6;
 
@@ -231,16 +243,28 @@ putcompressed(struct proposal *prop, FILE *fp)
     } else {
       len = rem;
     }
-    fprintf(fp, "%c%c", CHRSTX, len);
+    if (fprintf(fp, "%c%c", CHRSTX, len) == -1) {
+      perror("fprintf()");
+      exit(EXIT_FAILURE);
+    }
     while (rem--) {
+      resettimeout();
       cksum += *cp;
-      fputc(*cp++, fp);
+      if (fputc(*cp++, fp) == EOF) {
+	perror("fputc()");
+	exit(EXIT_FAILURE);
+      }
       len--;
     }
   }
 
   cksum = -cksum & 0xff;
-  fprintf(fp, "%c%c", CHREOT, cksum);
+  resettimeout();
+  if (fprintf(fp, "%c%c", CHREOT, cksum) == -1) {
+    perror("fprintf()");
+    exit(EXIT_FAILURE);
+  }
+  resettimeout();
 }
 
 static struct proposal *
@@ -484,7 +508,11 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 	exit(EXIT_FAILURE);
       }
       printf(">%s\n", sp);
-      fprintf(fp, "%s", sp);
+      resettimeout();
+      if (fprintf(fp, "%s", sp) == -1) {
+	perror("fprintf()");
+	exit(EXIT_FAILURE);
+      }
       for (cp = sp; *cp; cp++) {
 	cksum += (unsigned char) *cp;
       }
@@ -495,7 +523,11 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     }
     cksum = -cksum & 0xff;
     printf(">F> %2X\n", cksum);
-    fprintf(fp, "F> %2X\r", cksum);
+    resettimeout();
+    if (fprintf(fp, "F> %2X\r", cksum) == -1) {
+      perror("fprintf()");
+      exit(EXIT_FAILURE);
+    }
     if ((line = wl2kgetline(fp)) == NULL) {
       fprintf(stderr, "connection closed\n");
       exit(EXIT_FAILURE);
@@ -561,11 +593,19 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     return 0;
   } else if (strncmp(lastcommand, "FF", 2) == 0) {
     printf(">FQ\n");
-    fprintf(fp, "FQ\r");
+    resettimeout();
+    if (fprintf(fp, "FQ\r") == -1) {
+      perror("fprintf()");
+      exit(EXIT_FAILURE);
+    }
     return -1;
   } else {
     printf(">FF\n");
-    fprintf(fp, "FF\r");
+    resettimeout();
+    if (fprintf(fp, "FF\r") == -1) {
+      perror("fprintf()");
+      exit(EXIT_FAILURE);
+    }
     return 0;
   }
 }
@@ -661,10 +701,18 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
     } else if (line[strlen(line) - 1] == '>') {
       if (strchr(inboundsidcodes, 'I')) {
 	printf(">; %s DE %s QTC %d\n", yourcall, mycall, opropcount);
-	fprintf(fp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount);
+	resettimeout();
+	if (fprintf(fp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount) == -1) {
+	  perror("fprintf()");
+	  exit(EXIT_FAILURE);
+	}
       }
       printf(">%s\n", sid);
-      fprintf(fp, "%s\r", sid);
+      resettimeout();
+      if (fprintf(fp, "%s\r", sid) == -1) {
+	perror("fprintf()");
+	exit(EXIT_FAILURE);
+      }
       break;
     }
   }
@@ -722,7 +770,11 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 
       if (proposals != 0) {
 	printf("FS ");
-	fprintf(fp, "FS ");
+	resettimeout();
+	if (fprintf(fp, "FS ") == -1) {
+	  perror("fprintf()");
+	  exit(EXIT_FAILURE);
+	}
 	for (i = 0; i < proposals; i++) {
 	  ipropary[i].accepted = 0;
 	  if (ipropary[i].code == 'C') {
@@ -736,10 +788,18 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	    responsechar = 'L';
 	  }
 	  putchar(responsechar);
-	  putc(responsechar, fp);
+	  resettimeout();
+	  if (fputc(responsechar, fp) == EOF) {
+	    perror("fputc()");
+	    exit(EXIT_FAILURE);
+	  }
 	}
 	printf("\n");
-	fprintf(fp, "\r");
+	resettimeout();
+	if (fprintf(fp, "\r") == -1) {
+	  perror("fprintf()");
+	  exit(EXIT_FAILURE);
+	}
 
 	for (i = 0; i < proposals; i++) {
 	  if (ipropary[i].accepted != 1) {
