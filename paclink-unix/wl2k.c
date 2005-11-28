@@ -370,7 +370,6 @@ prepare_outbound_proposals(void)
   struct proposal *oproplist = NULL;
   DIR *dirp;
   struct dirent *dp;
-  FILE *sfp;
   char *line;
   unsigned char *cp;
 
@@ -420,12 +419,8 @@ prepare_outbound_proposals(void)
     prop->accepted = 0;
     prop->delete = 0;
 
-    if ((sfp = fopen(prop->path, "r")) == NULL) {
-      perror("fopen()");
-      exit(EXIT_FAILURE);
-    }
-
-    while ((line = getline(sfp, '\n')) != NULL) {
+    buffer_rewind(prop->ubuf);
+    while ((line = buffer_getline(prop->ubuf, '\n')) != NULL) {
       if (strncasecmp(line, "Subject:", 8) == 0) {
 	if ((cp = strchr(line, '\r')) != NULL) {
 	  *cp = '\0';
@@ -442,8 +437,8 @@ prepare_outbound_proposals(void)
 	}
 	prop->title = strdup(cp);
       }
+      free(line);
     }
-    fclose(sfp);
 
     if (prop->title == NULL) {
       prop->title = strdup("No subject");

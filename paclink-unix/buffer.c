@@ -11,6 +11,9 @@ __RCSID("$Id$");
 #ifdef HAVE_STDLIB_H
 # include <stdlib.h>
 #endif
+#ifdef HAVE_STRING_H
+# include <string.h>
+#endif
 
 #include "buffer.h"
 
@@ -112,6 +115,37 @@ buffer_truncate(struct buffer *b)
 {
 
   b->dlen = 0;
+}
+
+char *
+buffer_getline(struct buffer *b, int terminator)
+{
+  struct buffer *t;
+  int c;
+  char *cp;
+
+  if ((t = buffer_new()) == NULL) {
+    return NULL;
+  }
+  c = buffer_iterchar(b);
+  if (c == EOF) {
+    buffer_free(t);
+    return NULL;
+  }
+  for (;;) {
+    buffer_addchar(t, c);
+    if (c == terminator) {
+      break;
+    }
+    c = buffer_iterchar(b);
+    if (c == EOF) {
+      break;
+    }
+  }
+  buffer_addchar(t, '\0');
+  cp = strdup(t->data);
+  buffer_free(t);
+  return cp;
 }
 
 struct buffer *
