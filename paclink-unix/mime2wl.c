@@ -13,7 +13,6 @@ __RCSID("$Id$");
 #include <ctype.h>
 #include "llist.h"
 #include "buffer.h"
-#include "zapcc.h"
 #include "strutil.h"
 
 char *getheader(struct buffer *buf, const char *header);
@@ -57,7 +56,7 @@ getheader(struct buffer *buf, const char *header)
   buffer_rewind(buf);
   off = strlen(header);
   while ((line = buffer_getline(buf, '\n')) != NULL) {
-    zapcc(line);
+    strzapcc(line);
     if ((strncasecmp(line, header, off) == 0) && (line[off] == ':')) {
       for (cp = line + off + 1; isspace(*cp); cp++)
 	;
@@ -83,7 +82,7 @@ mime2wl(struct buffer *mime)
     return NULL;
   }
   while ((line = buffer_getline(mime, '\n')) != NULL) {
-    zapcc(line);
+    strzapcc(line);
     printf("line: /%s/\n", line);
     if ((line[0] != ' ') && (line[0] != '\t')) {
       buffer_addchar(hbuf, '\n');
