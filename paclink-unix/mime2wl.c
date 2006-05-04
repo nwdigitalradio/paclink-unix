@@ -23,9 +23,11 @@ char *
 getboundary(char *ct)
 {
   char *tmp = NULL;
-  char *boundary = NULL;
+  unsigned char *boundary = NULL;
   char *next;
   size_t span;
+  unsigned char *tail;
+  char *retboundary;
 
   if ((tmp = strdup(ct)) == NULL) {
     return NULL;
@@ -39,9 +41,26 @@ getboundary(char *ct)
       *next++ = '\0';
     }
     if (strcasebegins(boundary, "boundary=")) {
-      return boundary;
+      boundary += 9;
+      tail = strrchr(boundary, '\0') - 1;
+      while ((tail >= boundary) && isspace(*tail)) {
+	*tail-- = '\0';
+      }
+      if (boundary[0] == '"') {
+	boundary++;
+	tail = strrchr(boundary, '\0') - 1;
+	if ((tail < boundary) || (*tail != '"')) {
+	  free(tmp);
+	  return NULL;
+	}
+	*tail = '\0';
+      }
+      retboundary = strdup(boundary);
+      free(tmp);
+      return retboundary;
     }
   }
+  free(tmp);
   return NULL;  
 }
 
@@ -77,6 +96,7 @@ mime2wl(struct buffer *mime)
   struct buffer *bbuf;
   struct buffer *wbuf;
   char *ct = NULL;
+  char *boundary;
 
   if ((hbuf = buffer_new()) == NULL) {
     return NULL;
@@ -117,8 +137,15 @@ mime2wl(struct buffer *mime)
     printf("subj: %s\n", line);
   }
 
-  if (strcasebegins(ct, "multipart/mixed")) {
+  if (ct && strcasebegins(ct, "multipart/mixed")) {
     printf("it is multipart/mixed\n");
+    boundary = getboundary(ct);
+    if (boundary) {
+      printf("boundary is: %s\n", boundary);
+    } else {
+      printf("no boundary\n");
+      /* XXX error */
+    }
   } else {
     printf("it is NOT multipart/mixed\n");
   }
