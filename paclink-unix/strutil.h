@@ -1,7 +1,7 @@
 /* $Id$ */
 
-#ifndef STRUPPER_H
-#define STRUPPER_H
+#ifndef STRUTIL_H
+#define STRUTUL_H
 
 char *strupper(unsigned char *s);
 

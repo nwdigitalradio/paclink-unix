@@ -8,7 +8,7 @@ __RCSID("$Id$");
 #endif
 
 #include <ctype.h>
-#include "strupper.h"
+#include "strutil.h"
 
 char *
 strupper(unsigned char *s)

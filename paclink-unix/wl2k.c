@@ -23,7 +23,7 @@ __RCSID("$Id$");
 #include <dirent.h>
 #include <ctype.h>
 
-#include "strupper.h"
+#include "strutil.h"
 #include "wl2k.h"
 #include "timeout.h"
 #include "midseen.h"

@@ -33,7 +33,7 @@ __RCSID("$Id$");
 #include "progname.h"
 #include "timeout.h"
 #include "wl2k.h"
-#include "strupper.h"
+#include "strutil.h"
 
 static void usage(void);
 
