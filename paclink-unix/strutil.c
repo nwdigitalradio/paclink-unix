@@ -8,10 +8,11 @@ __RCSID("$Id$");
 #endif
 
 #include <ctype.h>
+#include <string.h>
 #include "strutil.h"
 
 char *
-strupper(unsigned char *s)
+strupper(unsigned const char *s)
 {
   unsigned char *cp;
 
@@ -21,4 +22,28 @@ strupper(unsigned char *s)
     }
   }
   return s;
+}
+
+int
+strbegins(const char *s, const char *prefix)
+{
+  size_t plen;
+
+  plen = strlen(prefix);
+  if (strncmp(s, prefix, plen) == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+int
+strcasebegins(const char *s, const char *prefix)
+{
+  size_t plen;
+
+  plen = strlen(prefix);
+  if (strncasecmp(s, prefix, plen) == 0) {
+    return 1;
+  }
+  return 0;
 }
