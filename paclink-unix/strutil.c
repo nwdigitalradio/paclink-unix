@@ -12,7 +12,7 @@ __RCSID("$Id$");
 #include "strutil.h"
 
 char *
-strupper(unsigned const char *s)
+strupper(unsigned char *s)
 {
   unsigned char *cp;
 
