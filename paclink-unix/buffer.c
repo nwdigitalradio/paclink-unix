@@ -118,6 +118,15 @@ buffer_truncate(struct buffer *b)
 }
 
 char *
+buffer_getstring(struct buffer *b)
+{
+  char *cp;
+
+  cp = strdup(b->data);
+  return cp;
+}
+
+char *
 buffer_getline(struct buffer *b, int terminator)
 {
   struct buffer *t;
