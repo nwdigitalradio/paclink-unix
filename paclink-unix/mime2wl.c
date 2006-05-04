@@ -10,17 +10,21 @@ __RCSID("$Id$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "llist.h"
 #include "buffer.h"
 #include "zapcc.h"
 
+char *getheader(struct buffer *buf, const char *header);
+struct buffer *mime2wl(struct buffer *mime);
+
 char *
-getheader(struct buffer *buf, char *header)
+getheader(struct buffer *buf, const char *header)
 {
   char *line;
   size_t off;
   char *hdata;
-  char *cp;
+  unsigned char *cp;
 
   buffer_rewind(buf);
   off = strlen(header);
@@ -85,6 +89,8 @@ mime2wl(struct buffer *mime)
 
   buffer_free(hbuf);
   buffer_free(bbuf);
+
+  /* XXX finish me */
 }
 
 int
