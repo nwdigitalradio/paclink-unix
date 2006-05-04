@@ -446,7 +446,7 @@ prepare_outbound_proposals(void)
 
     buffer_rewind(prop->ubuf);
     while ((line = buffer_getline(prop->ubuf, '\n')) != NULL) {
-      if (strncasecmp(line, "Subject:", 8) == 0) {
+      if (strbegins(line, "Subject:")) {
 	zapcc(line);
 	cp = line + 8;
 	while (isspace(*cp)) {
@@ -530,7 +530,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     }
     printf("<%s\n", line);
 
-    if (strncmp(line, "FS ", 3) != 0) {
+    if (strbegins(line, "FS ")) {
       fprintf(stderr, "b2 protocol error\n");
       exit(EXIT_FAILURE);
     }
@@ -587,7 +587,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     }
     *oproplist = prop;
     return 0;
-  } else if (strncmp(lastcommand, "FF", 2) == 0) {
+  } else if (strbegins(lastcommand, "FF")) {
     printf(">FQ\n");
     resettimeout();
     if (fprintf(fp, "FQ\r") == -1) {
@@ -724,9 +724,9 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("<%s\n", line);
-    if (strncmp(line, ";", 1) == 0) {
+    if (strbegins(line, ";")) {
       /* do nothing */
-    } else if (strncmp(line, "FC", 2) == 0) {
+    } else if (strbegins(line, "FC")) {
       dodelete(&oproplist, &nproplist);
       for (cp = line; *cp; cp++) {
 	proposalcksum += (unsigned char) *cp;
@@ -743,17 +743,17 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
       memcpy(&ipropary[proposals], prop, sizeof(struct proposal));
       printprop(&ipropary[proposals]);
       proposals++;
-    } else if (strncmp(line, "FF", 2) == 0) {
+    } else if (strbegins(line, "FF")) {
       dodelete(&oproplist, &nproplist);
       if (b2outboundproposal(fp, line, &nproplist) != 0) {
 	return;
       }
-    } else if (strncmp(line, "B", 1) == 0) {
+    } else if (strbegins(line, "B")) {
       return;
-    } else if (strncmp(line, "FQ", 2) == 0) {
+    } else if (strbegins(line, "FQ")) {
       dodelete(&oproplist, &nproplist);
       return;
-    } else if (strncmp(line, "F>", 2) == 0) {
+    } else if (strbegins(line, "F>")) {
       proposalcksum = (-proposalcksum) & 0xff;
       sentcksum = strtoul(line + 2, &endp, 16);
 
