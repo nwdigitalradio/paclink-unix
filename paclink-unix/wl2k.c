@@ -29,6 +29,7 @@ __RCSID("$Id$");
 #include "midseen.h"
 #include "buffer.h"
 #include "lzhuf_1.h"
+#include "zapcc.h"
 
 #define PROPLIMIT 5
 #define PENDING LOCALSTATEDIR "/wl2k/pending"
@@ -446,12 +447,7 @@ prepare_outbound_proposals(void)
     buffer_rewind(prop->ubuf);
     while ((line = buffer_getline(prop->ubuf, '\n')) != NULL) {
       if (strncasecmp(line, "Subject:", 8) == 0) {
-	if ((cp = strchr(line, '\r')) != NULL) {
-	  *cp = '\0';
-	}
-	if ((cp = strchr(line, '\n')) != NULL) {
-	  *cp = '\0';
-	}
+	zapcc(line);
 	cp = line + 8;
 	while (isspace(*cp)) {
 	  cp++;
