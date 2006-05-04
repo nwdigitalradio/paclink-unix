@@ -8,6 +8,7 @@ __RCSID("$Id$");
 #endif
 
 #include <string.h>
+#include "zapcc.h"
 
 char *
 zapcc(char *s)
