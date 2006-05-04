@@ -14,9 +14,37 @@ __RCSID("$Id$");
 #include "llist.h"
 #include "buffer.h"
 #include "zapcc.h"
+#include "strutil.h"
 
 char *getheader(struct buffer *buf, const char *header);
 struct buffer *mime2wl(struct buffer *mime);
+char *getboundary(char *ct);
+
+char *
+getboundary(char *ct)
+{
+  char *tmp = NULL;
+  char *boundary = NULL;
+  char *next;
+  size_t span;
+
+  if ((tmp = strdup(ct)) == NULL) {
+    return NULL;
+  }
+  next = strchr(tmp, ';');
+  while ((boundary = next) != NULL) {
+    span = strspn(boundary, "; \t");
+    boundary += span;
+    next = strchr(boundary, ';');
+    if (next) {
+      *next++ = '\0';
+    }
+    if (strcasebegins(boundary, "boundary=")) {
+      return boundary;
+    }
+  }
+  return NULL;  
+}
 
 char *
 getheader(struct buffer *buf, const char *header)
@@ -48,6 +76,8 @@ mime2wl(struct buffer *mime)
   char *line;
   struct buffer *hbuf;
   struct buffer *bbuf;
+  struct buffer *wbuf;
+  char *ct = NULL;
 
   if ((hbuf = buffer_new()) == NULL) {
     return NULL;
@@ -78,13 +108,20 @@ mime2wl(struct buffer *mime)
   if ((line = getheader(hbuf, "content-type")) == NULL) {
     printf("no content-type\n");
   } else {
-    printf("ct: %s\n", line);
+    ct = line;
+    printf("ct: %s\n", ct);
   }
 
   if ((line = getheader(hbuf, "subject")) == NULL) {
     printf("no subject\n");
   } else {
     printf("subj: %s\n", line);
+  }
+
+  if (strcasebegins(ct, "multipart/mixed")) {
+    printf("it is multipart/mixed\n");
+  } else {
+    printf("it is NOT multipart/mixed\n");
   }
 
   buffer_free(hbuf);

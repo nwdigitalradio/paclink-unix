@@ -16,7 +16,7 @@ wl2ktelnet_SOURCES=wl2ktelnet.c progname.h strutil.c strutil.h timeout.c timeout
 
 test_mime_encoding_SOURCES=test_mime_encoding.c mime_encoding.c mime_encoding.h buffer.c buffer.h
 
-mime2wl_SOURCES=mime2wl.c buffer.c zapcc.c
+mime2wl_SOURCES=mime2wl.c buffer.c buffer.h zapcc.c zapcc.h strutil.c strutl.h
 
 TESTS=test_lzhuf_1 test_mime_encoding
 
