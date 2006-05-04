@@ -18,6 +18,7 @@ __RCSID("$Id$");
 char *getheader(struct buffer *buf, const char *header);
 struct buffer *mime2wl(struct buffer *mime);
 char *getboundary(char *ct);
+char *makeendboundary(char *boundary);
 
 char *
 getboundary(char *ct)
@@ -56,12 +57,30 @@ getboundary(char *ct)
 	*tail = '\0';
       }
       retboundary = strdup(boundary);
+      if ((retboundary = malloc(strlen(boundary) + 3)) == NULL) {
+	return NULL;
+      }
+      strcpy(retboundary, "--");
+      strcat(retboundary, boundary);
       free(tmp);
       return retboundary;
     }
   }
   free(tmp);
   return NULL;  
+}
+
+char *
+makeendboundary(char *boundary)
+{
+  char *eb;
+
+  if ((eb = malloc(strlen(boundary) + 3)) == NULL) {
+    return NULL;
+  }
+  strcpy(eb, boundary);
+  strcat(eb, "--");
+  return eb;
 }
 
 char *
@@ -97,6 +116,7 @@ mime2wl(struct buffer *mime)
   struct buffer *wbuf;
   char *ct = NULL;
   char *boundary;
+  char *endboundary;
 
   if ((hbuf = buffer_new()) == NULL) {
     return NULL;
@@ -140,12 +160,13 @@ mime2wl(struct buffer *mime)
   if (ct && strcasebegins(ct, "multipart/mixed")) {
     printf("it is multipart/mixed\n");
     boundary = getboundary(ct);
-    if (boundary) {
-      printf("boundary is: %s\n", boundary);
-    } else {
+    if (!boundary) {
       printf("no boundary\n");
-      /* XXX error */
+      return NULL;
     }
+    printf("boundary is: %s\n", boundary);
+    endboundary = makeendboundary(boundary);
+    printf("endboundary is: %s\n", endboundary);
   } else {
     printf("it is NOT multipart/mixed\n");
   }
