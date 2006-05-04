@@ -15,12 +15,14 @@ __RCSID("$Id$");
 #include "buffer.h"
 #include "strutil.h"
 
-char *getheader(struct buffer *buf, const char *header);
-struct buffer *mime2wl(struct buffer *mime);
-char *getboundary(char *ct);
-char *makeendboundary(char *boundary);
+static char *getboundary(char *ct);
+static char *makeendboundary(char *boundary);
+static char *getheader(struct buffer *buf, const char *header);
+static struct buffer *getmimeheaders(struct buffer *mime);
 
-char *
+struct buffer *mime2wl(struct buffer *mime);
+
+static char *
 getboundary(char *ct)
 {
   char *tmp = NULL;
@@ -70,7 +72,7 @@ getboundary(char *ct)
   return NULL;  
 }
 
-char *
+static char *
 makeendboundary(char *boundary)
 {
   char *eb;
@@ -83,7 +85,7 @@ makeendboundary(char *boundary)
   return eb;
 }
 
-char *
+static char *
 getheader(struct buffer *buf, const char *header)
 {
   char *line;
@@ -107,16 +109,11 @@ getheader(struct buffer *buf, const char *header)
   return NULL;
 }
 
-struct buffer *
-mime2wl(struct buffer *mime)
+static struct buffer *
+getmimeheaders(struct buffer *mime)
 {
-  char *line;
   struct buffer *hbuf;
-  struct buffer *bbuf;
-  struct buffer *wbuf;
-  char *ct = NULL;
-  char *boundary;
-  char *endboundary;
+  char *line;
 
   if ((hbuf = buffer_new()) == NULL) {
     return NULL;
@@ -134,6 +131,30 @@ mime2wl(struct buffer *mime)
     free(line);
   }
   buffer_addchar(hbuf, '\0');
+  return hbuf;
+}
+
+struct buffer *
+mime2wl(struct buffer *mime)
+{
+  char *line;
+  struct buffer *hbuf; /* headers */
+  struct buffer *bbuf; /* body */
+  struct buffer *wbuf; /* final wl2k message */
+  struct buffer *abuf; /* attachment accumulaor */
+  struct buffer *cbuf; /* current attachment */
+  char *ct = NULL;
+  char *boundary;
+  char *endboundary;
+  int gotboundary = 0;
+  int gottext = 0;
+
+  buffer_rewind(mime);
+
+  if ((hbuf = getmimeheaders(mime)) == NULL) {
+    return NULL;
+  }
+
   printf("\n\nHeaders:\n\n%s\nEnd of headers\n\n", buffer_getstring(hbuf));
 
   if ((bbuf = buffer_new()) == NULL) {
@@ -167,6 +188,23 @@ mime2wl(struct buffer *mime)
     printf("boundary is: %s\n", boundary);
     endboundary = makeendboundary(boundary);
     printf("endboundary is: %s\n", endboundary);
+
+    buffer_rewind(bbuf);
+    while ((line = buffer_getline(bbuf, '\n')) != NULL) {
+      strzapcc(line);
+      printf("body line: /%s/\n", line);
+      if (!gotboundary) {
+	printf("(skipped)\n");
+      }
+      if (strcmp(line, boundary) == 0) {
+	printf("*** boundary line\n");
+	gotboundary = 1;
+      } else if (strcmp(line, endboundary) == 0) {
+	printf("*** endboundary line\n");
+	gotboundary = 0;
+      }
+    }
+
   } else {
     printf("it is NOT multipart/mixed\n");
   }
