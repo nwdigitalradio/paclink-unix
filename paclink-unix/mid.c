@@ -23,7 +23,9 @@ __RCSID("$Id$");
 
 #define MID_DB_MODE 0600
 
-#define EXPIREDAYS 30
+#define MID_EXPIREDAYS 30
+
+#define MID_MAXLEN 12
 
 /* returns 0 for success, non-zero for error */
 int
@@ -88,7 +90,7 @@ check_mid(char *mid)
     if (data.size == sizeof(stored)) {
       memcpy(&stored, data.data, sizeof(stored));
       now = time(NULL);
-      if (difftime(now, stored) > (EXPIREDAYS * 24 * 60 * 60)) {
+      if (difftime(now, stored) > (MID_EXPIREDAYS * 24 * 60 * 60)) {
 	fprintf(stderr, "Deleting expired mid entry %s\n", (char *) key.data);
 	dbp->del(dbp, NULL, &key, 0);
 	ret = NOTFOUND;
@@ -130,7 +132,7 @@ expire_mids(void)
     if (data.size == sizeof(stored)) {
       memcpy(&stored, data.data, sizeof(stored));
       now = time(NULL);
-      if (difftime(now, stored) > (EXPIREDAYS * 24 * 60 * 60)) {
+      if (difftime(now, stored) > (MID_EXPIREDAYS * 24 * 60 * 60)) {
 	fprintf(stderr, "Deleting expired mid entry %s\n", (char *) key.data);
 	dbp->del(dbp, NULL, &key, 0);
       }
@@ -149,4 +151,42 @@ expire_mids(void)
 
   dbp->close(dbp, 0);
   return 0;
+}
+
+char *
+generate_mid(const char *callsign)
+{
+  size_t clen;
+  size_t rlen;
+  char mid[MID_MAXLEN + 1];
+  char midchars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  size_t i;
+  static int initialized = 0;
+
+  clen = strlen(callsign);
+  if (clen > 6) {
+    /* XXX ssid? */
+    printf("bad callsign %s\n", callsign);
+    return NULL;
+  }
+  rlen = MID_MAXLEN - 1 - clen;
+  if (rlen < 1) {
+    printf("No room to generate mid!?\n");
+    return NULL;
+  }
+  strcpy(mid + rlen + 1, callsign);
+  mid[rlen] = '_';
+  mid[MID_MAXLEN] = '\0';
+  if (!initialized) {
+    srandom((unsigned long) time(NULL));
+    initialized = 1;
+  }
+  do {
+    for (i = 0; i < rlen; i++) {
+      mid[i] = midchars[random() % (sizeof(midchars) - 1)];
+    }
+    printf("random mid: %s\n", mid);
+  } while (check_mid(mid));
+  record_mid(mid);
+  return strdup(mid);
 }
