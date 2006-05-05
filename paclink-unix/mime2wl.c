@@ -138,11 +138,12 @@ struct buffer *
 mime2wl(struct buffer *mime)
 {
   char *line;
-  struct buffer *hbuf; /* headers */
-  struct buffer *bbuf; /* body */
-  struct buffer *wbuf; /* final wl2k message */
-  struct buffer *abuf; /* attachment accumulaor */
-  struct buffer *cbuf; /* current attachment */
+  struct buffer *mhbuf; /* mime headers */
+  struct buffer *mbbuf; /* mime body */
+  struct buffer *wmbuf; /* final wl2k message */
+  struct buffer *wabuf; /* wl2k attachment accumulaor */
+  struct buffer *wbbuf; /* wl2k body */
+  struct buffer *wcbuf; /* wl2k current attachment */
   char *ct = NULL;
   char *boundary;
   char *endboundary;
@@ -151,28 +152,28 @@ mime2wl(struct buffer *mime)
 
   buffer_rewind(mime);
 
-  if ((hbuf = getmimeheaders(mime)) == NULL) {
+  if ((mhbuf = getmimeheaders(mime)) == NULL) {
     return NULL;
   }
 
-  printf("\n\nHeaders:\n\n%s\nEnd of headers\n\n", buffer_getstring(hbuf));
+  printf("\n\nHeaders:\n\n%s\nEnd of headers\n\n", buffer_getstring(mhbuf));
 
-  if ((bbuf = buffer_new()) == NULL) {
+  if ((mbbuf = buffer_new()) == NULL) {
     return NULL;
   }
   while ((line = buffer_getline(mime, '\n')) != NULL) {
-    buffer_addstring(bbuf, line);
+    buffer_addstring(mbbuf, line);
     free(line);
   }
 
-  if ((line = getheader(hbuf, "content-type")) == NULL) {
+  if ((line = getheader(mhbuf, "content-type")) == NULL) {
     printf("no content-type\n");
   } else {
     ct = line;
     printf("ct: %s\n", ct);
   }
 
-  if ((line = getheader(hbuf, "subject")) == NULL) {
+  if ((line = getheader(mhbuf, "subject")) == NULL) {
     printf("no subject\n");
   } else {
     printf("subj: %s\n", line);
@@ -189,8 +190,8 @@ mime2wl(struct buffer *mime)
     endboundary = makeendboundary(boundary);
     printf("endboundary is: %s\n", endboundary);
 
-    buffer_rewind(bbuf);
-    while ((line = buffer_getline(bbuf, '\n')) != NULL) {
+    buffer_rewind(mbbuf);
+    while ((line = buffer_getline(mbbuf, '\n')) != NULL) {
       strzapcc(line);
       printf("body line: /%s/\n", line);
       if (!gotboundary) {
@@ -209,8 +210,8 @@ mime2wl(struct buffer *mime)
     printf("it is NOT multipart/mixed\n");
   }
 
-  buffer_free(hbuf);
-  buffer_free(bbuf);
+  buffer_free(mhbuf);
+  buffer_free(mbbuf);
 
   /* XXX finish me */
 }
