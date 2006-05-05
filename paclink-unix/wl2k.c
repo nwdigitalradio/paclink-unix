@@ -26,7 +26,7 @@ __RCSID("$Id$");
 #include "strutil.h"
 #include "wl2k.h"
 #include "timeout.h"
-#include "midseen.h"
+#include "mid.h"
 #include "buffer.h"
 #include "lzhuf_1.h"
 

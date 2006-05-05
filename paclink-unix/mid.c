@@ -17,7 +17,7 @@ __RCSID("$Id$");
 # include <string.h>
 #endif
 
-#include "midseen.h"
+#include "mid.h"
 
 #define MID_DB LOCALSTATEDIR "/wl2k/mid.db"
 
