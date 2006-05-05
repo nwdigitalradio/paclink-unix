@@ -40,6 +40,7 @@ main(int argc ATTRIBUTE_UNUSED, char *argv[] ATTRIBUTE_UNUSED)
   }
 
   printf("base64_encode\n");
+  buffer_rewind(buf);
   outbuf = base64_encode(buf);
   printf("back from base64_encode\n");
   buffer_rewind(outbuf);
@@ -49,6 +50,7 @@ main(int argc ATTRIBUTE_UNUSED, char *argv[] ATTRIBUTE_UNUSED)
   fputc('\n', stdout);
 
   printf("base64_decode\n");
+  buffer_rewind(outbuf);
   decbuf = base64_decode(outbuf);
   printf("back from base64_decode\n");
   buffer_rewind(buf);
@@ -72,6 +74,7 @@ main(int argc ATTRIBUTE_UNUSED, char *argv[] ATTRIBUTE_UNUSED)
   fputc('\n', stdout);
 
   printf("qp_encode\n");
+  buffer_rewind(buf);
   outbuf = qp_encode(buf, 1);
   printf("back from qp_encode\n");
   buffer_rewind(outbuf);
@@ -81,6 +84,7 @@ main(int argc ATTRIBUTE_UNUSED, char *argv[] ATTRIBUTE_UNUSED)
   fputc('\n', stdout);
 
   printf("qp_decode\n");
+  buffer_rewind(outbuf);
   decbuf = qp_decode(outbuf);
   printf("back from qp_decode\n");
   buffer_rewind(buf);

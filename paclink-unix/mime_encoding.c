@@ -35,8 +35,6 @@ base64_encode(struct buffer *inbuf)
     exit(EXIT_FAILURE);
   }
 
-  buffer_rewind(inbuf);
-
   c = buffer_iterchar(inbuf);
   while (c != EOF) {
     switch (state % 4) {
@@ -114,7 +112,6 @@ base64_decode(struct buffer *inbuf)
     exit(EXIT_FAILURE);
   }
 
-  buffer_rewind(inbuf);
   while ((c = buffer_iterchar(inbuf)) != EOF) {
     if (c == '=') {
       break;
@@ -176,8 +173,6 @@ qp_encode(struct buffer *inbuf, int istext)
     perror("buffer_new()");
     exit(EXIT_FAILURE);
   }
-
-  buffer_rewind(inbuf);
 
   while ((c = buffer_iterchar(inbuf)) != EOF) {
     if (linelen > 70) {
@@ -262,8 +257,6 @@ qp_decode(struct buffer *inbuf)
     perror("buffer_new()");
     exit(EXIT_FAILURE);
   }
-
-  buffer_rewind(inbuf);
 
   while ((c = buffer_iterchar(inbuf)) != EOF) {
     if (c == '=') {
