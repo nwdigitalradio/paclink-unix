@@ -11,16 +11,18 @@ __RCSID("$Id$");
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 #include "llist.h"
 #include "buffer.h"
 #include "strutil.h"
+#include "mid.h"
 
 static char *getboundary(char *ct);
 static char *makeendboundary(char *boundary);
 static char *getheader(struct buffer *buf, const char *header);
 static struct buffer *getmimeheaders(struct buffer *mime);
 
-struct buffer *mime2wl(struct buffer *mime);
+struct buffer *mime2wl(struct buffer *mime, const char *callsign);
 
 static char *
 getboundary(char *ct)
@@ -135,7 +137,7 @@ getmimeheaders(struct buffer *mime)
 }
 
 struct buffer *
-mime2wl(struct buffer *mime)
+mime2wl(struct buffer *mime, const char *callsign)
 {
   char *line;
   struct buffer *mhbuf; /* mime headers */
@@ -149,8 +151,29 @@ mime2wl(struct buffer *mime)
   char *endboundary;
   int gotboundary = 0;
   int gottext = 0;
+  char *mid;
+  char date[17];
+  time_t tloc;
+  struct tm *tm;
 
   buffer_rewind(mime);
+
+  if ((wmbuf = buffer_new()) == NULL) {
+    return NULL;
+  }
+
+  if ((mid = generate_mid(callsign)) == NULL) {
+    return NULL;
+  }
+
+  buffer_addstring(wmbuf, "Mid: ");
+  buffer_addstring(wmbuf, mid);
+  buffer_addstring(wmbuf, "\r\nDate: ");
+  time(&tloc);
+  tm = gmtime(&tloc);
+  strftime(date, 17, "%Y/%m/%d %H:%M", tm);
+  buffer_addstring(wmbuf, date);
+  buffer_addstring(wmbuf, "\r\nType: Private\r\n");
 
   if ((mhbuf = getmimeheaders(mime)) == NULL) {
     return NULL;
@@ -213,6 +236,11 @@ mime2wl(struct buffer *mime)
   buffer_free(mhbuf);
   buffer_free(mbbuf);
 
+  buffer_writefile("/tmp/foobar", wmbuf);
+  exit(2);
+
+  return(wmbuf);
+
   /* XXX finish me */
 }
 
@@ -226,7 +254,7 @@ main()
     perror("buffer_readfile");
     exit(2);
   }
-  wl = mime2wl(mime);
+  wl = mime2wl(mime, "N2QZ");
   exit(0);
   return 1;
 }
