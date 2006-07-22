@@ -17,12 +17,48 @@ __RCSID("$Id$");
 #include "strutil.h"
 #include "mid.h"
 
+static struct buffer *conv_addrlist(char *al);
 static char *getboundary(char *ct);
 static char *makeendboundary(char *boundary);
 static char *getheader(struct buffer *buf, const char *header);
 static struct buffer *getmimeheaders(struct buffer *mime);
 
 struct buffer *mime2wl(struct buffer *mime, const char *callsign);
+
+static struct buffer *
+conv_addrlist(char *al)
+{
+  struct buffer *buf;
+  char *p;
+  char *last;
+  char *a;
+  char *b;
+
+  if ((buf = buffer_new()) == NULL) {
+    return NULL;
+  }
+
+  for ((p = strtok_r(al, ",", &last));
+       p;
+       p = strtok_r(NULL, ",", &last)) {
+    while (isspace(*p)) {
+      p++;
+    }
+    buffer_addstring(buf, "SMTP:");
+
+    if (((a = strchr(p, '<')) != NULL)
+	&& ((b = strchr(a, '>')) != NULL)) {
+      *b = '\0';
+      buffer_addstring(buf, a + 1);
+      *b = '>';
+    } else {
+      buffer_addstring(buf, p);
+    }
+    buffer_addstring(buf, "\r\n");
+  }
+
+  return buf;
+}
 
 static char *
 getboundary(char *ct)
@@ -146,6 +182,8 @@ mime2wl(struct buffer *mime, const char *callsign)
   struct buffer *wabuf; /* wl2k attachment accumulaor */
   struct buffer *wbbuf; /* wl2k body */
   struct buffer *wcbuf; /* wl2k current attachment */
+  struct buffer *albuf; /* address list */
+  char *aline;
   char *ct = NULL;
   char *boundary;
   char *endboundary;
@@ -189,17 +227,67 @@ mime2wl(struct buffer *mime, const char *callsign)
     free(line);
   }
 
-  if ((line = getheader(mhbuf, "content-type")) == NULL) {
-    printf("no content-type\n");
+  if ((line = getheader(mhbuf, "from")) == NULL) {
+    printf("no from\n");
   } else {
-    ct = line;
-    printf("ct: %s\n", ct);
+    /* XXX envelope */
+    albuf = conv_addrlist(line);
+    if (albuf) {
+      buffer_rewind(albuf);
+      while ((aline = buffer_getline(albuf, '\n')) != NULL) {
+	buffer_addstring(wmbuf, "From: ");
+	buffer_addstring(wmbuf, aline);
+      }
+      buffer_free(albuf);
+    }
+  }
+
+  if ((line = getheader(mhbuf, "to")) == NULL) {
+    printf("no to\n");
+  } else {
+    /* XXX envelope */
+    albuf = conv_addrlist(line);
+    if (albuf) {
+      buffer_rewind(albuf);
+      while ((aline = buffer_getline(albuf, '\n')) != NULL) {
+	buffer_addstring(wmbuf, "To: ");
+	buffer_addstring(wmbuf, aline);
+      }
+      buffer_free(albuf);
+    }
+  }
+
+  if ((line = getheader(mhbuf, "cc")) == NULL) {
+    printf("no cc\n");
+  } else {
+    /* XXX envelope */
+    albuf = conv_addrlist(line);
+    if (albuf) {
+      buffer_rewind(albuf);
+      while ((aline = buffer_getline(albuf, '\n')) != NULL) {
+	buffer_addstring(wmbuf, "Cc: ");
+	buffer_addstring(wmbuf, aline);
+      }
+      buffer_free(albuf);
+    }
   }
 
   if ((line = getheader(mhbuf, "subject")) == NULL) {
     printf("no subject\n");
   } else {
+    buffer_addstring(wmbuf, "Subject: ");
+    buffer_addstring(wmbuf, line);
+    buffer_addstring(wmbuf, "\r\n");
     printf("subj: %s\n", line);
+  }
+
+  buffer_addstring(wmbuf, "Mbo: SMTP\r\n");
+
+  if ((line = getheader(mhbuf, "content-type")) == NULL) {
+    printf("no content-type\n");
+  } else {
+    ct = line;
+    printf("ct: %s\n", ct);
   }
 
   if (ct && strcasebegins(ct, "multipart/mixed")) {
