@@ -41,7 +41,7 @@ conv_addrlist(char *al)
   for ((p = strtok_r(al, ",", &last));
        p;
        p = strtok_r(NULL, ",", &last)) {
-    while (isspace(*p)) {
+    while (isspace((unsigned char) *p)) {
       p++;
     }
     buffer_addstring(buf, "SMTP:");
