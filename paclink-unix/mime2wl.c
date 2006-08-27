@@ -96,7 +96,6 @@ getboundary(char *ct)
 	}
 	*tail = '\0';
       }
-      retboundary = strdup(boundary);
       if ((retboundary = malloc(strlen(boundary) + 3)) == NULL) {
 	return NULL;
       }
