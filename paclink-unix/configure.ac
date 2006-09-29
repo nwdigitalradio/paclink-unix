@@ -2,7 +2,7 @@ dnl $Id$
 dnl Process this file with autoconf to produce a configure script.
 
 dnl Increment the package version for each release.
-AC_INIT(TELPAC-UNIX, 1.0)
+AC_INIT(PACLINK-UNIX, 0.1)
 AC_CONFIG_HEADER(config.h)
 
 AM_INIT_AUTOMAKE
