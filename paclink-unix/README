@@ -2,7 +2,14 @@ $Id$
 
 Welcome to the paclink-unix distribution.
 
-paclink-unix is a UNIX client for the Winlink 2000 system.
+paclink-unix is a UNIX client for the Winlink 2000 ham radio email
+system.
+
+paclink-unix is currently PRE-ALPHA and DOES NOT WORK.  It will be
+some time before this software does anything useful.  It is being
+distributed for INFORMATIONAL PURPOSES ONLY.  If you are interested in
+assisting with the development effort, please contact the author:
+n2qz@arrl.net
 
 Copyright (C) 2005, 2006 Nicholas S. Castellano N2QZ
 
@@ -34,3 +41,4 @@ Drop me a QSL or postcard in the mail!
 
 73,
 Nick N2QZ
+n2qz@arrl.net
