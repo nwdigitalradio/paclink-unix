@@ -7,14 +7,14 @@ AC_CONFIG_HEADER(config.h)
 
 AM_INIT_AUTOMAKE
 
+AC_LANG(C)
+
 dnl =======================================================================
 dnl Checks for programs.
 dnl =======================================================================
 
 AC_PROG_CC
 AM_PROG_MKDIR_P
-
-AC_LANG(C)
 
 dnl =======================================================================
 dnl Checks for libraries.
@@ -67,6 +67,8 @@ if test x"$compiler_has_attribute_unused" = xyes; then
    AC_DEFINE(ATTRIBUTE_UNUSED, __attribute__((__unused__)), [Define to attribute for unused variables])
 fi
 
+AC_CHECK_FUNCS(getprogname)
+
 AC_MSG_CHECKING([for __progname])
 AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
                                [[int main() {extern char *__progname; puts(__progname);}]]),
@@ -85,6 +87,16 @@ ax_cv___Argv=no)
 AC_MSG_RESULT($ax_cv___Argv)
 if test x$ax_cv___Argv = xyes; then
   AC_DEFINE(HAVE___ARGV, 1, [Define to 1 if you have the global variable __Argv])
+fi
+
+AC_MSG_CHECKING([for ___Argv])
+AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
+                               [[int main() {extern char **___Argv; puts(___Argv[0]);}]]),
+ax_cv____Argv=yes,
+ax_cv____Argv=no)
+AC_MSG_RESULT($ax_cv____Argv)
+if test x$ax_cv____Argv = xyes; then
+  AC_DEFINE(HAVE____ARGV, 1, [Define to 1 if you have the global variable ___Argv])
 fi
 
 CPPFLAGS="$CPPFLAGS -DLOCALSTATEDIR=\\\"${localstatedir}\\\""
