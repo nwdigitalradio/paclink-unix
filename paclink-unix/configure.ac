@@ -71,7 +71,7 @@ AC_CHECK_FUNCS(getprogname)
 
 AC_MSG_CHECKING([for __progname])
 AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
-                               [[int main() {extern char *__progname; puts(__progname);}]]),
+                               [[extern char *__progname; puts(__progname);]]),
 ax_cv___progname=yes,
 ax_cv___progname=no)
 AC_MSG_RESULT($ax_cv___progname)
@@ -81,7 +81,7 @@ fi
 
 AC_MSG_CHECKING([for __Argv])
 AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
-                               [[int main() {extern char **__Argv; puts(__Argv[0]);}]]),
+                               [[extern char **__Argv; puts(__Argv@<:@0@:>@);]]),
 ax_cv___Argv=yes,
 ax_cv___Argv=no)
 AC_MSG_RESULT($ax_cv___Argv)
@@ -91,7 +91,7 @@ fi
 
 AC_MSG_CHECKING([for ___Argv])
 AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
-                               [[int main() {extern char **___Argv; puts(___Argv[0]);}]]),
+                               [[extern char **___Argv; puts(___Argv@<:@0@:>@);]]),
 ax_cv____Argv=yes,
 ax_cv____Argv=no)
 AC_MSG_RESULT($ax_cv____Argv)
