@@ -14,6 +14,7 @@ dnl Checks for programs.
 dnl =======================================================================
 
 AC_PROG_CC
+AC_PROG_RANLIB
 AM_PROG_MKDIR_P
 
 dnl =======================================================================
@@ -46,7 +47,7 @@ dnl =======================================================================
 dnl checks stdlib.h stdarg.h string.h float.h defines STDC_HEADERS
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS([sys/socket.h netinet/in.h arpa/inet.h netdb.h unistd.h signal.h strings.h])
+AC_CHECK_HEADERS([sys/types.h sys/socket.h netinet/in.h arpa/inet.h stdio.h string.h stdlib.h string.h paths.h netdb.h unistd.h signal.h strings.h stdarg.h])
 
 dnl =======================================================================
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -67,7 +68,7 @@ if test x"$compiler_has_attribute_unused" = xyes; then
    AC_DEFINE(ATTRIBUTE_UNUSED, __attribute__((__unused__)), [Define to attribute for unused variables])
 fi
 
-AC_CHECK_FUNCS(getprogname)
+AC_CHECK_FUNCS([vsnprintf])
 
 AC_MSG_CHECKING([for __progname])
 AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
@@ -104,6 +105,8 @@ AC_CHECK_MEMBERS([struct sockaddr_in.sin_len], , ,[
 #include <netinet/in.h>
 ])
 
+AC_REPLACE_FUNCS([getprogname asprintf vasprintf])
+
 CPPFLAGS="$CPPFLAGS -DLOCALSTATEDIR=\\\"${localstatedir}\\\""
 
 dnl =======================================================================
@@ -112,4 +115,5 @@ dnl =======================================================================
 
 AC_MSG_RESULT(done)
 
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile lib/Makefile])
+AC_OUTPUT

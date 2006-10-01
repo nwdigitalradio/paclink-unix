@@ -2,6 +2,9 @@
 
 ACLOCAL_AMFLAGS=-I m4
 
+SUBDIRS=lib
+LDADD=lib/libcompat.a
+
 EXTRA_DIST=ascmail binmail.uue
 
 clean-local:

@@ -2,12 +2,17 @@
 # include "config.h"
 #endif
 
+#if HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+
 #ifdef __RCSID
 __RCSID("$Id$");
 #endif
 
-#include <stdio.h>
+#if HAVE_STDIO_H
+# include <stdio.h>
+#endif
 #if HAVE_STDLIB_H
 # include <stdlib.h>
 #endif
@@ -17,20 +22,20 @@ __RCSID("$Id$");
 #if HAVE_UNISTD_H
 # include <unistd.h>
 #endif
-#ifdef HAVE_SYS_SOCKET_H
+#if HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
 #endif
-#ifdef HAVE_NETINET_IN_H
+#if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
-#ifdef HAVE_ARPA_INET_H
+#if HAVE_ARPA_INET_H
 # include <arpa/inet.h>
 #endif
-#ifdef HAVE_NETDB_H
+#if HAVE_NETDB_H
 # include <netdb.h>
 #endif
 
-#include "progname.h"
+#include "compat.h"
 #include "timeout.h"
 #include "wl2k.h"
 #include "strutil.h"
@@ -40,7 +45,7 @@ static void usage(void);
 static void
 usage(void)
 {
-  fprintf(stderr, "usage:  %s mycall yourcall hostname port timeoutsecs password\n", progname);
+  fprintf(stderr, "usage:  %s mycall yourcall hostname port timeoutsecs password\n", getprogname());
 }
 
 int
