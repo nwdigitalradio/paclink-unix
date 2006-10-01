@@ -88,7 +88,9 @@ main(int argc, char *argv[])
   }
 
   memset(&s_in, '\0', sizeof(struct sockaddr_in));
+#if HAVE_SOCKADDR_IN_SIN_LEN
   s_in.sin_len = sizeof(struct sockaddr_in);
+#endif
   s_in.sin_family = AF_INET;
   s_in.sin_addr.s_addr = inet_addr(HOSTNAME);
   if ((int) s_in.sin_addr.s_addr == -1) {

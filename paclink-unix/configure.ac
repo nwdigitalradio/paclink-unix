@@ -99,6 +99,11 @@ if test x$ax_cv____Argv = xyes; then
   AC_DEFINE(HAVE____ARGV, 1, [Define to 1 if you have the global variable ___Argv])
 fi
 
+AC_CHECK_MEMBERS([struct sockaddr_in.sin_len], , ,[
+#include <sys/types.h>
+#include <netinet/in.h>
+])
+
 CPPFLAGS="$CPPFLAGS -DLOCALSTATEDIR=\\\"${localstatedir}\\\""
 
 dnl =======================================================================
