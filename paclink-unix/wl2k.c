@@ -24,6 +24,7 @@ __RCSID("$Id$");
 #include <ctype.h>
 #include <sys/stat.h>
 
+#include "compat.h"
 #include "strutil.h"
 #include "wl2k.h"
 #include "timeout.h"
