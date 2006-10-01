@@ -22,6 +22,7 @@ __RCSID("$Id$");
 #endif
 #include <dirent.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 #include "strutil.h"
 #include "wl2k.h"
@@ -396,6 +397,8 @@ prepare_outbound_proposals(void)
   struct dirent *dp;
   char *line;
   unsigned char *cp;
+  char *path;
+  struct stat sb;
 
   opropnext = &oproplist;
   if ((dirp = opendir(PENDING)) == NULL) {
@@ -403,13 +406,23 @@ prepare_outbound_proposals(void)
     exit(EXIT_FAILURE);
   }
   while ((dp = readdir(dirp)) != NULL) {
-    if (dp->d_type != DT_REG) {
+    if (asprintf(&path, "%s/%s", PENDING, dp->d_name) == -1) {
+      perror("asprintf()");
+      exit(EXIT_FAILURE);
+    }
+    if (stat(path, &sb)) {
+      free(path);
+      continue;
+    }
+    if ((sb.st_mode & S_IFMT) != S_IFREG) {
+      free(path);
       continue;
     }
     if (strlen(dp->d_name) > 12) {
       fprintf(stderr,
 	      "warning: skipping bad filename %s in pending directory %s\n",
 	      dp->d_name, PENDING);
+      free(path);
       continue;
     }
     printf("%s\n", dp->d_name);
@@ -420,10 +433,7 @@ prepare_outbound_proposals(void)
     prop->code = 'C';
     prop->type = 'E';
     strlcpy(prop->mid, dp->d_name, 13);
-    if (asprintf(&prop->path, "%s/%s", PENDING, dp->d_name) == -1) {
-      perror("asprintf()");
-      exit(EXIT_FAILURE);
-    }
+    prop->path = path;
 
     if ((prop->ubuf = buffer_readfile(prop->path)) == NULL) {
       perror(prop->path);
