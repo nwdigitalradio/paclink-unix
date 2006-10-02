@@ -7,6 +7,57 @@ Software Foundation, Inc.
 This file is free documentation; the Free Software Foundation gives
 unlimited permission to copy, distribute and modify it.
 
+Pre-installation requirements
+=============================
+
+Berkeley DB
+-----------
+
+Berkeley DB library version 3 or greater must be installed.  You can
+download the latest revision of version 4 from
+http://www.oracle.com/database/berkeley-db.html if you need it.
+
+They seem to have made it as difficult as possible to find the build
+instructions in the latest release of bdb from Oracle.  To do a
+standard install, you can try this:
+
+cd build_unix
+../dist/configure
+make
+make install
+
+Once you have installed BDB, the configure script for paclink-unix
+should find and use it automatically if you installed in the default
+location.  If you specified a non-standard "--prefix=/your/bdb/path"
+option when configuring BDB, you can tell paclink-unix its location at
+build configuration time by specifying "--with-bdb-dir=/your/bdb/path"
+when calling configure.
+
+autoconf
+--------
+
+You do not need autoconf for a normal build of paclink-unix releases.
+It is required only if you are doing development work, building from
+CVS, or if you need to modify the build infrastrucure for some reason.
+The recommended version for paclink-unix development is 2.60 or newer.
+You can download autoconf from http://www.gnu.org/software/autoconf/
+if you need it.
+
+autoconf has other dependencies such as m4 and perl.  See README and
+INSTALL in the autoconf distribution for details.
+
+automake
+--------
+
+You do not need automake for a normal build of paclink-unix.  It is
+required only if you are doing development work, building from CVS, or
+if you need to modify the build infrastrucure for some reason.  The
+recommended version for paclink-unix development is 1.96 or newer.
+You can download automake from http://www.gnu.org/software/automake/
+if you need it.
+
+Before installing automake you must first install autoconf.
+
 Basic Installation
 ==================
 
@@ -230,6 +281,10 @@ configuration-related scripts to be executed by `/bin/bash'.
 `--srcdir=DIR'
      Look for the package's source code in directory DIR.  Usually
      `configure' can determine that directory automatically.
+
+`--with-bdb-dir=DIR'
+     Look for Berkeley DB in directory DIR.  usually `configure' can
+     determine that directory automatically.
 
 `configure' also accepts some other, not widely useful, options.  Run
 `configure --help' for more details.
