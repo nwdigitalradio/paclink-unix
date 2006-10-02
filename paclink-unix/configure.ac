@@ -9,15 +9,14 @@ AM_INIT_AUTOMAKE
 
 AC_LANG(C)
 
-dnl sets __EXTENSIONS__, _GNU_SOURCE, and other feature test macros as needed
 AC_USE_SYSTEM_EXTENSIONS
 
-AC_DEFINE([_POSIX_C_SOURCE], 200112, [Set POSIX level])
-AC_DEFINE([_XOPEN_SOURCE], 600, [Set XOPEN level])
-AC_DEFINE([_XOPEN_SOURCE_EXTENDED], 1, [Request prototypes for XOPEN extensions])
-AC_DEFINE([_NETBSD_SOURCE], 1, [Request prototypes for NetBSD extensions])
-AC_DEFINE([_BSD_SOURCE], 1, [Request prototypes for BSD extensions])
-AC_DEFINE([__BSD_VISIBLE], 1, [Request prototypes for BSD extensions])
+dnl AC_DEFINE([_POSIX_C_SOURCE], 200112, [Set POSIX level])
+dnl AC_DEFINE([_XOPEN_SOURCE], 600, [Set XOPEN level])
+dnl AC_DEFINE([_XOPEN_SOURCE_EXTENDED], 1, [Request prototypes for XOPEN extensions])
+dnl AC_DEFINE([_NETBSD_SOURCE], 1, [Request prototypes for NetBSD extensions])
+dnl AC_DEFINE([_BSD_SOURCE], 1, [Request prototypes for BSD extensions])
+dnl AC_DEFINE([__BSD_VISIBLE], 1, [Request prototypes for BSD extensions])
 
 dnl =======================================================================
 dnl Checks for programs.
