@@ -749,19 +749,16 @@ version_1_Encode(struct buffer *inbuf)
 struct buffer *
 Decode(struct buffer *inbuf)
 {
+  struct buffer *outbuf;
   int i, j, k, r, c;
   unsigned long int count;
   int x;
 #ifdef LZHUF_1_MAIN
-  unsigned int printcount;
+  unsigned int printcount = 0;
 #endif
+
   getbuf = 0;
   getlen = 0;
-#ifdef LZHUF_1_MAIN
-  printcount = 0;
-#endif
-  struct buffer *outbuf;
-
   crc = 0;
 
   if ((x = crc_fgetc(inbuf)) == EOF) {
