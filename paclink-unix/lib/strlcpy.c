@@ -17,40 +17,32 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
+#if HAVE_CONFIG_H
+#include "config.h"
 #endif
 
-#include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: strlcpy.c,v 1.14 2003/10/27 00:12:42 lukem Exp $");
-#endif /* LIBC_SCCS and not lint */
-
-#ifdef _LIBC
-#include "namespace.h"
-#endif
+#if HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#include <assert.h>
-#include <string.h>
-
-#ifdef _LIBC
-# ifdef __weak_alias
-__weak_alias(strlcpy, _strlcpy)
-# endif
 #endif
 
-#if !HAVE_STRLCPY
+#ifdef __RCSID
+__RCSID("$Id$");
+#endif
+
+#if HAVE_ASSERT_H
+#include <assert.h>
+#endif
+#if HAVE_STRING_H
+#include <string.h>
+#endif
+
 /*
  * Copy src to string dst of size siz.  At most siz-1 characters
  * will be copied.  Always NUL terminates (unless siz == 0).
  * Returns strlen(src); if retval >= siz, truncation occurred.
  */
 size_t
-#ifdef _LIBC
-_strlcpy(dst, src, siz)
-#else
 strlcpy(dst, src, siz)
-#endif
 	char *dst;
 	const char *src;
 	size_t siz;
@@ -59,8 +51,8 @@ strlcpy(dst, src, siz)
 	const char *s = src;
 	size_t n = siz;
 
-	_DIAGASSERT(dst != NULL);
-	_DIAGASSERT(src != NULL);
+	assert(dst != NULL);
+	assert(src != NULL);
 
 	/* Copy as many bytes as will fit */
 	if (n != 0 && --n != 0) {
@@ -80,4 +72,3 @@ strlcpy(dst, src, siz)
 
 	return(s - src - 1);	/* count does not include NUL */
 }
-#endif
