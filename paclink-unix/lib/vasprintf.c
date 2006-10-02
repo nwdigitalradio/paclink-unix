@@ -64,7 +64,7 @@ vasprintf(char **ret, const char *fmt, va_list ap)
 			return -1;
 		}
 		len = vsnprintf(buf, buflen, fmt, ap);
-		if (len >= 0 && len < (buflen - 1)) {
+		if ((len >= 0) && ((unsigned) len < (buflen - 1))) {
 			break;
 		}
 		free(buf);
@@ -73,7 +73,7 @@ vasprintf(char **ret, const char *fmt, va_list ap)
 		 * len >= 0 are required for vsnprintf implementation that 
 		 * return -1 of buffer insufficient
 		 */
-		if (len >= 0 && len >= buflen) {
+		if ((len >= 0) && ((unsigned) len >= buflen)) {
 			buflen = len + 1;
 		}
 	}
