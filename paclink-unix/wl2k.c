@@ -57,7 +57,7 @@ static struct proposal *parse_proposal(char *propline);
 static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist);
 static void printprop(struct proposal *prop);
 static void putcompressed(struct proposal *prop, FILE *fp);
-static char *getline(FILE *fp, int terminator);
+static char *tgetline(FILE *fp, int terminator);
 static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 
 static int
@@ -617,7 +617,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 }
 
 static char *
-getline(FILE *fp, int terminator)
+tgetline(FILE *fp, int terminator)
 {
   static struct buffer *buf = NULL;
   int c;
@@ -654,7 +654,7 @@ char *
 wl2kgetline(FILE *fp)
 {
 
-  return getline(fp, '\r');
+  return tgetline(fp, '\r');
 }
 
 void
