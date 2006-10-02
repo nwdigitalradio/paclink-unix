@@ -415,7 +415,7 @@ prepare_outbound_proposals(void)
       free(path);
       continue;
     }
-    if ((sb.st_mode & S_IFMT) != S_IFREG) {
+    if (!(S_ISREG(sb.st_mode))) {
       free(path);
       continue;
     }

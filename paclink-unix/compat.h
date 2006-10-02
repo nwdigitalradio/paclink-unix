@@ -19,4 +19,8 @@ int vasprintf(char **ret, const char *fmt, va_list ap);
 const char *getprogname(void);
 #endif
 
+#ifndef S_ISREG
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
+
 #endif
