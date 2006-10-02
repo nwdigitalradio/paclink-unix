@@ -106,7 +106,7 @@ AC_CHECK_MEMBERS([struct sockaddr_in.sin_len], , ,[
 #include <netinet/in.h>
 ])
 
-AC_REPLACE_FUNCS([getprogname asprintf vasprintf])
+AC_REPLACE_FUNCS([getprogname asprintf vasprintf strlcpy])
 
 CPPFLAGS="$CPPFLAGS -DLOCALSTATEDIR=\\\"${localstatedir}\\\""
 

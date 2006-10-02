@@ -19,6 +19,10 @@ int vasprintf(char **ret, const char *fmt, va_list ap);
 const char *getprogname(void);
 #endif
 
+#if !HAVE_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t size);
+#endif
+
 #ifndef S_ISREG
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #endif
