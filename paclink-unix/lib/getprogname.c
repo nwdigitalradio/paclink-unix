@@ -12,25 +12,31 @@ __RCSID("$Id$");
 
 #include "compat.h"
 
+#if HAVE___PROGNAME
+extern char *__progname;
+#endif
+
+#if HAVE___ARGV
+extern char **__Argv;
+#endif
+
+#if HAVE____ARGV
+extern char **___Argv;
+#endif
+
 const char *
 getprogname(void)
 {
-#if HAVE___PROGNAME
-  extern char *__progname;
 
+#if HAVE___PROGNAME
   return __progname;
 #else
 #if HAVE___ARGV
-  extern char **__Argv;
-
   return __Argv[0];
 #else
 #if HAVE____ARGV
-  extern char **___Argv;
-
   return ___Argv[0];
 #else
-
   return "(unknown program)";
 #endif
 #endif
