@@ -37,12 +37,12 @@ AC_SEARCH_LIBS(herror, resolv)
 AC_CHECK_FILE(/usr/pkg/include/db4/db.h,
 [
 		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include/db4"
-		LDFLAGS="-L/usr/pkg/lib -Wl,-rpath,/usr/pkg/lib"
+		LDFLAGS="-L/usr/pkg/lib -Wl,-rpath,/usr/pkg/lib $LDFLAGS"
 ])
 AC_CHECK_FILE(/usr/pkg/include/db3/db.h,
 [
 		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include/db3"
-		LDFLAGS="-L/usr/pkg/lib -Wl,-rpath,/usr/pkg/lib"
+		LDFLAGS="-L/usr/pkg/lib -Wl,-rpath,/usr/pkg/lib $LDFLAGS"
 ])
 AX_PATH_BDB([3], [
 		 LIBS="$BDB_LIBS $LIBS"
