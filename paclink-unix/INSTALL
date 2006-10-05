@@ -33,6 +33,21 @@ option when configuring BDB, you can tell paclink-unix its location at
 build configuration time by specifying "--with-bdb-dir=/your/bdb/path"
 when calling configure.
 
+gmime
+-----
+
+gmime library version 2 or greater must be installed.  The recommended
+version for paclink-unix use is 2.1.19 or greater.  You can download
+the latest revision of version 2 from
+http://spruce.sourceforge.net/gmime/ if you need it.
+
+Once you have installed gmime, the configure script for paclink-unix
+should find and use it automatically if its gmime-config script is
+installed somewhere on your PATH.
+
+gmime has other dependencies such as glib version 2.  See README and
+INSTALL in the autoconf distribution for details.
+
 autoconf
 --------
 
