@@ -50,6 +50,7 @@ __RCSID("$Id$");
 # include <fcntl.h>
 #endif
 #include <gmime/gmime.h>
+#include "compat.h"
 #include "llist.h"
 #include "buffer.h"
 #include "strutil.h"
@@ -373,12 +374,20 @@ static void
 write_gmimeobject_to_screen(GMimeObject *object)
 {
   GMimeStream *stream;
+  GMimeDataWrapper *wrapper;
+  const char *fn;
+	
+  fn = g_mime_part_get_filename((const GMimePart *) object);
+  printf("-> %s\n", fn);
+  fflush(stdout);
+
+  wrapper = g_mime_part_get_content_object((const GMimePart *) object);
 	
   /* create a new stream for writing to stdout */
   stream = g_mime_stream_fs_new(dup(1));
 	
   /* write the object to the stream */
-  g_mime_object_write_to_stream(object, stream);
+  g_mime_data_wrapper_write_to_stream(wrapper, stream);
 	
   /* flush the stream (kinda like fflush() in libc's stdio) */
   g_mime_stream_flush(stream);
@@ -458,7 +467,7 @@ count_foreach_callback(GMimeObject *part, gpointer user_data)
 }
 
 int
-main()
+main(int argc, char *argv[])
 {
   struct buffer *mime;
   struct buffer *wl;
@@ -468,9 +477,13 @@ main()
 
   g_mime_init(0);
 
-  if ((fd = open("mime.msg", O_RDONLY)) == -1) {
+  if (argc != 2) {
+    fprintf(stderr, "Usage: %s messagefile\n", getprogname());
+    exit(EXIT_FAILURE);
+  }
+  if ((fd = open(argv[1], O_RDONLY)) == -1) {
     perror("open");
-    exit(2);
+    exit(EXIT_FAILURE);
   }
   message = parse_message(fd);
   close(fd);
