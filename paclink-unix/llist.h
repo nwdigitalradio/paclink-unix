@@ -9,6 +9,6 @@ struct llist {
 };
 
 struct llist **llist_add(struct llist **headp, void *data);
-void llist_free(struct llist *link, void (*datafreefunc)(void *));
+void llist_free(struct llist *llink, void (*datafreefunc)(void *));
 
 #endif

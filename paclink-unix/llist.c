@@ -2,13 +2,19 @@
 # include "config.h"
 #endif
 
-#include <sys/types.h>
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
 #ifdef __RCSID
 __RCSID("$Id$");
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
+#if HAVE_STDIO_H
+# include <stdio.h>
+#endif
+#if HAVE_STDLIB_H
+# include <stdlib.h>
+#endif
 #include "llist.h"
 
 struct llist **
@@ -31,14 +37,14 @@ llist_add(struct llist **headp, void *data)
 }
 
 void
-llist_free(struct llist *link, void (*datafreefunc)(void *))
+llist_free(struct llist *llink, void (*datafreefunc)(void *))
 {
-  if (!link) {
+  if (!llink) {
     return;
   }
-  llist_free(link->next, datafreefunc);
-  if (datafreefunc && link->data) {
-    datafreefunc(link->data);
+  llist_free(llink->next, datafreefunc);
+  if (datafreefunc && llink->data) {
+    datafreefunc(llink->data);
   }
-  free(link);
+  free(llink);
 }
