@@ -14,3 +14,7 @@ Author of lib/asprintf.c and lib/vasprintf.c (public domain)
 
 Todd C. Miller <Todd.Miller@courtesan.com>
 Author of lib/strlcpy.c (BSD license)
+
+Jeffrey Stedfast <fejj@helixcode.com> Helix Code, Inc. (www.helixcode.com)
+Author of code from gmime library and gmime sample code which was
+adapted for use in paclink-unix
