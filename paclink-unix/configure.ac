@@ -117,21 +117,17 @@ AC_CHECK_MEMBERS([struct sockaddr_in.sin_len], , ,[
 
 AC_REPLACE_FUNCS([getprogname asprintf vasprintf strlcpy])
 
-AC_MSG_CHECKING([how to compile with gmime])
-ax_gmime_cppflags=`gmime-config --cflags`
-if test -z "$ax_gmime_cppflags"; then
-  AC_MSG_FAILURE([gmime not found or misconfigured])
-fi
-CPPFLAGS="$CPPFLAGS $ax_gmime_cppflags"
-AC_MSG_RESULT($ax_gmime_cppflags)
+PKG_CHECK_MODULES(GMIME, gmime-2.0 >= 2.1.19, , AC_MSG_FAILURE([gmime-2.1.19 or newer not found]))
+CFLAGS="$CFLAGS $GMIME_CFLAGS"
+CPPFLAGS="$CPPFLAGS $GMIME_CPPFLAGS"
+LDFLAGS="$LDFLAGS $GMIME_LDFLAGS"
+LIBS="$LIBS $GMIME_LIBS"
 
-AC_MSG_CHECKING([how to link with gmime])
-ax_gmime_libs=`gmime-config --libs`
-if test -z "$ax_gmime_libs"; then
-  AC_MSG_FAILURE([gmime not found or misconfigured])
-fi
-LIBS="$LIBS $ax_gmime_libs"
-AC_MSG_RESULT($ax_gmime_libs)
+PKG_CHECK_MODULES(GLIB, glib-2.0 >= 2.12.3, , AC_MSG_FAILURE([glib-2.12.13 or newer not found]))
+CFLAGS="$CFLAGS $GLIB_CFLAGS"
+CPPFLAGS="$CPPFLAGS $GLIB_CPPFLAGS"
+LDFLAGS="$LDFLAGS $GLIB_LDFLAGS"
+LIBS="$LIBS $GLIB_LIBS"
 
 CPPFLAGS="$CPPFLAGS -DLOCALSTATEDIR=\\\"${localstatedir}\\\""
 

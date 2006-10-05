@@ -33,20 +33,38 @@ option when configuring BDB, you can tell paclink-unix its location at
 build configuration time by specifying "--with-bdb-dir=/your/bdb/path"
 when calling configure.
 
+pkg-config
+----------
+
+pkg-config version 0.9.0 or greater must be installed.  You can
+download the latest revision of pkg-config from
+http://pkgconfig.freedesktop.org/ if you need it.
+
+Once you have installed pkg-config, the configure script for
+paclink-unix should find and use it automatically if it is installed
+on your PATH.  Otherwise, set the environment variable PKG_CONFIG to
+the full path to pkg-config before running the configure script for
+paclink-unix.
+
+glib
+----
+
+glib library version 2.12.3 or greater must be installed.  You can
+download the latest revision of glib from
+ftp://ftp.gtk.org/pub/gtk/v2.0/ if you need it.
+
+Once you have installed glib, the configure script for paclink-unix
+should find and use it automatically via pkg-config.
+
 gmime
 -----
 
-gmime library version 2 or greater must be installed.  The recommended
-version for paclink-unix use is 2.1.19 or greater.  You can download
-the latest revision of version 2 from
+gmime library version 2.1.19 or greater must be installed.  You can
+download the latest revision of gmime from
 http://spruce.sourceforge.net/gmime/ if you need it.
 
 Once you have installed gmime, the configure script for paclink-unix
-should find and use it automatically if its gmime-config script is
-installed somewhere on your PATH.
-
-gmime has other dependencies such as glib version 2.  See README and
-INSTALL in the autoconf distribution for details.
+should find and use it automatically via pkg-config.
 
 autoconf
 --------
