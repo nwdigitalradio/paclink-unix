@@ -64,6 +64,44 @@ static struct buffer *getmimeheaders(struct buffer *mime);
 
 struct buffer *mime2wl(struct buffer *mime, const char *callsign);
 
+static char *
+address_cleanup(char *addr)
+{
+  char *clean;
+  char *p;
+  char *last;
+  char *a;
+  char *b;
+  struct buffer *buf;
+
+  if ((buf = buffer_new()) == NULL) {
+    return NULL;
+  }
+  p = addr;
+  while (isspace((unsigned char) *p)) {
+    p++;
+  }
+  if (((a = strchr(p, '<')) != NULL)
+      && ((b = strchr(a, '>')) != NULL)) {
+    *b = '\0';
+    buffer_addstring(buf, a + 1);
+    *b = '>';
+  } else {
+    if ((a = strchr(p, ' ')) != NULL) {
+      *a = '\0';
+      buffer_addstring(buf, p);
+      *a = ' ';
+    } else {
+      buffer_addstring(buf, p);
+    }
+  }
+  buffer_addchar(buf, '\0');
+  clean = buffer_getstring(buf);
+  buffer_free(buf);
+
+  return clean;
+}
+
 static struct buffer *
 conv_addrlist(char *al)
 {
@@ -474,6 +512,17 @@ main(int argc, char *argv[])
   int fd;
   GMimeMessage *message;
   int count = 0;
+  char *callsign = "N2QZ";
+  char *header;
+  char *clean;
+  char *mid;
+  struct buffer *hbuf;
+  char date[17];
+  time_t tloc;
+  struct tm *tm;
+  int gmt_offset;
+  const InternetAddressList *ial;
+  const InternetAddress *ia;
 
   g_mime_init(0);
 
@@ -487,6 +536,80 @@ main(int argc, char *argv[])
   }
   message = parse_message(fd);
   close(fd);
+
+  if ((hbuf = buffer_new()) == NULL) {
+    return NULL;
+  }
+
+  if ((mid = generate_mid(callsign)) == NULL) {
+    return NULL;
+  }
+  buffer_addstring(hbuf, "Mid: ");
+  buffer_addstring(hbuf, mid);
+  buffer_addstring(hbuf, "\r\n");
+
+  buffer_addstring(hbuf, "Date: ");
+  g_mime_message_get_date(message, &tloc, &gmt_offset);
+  if (tloc == 0) {
+    time(&tloc);
+  }
+  tm = gmtime(&tloc);
+  strftime(date, 17, "%Y/%m/%d %H:%M", tm);
+  buffer_addstring(hbuf, date);
+  buffer_addstring(hbuf, "\r\n");
+
+  buffer_addstring(hbuf, "Type: Private\r\n");
+
+  header = g_mime_message_get_sender(message);
+  clean = address_cleanup(header);
+  buffer_addstring(hbuf, "From: SMTP:");
+  buffer_addstring(hbuf, clean);
+  buffer_addstring(hbuf, "\r\n");
+  free(clean);
+
+  ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_TO);
+  while ((ia = internet_address_list_get_address(ial)) != NULL) {
+    header = internet_address_to_string(ia, 0);
+    clean = address_cleanup(header);
+    buffer_addstring(hbuf, "To: SMTP:");
+    buffer_addstring(hbuf, clean);
+    buffer_addstring(hbuf, "\r\n");
+    free(clean);
+    ial = internet_address_list_next(ial);
+  }
+
+  ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_CC);
+  while ((ia = internet_address_list_get_address(ial)) != NULL) {
+    header = internet_address_to_string(ia, 0);
+    clean = address_cleanup(header);
+    buffer_addstring(hbuf, "Cc: SMTP:");
+    buffer_addstring(hbuf, clean);
+    buffer_addstring(hbuf, "\r\n");
+    free(clean);
+    ial = internet_address_list_next(ial);
+  }
+
+  ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_BCC);
+  while ((ia = internet_address_list_get_address(ial)) != NULL) {
+    header = internet_address_to_string(ia, 0);
+    clean = address_cleanup(header);
+    buffer_addstring(hbuf, "Bcc: SMTP:");
+    buffer_addstring(hbuf, clean);
+    buffer_addstring(hbuf, "\r\n");
+    free(clean);
+    ial = internet_address_list_next(ial);
+  }
+  
+  header = g_mime_message_get_subject(message);
+  buffer_addstring(hbuf, "Subject: ");
+  buffer_addstring(hbuf, header);
+  buffer_addstring(hbuf, "\r\n");
+  buffer_addstring(hbuf, "Mbo: SMTP\r\n");
+
+  printf("%s", buffer_getstring(hbuf));
+  exit(20);
+
+
   g_mime_message_foreach_part(message, count_foreach_callback, &count);
   printf("There are %d parts in the message\n", count);
   g_mime_shutdown();
