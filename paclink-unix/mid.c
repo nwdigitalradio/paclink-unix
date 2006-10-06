@@ -166,12 +166,12 @@ generate_mid(const char *callsign)
   clen = strlen(callsign);
   if (clen > 6) {
     /* XXX ssid? */
-    printf("bad callsign %s\n", callsign);
+    fprintf(stderr, "bad callsign %s\n", callsign);
     return NULL;
   }
   rlen = MID_MAXLEN - 1 - clen;
   if (rlen < 1) {
-    printf("No room to generate mid!?\n");
+    fprintf(stderr, "No room to generate mid!?\n");
     return NULL;
   }
   strcpy(mid + rlen + 1, callsign);
@@ -185,7 +185,6 @@ generate_mid(const char *callsign)
     for (i = 0; i < rlen; i++) {
       mid[i] = midchars[random() % (sizeof(midchars) - 1)];
     }
-    printf("random mid: %s\n", mid);
   } while (check_mid(mid));
   record_mid(mid);
   return strdup(mid);
