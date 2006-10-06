@@ -1,10 +1,9 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 2; c-brace-offset: -2; c-argdecl-indent: 2 -*- */
-/*
- *  Authors: Jeffrey Stedfast <fejj@helixcode.com>
- *           Nicholas S. Castellano N2QZ <n2qz@arrl.net>
+
+/*  paclink-unix client for the Winlink 2000 ham radio email system.
  *
- *  Copyright 2000 Helix Code, Inc. (www.helixcode.com)
- *  Copyright 2006 Nicholas S. Castellano <n2qz@arrl.net>
+ *  Copyright 2006 Nicholas S. Castellano <n2qz@arrl.net> and others,
+ *                 See the file AUTHORS for a list.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

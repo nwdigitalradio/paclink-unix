@@ -51,9 +51,7 @@ __RCSID("$Id$");
 #endif
 #include <gmime/gmime.h>
 #include "compat.h"
-#include "llist.h"
 #include "buffer.h"
-#include "strutil.h"
 #include "mid.h"
 
 struct wl2kmessage {
