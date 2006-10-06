@@ -76,6 +76,18 @@ buffer_addstring(struct buffer *b, const unsigned char *s)
 }
 
 int
+buffer_addbuf(struct buffer *b, struct buffer *s)
+{
+  int c;
+
+  buffer_rewind(s);
+  while ((c = buffer_iterchar(s)) != EOF) {
+    buffer_addchar(b, c);
+  }
+  return 0;
+}
+
+int
 buffer_setstring(struct buffer *b, const unsigned char *s)
 {
 
@@ -205,4 +217,11 @@ buffer_writefile(const char *path, struct buffer *buf)
     return -1;
   }
   return 0;
+}
+
+unsigned long
+buffer_length(struct buffer *b)
+{
+
+  return b->dlen;
 }

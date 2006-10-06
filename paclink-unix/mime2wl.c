@@ -56,20 +56,35 @@ __RCSID("$Id$");
 #include "strutil.h"
 #include "mid.h"
 
+struct wl2kmessage {
+  struct buffer *hbuf; /* headers */
+  struct buffer *fbuf; /* attachment filename headers */
+  struct buffer *bbuf; /* body */
+  struct buffer *abuf; /* attachment data */
+};
+
+static char *address_cleanup(const char *addr);
+struct buffer *mime2wl(const char *mimefilename, const char *callsign);
+static GMimeMessage *parse_message(int fd);
+static void mime_foreach_callback(GMimeObject *part, gpointer user_data);
+
 static char *
-address_cleanup(char *addr)
+address_cleanup(const char *addr)
 {
+  char *tmp;
   char *clean;
   char *p;
-  char *last;
   char *a;
   char *b;
   struct buffer *buf;
 
+  if ((tmp = strdup(addr)) == NULL) {
+    return NULL;
+  }
   if ((buf = buffer_new()) == NULL) {
     return NULL;
   }
-  p = addr;
+  p = tmp;
   while (isspace((unsigned char) *p)) {
     p++;
   }
@@ -77,47 +92,18 @@ address_cleanup(char *addr)
       && ((b = strchr(a, '>')) != NULL)) {
     *b = '\0';
     buffer_addstring(buf, a + 1);
-    *b = '>';
   } else {
     if ((a = strchr(p, ' ')) != NULL) {
       *a = '\0';
-      buffer_addstring(buf, p);
-      *a = ' ';
-    } else {
-      buffer_addstring(buf, p);
     }
+    buffer_addstring(buf, p);
   }
   buffer_addchar(buf, '\0');
   clean = buffer_getstring(buf);
   buffer_free(buf);
+  free(tmp);
 
   return clean;
-}
-
-static void
-write_gmimeobject_to_screen(GMimeObject *object)
-{
-  GMimeStream *stream;
-  GMimeDataWrapper *wrapper;
-  const char *fn;
-	
-  fn = g_mime_part_get_filename((const GMimePart *) object);
-  printf("-> %s\n", fn);
-  fflush(stdout);
-
-  wrapper = g_mime_part_get_content_object((const GMimePart *) object);
-	
-  /* create a new stream for writing to stdout */
-  stream = g_mime_stream_fs_new(dup(1));
-	
-  /* write the object to the stream */
-  g_mime_data_wrapper_write_to_stream(wrapper, stream);
-	
-  /* flush the stream (kinda like fflush() in libc's stdio) */
-  g_mime_stream_flush(stream);
-	
-  /* free the output stream */
-  g_object_unref (stream);
 }
 
 static GMimeMessage *
@@ -146,12 +132,18 @@ parse_message(int fd)
 }
 
 static void
-count_foreach_callback(GMimeObject *part, gpointer user_data)
+mime_foreach_callback(GMimeObject *part, gpointer user_data)
 {
   GMimeContentType *content_type;
-  int *count = user_data;
-	
-  (*count)++;
+  struct wl2kmessage *wl2k = user_data;
+  GMimeStream *stream;
+  GMimeDataWrapper *wrapper;
+  const char *fn;
+  char c;
+  ssize_t r;
+  ssize_t len;
+  char *slen;
+  struct buffer *buf;
 	
   /* 'part' points to the current part node that g_mime_message_foreach_part() is iterating over */
 	
@@ -161,12 +153,12 @@ count_foreach_callback(GMimeObject *part, gpointer user_data)
     GMimeMessage *message;
 		
     /* g_mime_message_foreach_part() won't descend into
-       child message parts, so if we want to count any
+       child message parts, so if we want to process any
        subparts of this child message, we'll have to call
        g_mime_message_foreach_part() again here. */
 		
     message = g_mime_message_part_get_message((GMimeMessagePart *) part);
-    g_mime_message_foreach_part(message, count_foreach_callback, count);
+    g_mime_message_foreach_part(message, mime_foreach_callback, wl2k);
     g_object_unref(message);
   } else if (GMIME_IS_MESSAGE_PARTIAL(part)) {
     /* message/partial */
@@ -183,32 +175,218 @@ count_foreach_callback(GMimeObject *part, gpointer user_data)
     /* we'll get to finding out if this is a signed/encrypted multipart later... */
   } else if (GMIME_IS_PART(part)) {
     /* a normal leaf part, could be text/plain or image/jpeg etc */
-    printf("leaf part\n");
-    write_gmimeobject_to_screen(part);
+
+    fn = g_mime_part_get_filename((const GMimePart *) part);
+    fflush(stdout);
+
+    buf = wl2k->abuf;
+
+    content_type = g_mime_part_get_content_type((GMimePart *) part);
+
+    if ((fn == NULL) && (buffer_length(wl2k->bbuf) == 0UL)) {
+      if (g_mime_content_type_is_type(content_type, "text", "plain")) {
+	buf = wl2k->bbuf;
+      } else if (g_mime_content_type_is_type(content_type, "text", "html")) {
+	/* XXX convert to plain text */
+	buf = wl2k->bbuf;
+      }
+    }
+
+    wrapper = g_mime_part_get_content_object((const GMimePart *) part);
+
+    stream = g_mime_stream_mem_new();
+
+    g_mime_data_wrapper_write_to_stream(wrapper, stream);
+
+    g_mime_stream_flush(stream);
+
+    g_mime_stream_reset(stream);
+
+    len = g_mime_stream_length(stream);
+    if (asprintf(&slen, "%ld", (long) len) == -1) {
+      perror("asprintf()");
+      exit(EXIT_FAILURE);
+    }
+    if (buf == wl2k->abuf) {
+      if (fn == NULL) {
+	if (g_mime_content_type_is_type(content_type, "text", "*")) {
+	  fn = "attachment.txt";
+	} else {
+	  fn = "attachment.bin";
+	}
+      }
+      buffer_addstring(wl2k->fbuf, "File: ");
+      buffer_addstring(wl2k->fbuf, slen);
+      buffer_addstring(wl2k->fbuf, " ");
+      buffer_addstring(wl2k->fbuf, fn);
+      buffer_addstring(wl2k->fbuf, "\r\n");
+    } else {
+      buffer_addstring(wl2k->hbuf, "Body: ");
+      buffer_addstring(wl2k->hbuf, slen);
+      buffer_addstring(wl2k->hbuf, "\r\n");
+    }
+    free(slen);
+
+    while (!g_mime_stream_eos(stream) && (r = g_mime_stream_read(stream, &c, 1)) >= 0) {
+      buffer_addchar(buf, (int) c);
+    }
+
+    g_object_unref(stream);
+
+    g_object_unref(wrapper);
+
   } else {
     g_assert_not_reached();
   }
 }
 
-int
-main(int argc, char *argv[])
+struct buffer *
+mime2wl(const char *mimefilename, const char *callsign)
 {
-  struct buffer *mime;
-  struct buffer *wl;
   int fd;
   GMimeMessage *message;
-  int count = 0;
-  char *callsign = "N2QZ";
-  char *header;
+  const char *header;
   char *clean;
   char *mid;
-  struct buffer *hbuf;
+  struct wl2kmessage wl2k;
+  struct buffer *buf;
   char date[17];
   time_t tloc;
   struct tm *tm;
   int gmt_offset;
-  const InternetAddressList *ial;
-  const InternetAddress *ia;
+  InternetAddressList *ial;
+  InternetAddressList *ialp;
+  InternetAddress *ia;
+  static char *nobody = "No message body\r\n";
+  ssize_t len;
+  char *slen;
+
+  if ((fd = open(mimefilename, O_RDONLY)) == -1) {
+    perror("open");
+    exit(EXIT_FAILURE);
+  }
+  message = parse_message(fd);
+  close(fd);
+
+  if ((wl2k.hbuf = buffer_new()) == NULL) {
+    return NULL;
+  }
+
+  if ((wl2k.fbuf = buffer_new()) == NULL) {
+    return NULL;
+  }
+
+  if ((wl2k.bbuf = buffer_new()) == NULL) {
+    return NULL;
+  }
+
+  if ((wl2k.abuf = buffer_new()) == NULL) {
+    return NULL;
+  }
+
+  if ((mid = generate_mid(callsign)) == NULL) {
+    return NULL;
+  }
+  buffer_addstring(wl2k.hbuf, "Mid: ");
+  buffer_addstring(wl2k.hbuf, mid);
+  buffer_addstring(wl2k.hbuf, "\r\n");
+
+  buffer_addstring(wl2k.hbuf, "Date: ");
+  g_mime_message_get_date(message, &tloc, &gmt_offset);
+  if (tloc == 0) {
+    time(&tloc);
+  }
+  tm = gmtime(&tloc);
+  strftime(date, 17, "%Y/%m/%d %H:%M", tm);
+  buffer_addstring(wl2k.hbuf, date);
+  buffer_addstring(wl2k.hbuf, "\r\n");
+
+  buffer_addstring(wl2k.hbuf, "Type: Private\r\n");
+
+  header = g_mime_message_get_sender(message);
+  clean = address_cleanup(header);
+  buffer_addstring(wl2k.hbuf, "From: SMTP:");
+  buffer_addstring(wl2k.hbuf, clean);
+  buffer_addstring(wl2k.hbuf, "\r\n");
+  free(clean);
+
+  ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_TO);
+  while ((ia = internet_address_list_get_address(ial)) != NULL) {
+    header = internet_address_to_string(ia, 0);
+    clean = address_cleanup(header);
+    buffer_addstring(wl2k.hbuf, "To: SMTP:");
+    buffer_addstring(wl2k.hbuf, clean);
+    buffer_addstring(wl2k.hbuf, "\r\n");
+    free(clean);
+    ial = internet_address_list_next(ial);
+  }
+  internet_address_list_destroy(ialp);
+
+  ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_CC);
+  while ((ia = internet_address_list_get_address(ial)) != NULL) {
+    header = internet_address_to_string(ia, 0);
+    clean = address_cleanup(header);
+    buffer_addstring(wl2k.hbuf, "Cc: SMTP:");
+    buffer_addstring(wl2k.hbuf, clean);
+    buffer_addstring(wl2k.hbuf, "\r\n");
+    free(clean);
+    ial = internet_address_list_next(ial);
+  }
+  internet_address_list_destroy(ialp);
+
+  ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_BCC);
+  while ((ia = internet_address_list_get_address(ial)) != NULL) {
+    header = internet_address_to_string(ia, 0);
+    clean = address_cleanup(header);
+    buffer_addstring(wl2k.hbuf, "Bcc: SMTP:");
+    buffer_addstring(wl2k.hbuf, clean);
+    buffer_addstring(wl2k.hbuf, "\r\n");
+    free(clean);
+    ial = internet_address_list_next(ial);
+  }
+  internet_address_list_destroy(ialp);
+  
+  header = g_mime_message_get_subject(message);
+  buffer_addstring(wl2k.hbuf, "Subject: ");
+  buffer_addstring(wl2k.hbuf, header);
+  buffer_addstring(wl2k.hbuf, "\r\n");
+  buffer_addstring(wl2k.hbuf, "Mbo: SMTP\r\n");
+
+  g_mime_message_foreach_part(message, mime_foreach_callback, &wl2k);
+
+  if (buffer_length(wl2k.bbuf) == 0UL) {
+    len = strlen(nobody);
+    if (asprintf(&slen, "%ld", (long) len) == -1) {
+      perror("asprintf()");
+      exit(EXIT_FAILURE);
+    }
+    buffer_addstring(wl2k.hbuf, "Body: ");
+    buffer_addstring(wl2k.hbuf, slen);
+    buffer_addstring(wl2k.hbuf, "\r\n");
+    buffer_addstring(wl2k.bbuf, nobody);
+    free(slen);
+  }
+
+  if ((buf = buffer_new()) == NULL) {
+    return NULL;
+  }
+  buffer_addbuf(buf, wl2k.hbuf);
+  buffer_addbuf(buf, wl2k.fbuf);
+  buffer_addstring(buf, "\r\n");
+  buffer_addbuf(buf, wl2k.bbuf);
+  buffer_addbuf(buf, wl2k.abuf);
+  buffer_free(wl2k.hbuf);
+  buffer_free(wl2k.fbuf);
+  buffer_free(wl2k.bbuf);
+  buffer_free(wl2k.abuf);
+  return buf;
+}
+
+int
+main(int argc, char *argv[])
+{
+  struct buffer *buf;
+  int c;
 
   g_mime_init(0);
 
@@ -216,89 +394,16 @@ main(int argc, char *argv[])
     fprintf(stderr, "Usage: %s messagefile\n", getprogname());
     exit(EXIT_FAILURE);
   }
-  if ((fd = open(argv[1], O_RDONLY)) == -1) {
-    perror("open");
-    exit(EXIT_FAILURE);
-  }
-  message = parse_message(fd);
-  close(fd);
-
-  if ((hbuf = buffer_new()) == NULL) {
-    return NULL;
+  buf = mime2wl(argv[1], "N2QZ");
+  buffer_rewind(buf);
+  while ((c = buffer_iterchar(buf)) != EOF) {
+    if (putchar(c) == EOF) {
+      exit(EXIT_FAILURE);
+    }
   }
 
-  if ((mid = generate_mid(callsign)) == NULL) {
-    return NULL;
-  }
-  buffer_addstring(hbuf, "Mid: ");
-  buffer_addstring(hbuf, mid);
-  buffer_addstring(hbuf, "\r\n");
-
-  buffer_addstring(hbuf, "Date: ");
-  g_mime_message_get_date(message, &tloc, &gmt_offset);
-  if (tloc == 0) {
-    time(&tloc);
-  }
-  tm = gmtime(&tloc);
-  strftime(date, 17, "%Y/%m/%d %H:%M", tm);
-  buffer_addstring(hbuf, date);
-  buffer_addstring(hbuf, "\r\n");
-
-  buffer_addstring(hbuf, "Type: Private\r\n");
-
-  header = g_mime_message_get_sender(message);
-  clean = address_cleanup(header);
-  buffer_addstring(hbuf, "From: SMTP:");
-  buffer_addstring(hbuf, clean);
-  buffer_addstring(hbuf, "\r\n");
-  free(clean);
-
-  ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_TO);
-  while ((ia = internet_address_list_get_address(ial)) != NULL) {
-    header = internet_address_to_string(ia, 0);
-    clean = address_cleanup(header);
-    buffer_addstring(hbuf, "To: SMTP:");
-    buffer_addstring(hbuf, clean);
-    buffer_addstring(hbuf, "\r\n");
-    free(clean);
-    ial = internet_address_list_next(ial);
-  }
-
-  ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_CC);
-  while ((ia = internet_address_list_get_address(ial)) != NULL) {
-    header = internet_address_to_string(ia, 0);
-    clean = address_cleanup(header);
-    buffer_addstring(hbuf, "Cc: SMTP:");
-    buffer_addstring(hbuf, clean);
-    buffer_addstring(hbuf, "\r\n");
-    free(clean);
-    ial = internet_address_list_next(ial);
-  }
-
-  ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_BCC);
-  while ((ia = internet_address_list_get_address(ial)) != NULL) {
-    header = internet_address_to_string(ia, 0);
-    clean = address_cleanup(header);
-    buffer_addstring(hbuf, "Bcc: SMTP:");
-    buffer_addstring(hbuf, clean);
-    buffer_addstring(hbuf, "\r\n");
-    free(clean);
-    ial = internet_address_list_next(ial);
-  }
-  
-  header = g_mime_message_get_subject(message);
-  buffer_addstring(hbuf, "Subject: ");
-  buffer_addstring(hbuf, header);
-  buffer_addstring(hbuf, "\r\n");
-  buffer_addstring(hbuf, "Mbo: SMTP\r\n");
-
-  printf("%s", buffer_getstring(hbuf));
-  exit(20);
-
-
-  g_mime_message_foreach_part(message, count_foreach_callback, &count);
-  printf("There are %d parts in the message\n", count);
   g_mime_shutdown();
+
   exit(0);
   return 1;
 }
