@@ -5,6 +5,9 @@
  *  Copyright 2006 Nicholas S. Castellano <n2qz@arrl.net> and others,
  *                 See the file AUTHORS for a list.
  *
+ *  Authors: Jeffrey Stedfast <fejj@helixcode.com>
+ *  Copyright 2000 Helix Code, Inc. (www.helixcode.com)
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -39,9 +42,32 @@ __RCSID("$Id$");
 #if HAVE_STDLIB_H
 # include <stdlib.h>
 #endif
+#if HAVE_CTYPE_H
+# include <ctype.h>
+#endif
 
 #include <gmime/gmime.h>
+
 #include "buffer.h"
+#include "strutil.h"
+
+static void
+write_message_to_screen (GMimeMessage *message)
+{
+  GMimeStream *stream;
+	
+  /* create a new stream for writing to stdout */
+  stream = g_mime_stream_fs_new(dup(1));
+	
+  /* write the message to the stream */
+  g_mime_object_write_to_stream((GMimeObject *) message, stream);
+	
+  /* flush the stream (kinda like fflush() in libc's stdio) */
+  g_mime_stream_flush(stream);
+	
+  /* free the output stream */
+  g_object_unref(stream);
+}
 
 struct buffer *
 wl2mime(struct buffer *ibuf)
@@ -51,6 +77,22 @@ wl2mime(struct buffer *ibuf)
   struct buffer *obuf;
   char *line;
   int c;
+  char ch;
+  unsigned long len;
+  char *endp;
+  GMimePart *mime_part;
+  GMimeStream *stream;
+  GMimeDataWrapper *content;
+  GMimeMultipart *multipart;
+  GMimeMessage *message;
+
+  if ((hbuf = buffer_new()) == NULL) {
+    return NULL;
+  }
+  if ((bbuf = buffer_new()) == NULL) {
+    free(hbuf);
+    return NULL;
+  }
 
   while ((line = buffer_getline(ibuf, '\n')) != NULL) {
     if ((line[0] == '\r') || (line[0] == '\n')) {
@@ -64,9 +106,62 @@ wl2mime(struct buffer *ibuf)
     buffer_addchar(bbuf, c);
   }
 
+  message = g_mime_message_new(0);
+  multipart = g_mime_multipart_new_with_subtype("mixed");
+
+  buffer_rewind(hbuf);
+  buffer_rewind(bbuf);
+  while ((line = buffer_getline(hbuf, '\n')) != NULL) {
+    strzapcc(line);
+    printf("%s\n", line);
+    if (strcasebegins(line, "Body:")) {
+      mime_part = g_mime_part_new_with_type("text", "plain");
+      stream = g_mime_stream_mem_new();
+      len = strtoul(line + 5, &endp, 10);
+      while (len--) {
+	c = buffer_iterchar(bbuf);
+	ch = (char) c;
+	g_mime_stream_write(stream, &ch, 1);
+      }
+      content = g_mime_data_wrapper_new_with_stream(stream, GMIME_PART_ENCODING_DEFAULT);
+      g_object_unref(stream);
+      g_mime_part_set_content_object(mime_part, content);
+      g_object_unref(content);
+      g_mime_multipart_add_part(multipart, (GMimeObject *) mime_part);
+    } else if (strcasebegins(line, "File:")) {
+      mime_part = g_mime_part_new_with_type("application", "octet-stream");
+      stream = g_mime_stream_mem_new();
+      len = strtoul(line + 5, &endp, 10);
+      while (isspace((unsigned char) *endp)) {
+	endp++;
+      }
+      g_mime_part_set_filename(mime_part, endp);
+      while (len--) {
+	c = buffer_iterchar(bbuf);
+	ch = (char) c;
+	g_mime_stream_write(stream, &ch, 1);
+      }
+      content = g_mime_data_wrapper_new_with_stream(stream, GMIME_PART_ENCODING_DEFAULT);
+      g_object_unref(stream);
+      g_mime_part_set_content_object(mime_part, content);
+      g_object_unref(content);
+      g_mime_part_set_encoding(mime_part, GMIME_PART_ENCODING_BASE64);
+      g_mime_multipart_add_part(multipart, (GMimeObject *) mime_part);
+    }
+    free(line);
+  }
+
+  g_mime_message_set_mime_part(message, (GMimeObject *) multipart);
+
+  write_message_to_screen(message);
+
   if ((obuf = buffer_new()) == NULL) {
+    free(hbuf);
+    free(bbuf);
     return NULL;
   }
+  free(hbuf);
+  free(bbuf);
   return obuf;
 }
 

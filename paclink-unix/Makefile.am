@@ -19,7 +19,7 @@ wl2ktelnet_SOURCES=wl2ktelnet.c progname.h strutil.c strutil.h timeout.c timeout
 
 mime2wl_SOURCES=mime2wl.c buffer.c buffer.h mid.c mid.h
 
-wl2mime_SOURCES=wl2mime.c buffer.c buffer.h
+wl2mime_SOURCES=wl2mime.c buffer.c buffer.h strutil.c strutil.h
 
 TESTS=test_lzhuf_1
 
