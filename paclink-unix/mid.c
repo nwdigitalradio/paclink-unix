@@ -56,14 +56,6 @@ __RCSID("$Id$");
 
 #include "mid.h"
 
-#define MID_DB LOCALSTATEDIR "/wl2k/mid.db"
-
-#define MID_DB_MODE 0600
-
-#define MID_EXPIREDAYS 30
-
-#define MID_MAXLEN 12
-
 /* returns 0 for success, non-zero for error */
 int
 record_mid(char *mid)

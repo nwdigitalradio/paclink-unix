@@ -45,14 +45,28 @@ __RCSID("$Id$");
 #if HAVE_UNISTD_H
 # include <unistd.h>
 #endif
-#if HAVE_DIRENT_H
-# include <dirent.h>
-#endif
 #if HAVE_CTYPE_H
 # include <ctype.h>
 #endif
 #if HAVE_SYS_STAT_H
 # include <sys/stat.h>
+#endif
+
+#if HAVE_DIRENT_H
+# include <dirent.h>
+# define NAMLEN(dirent) (strlen((dirent)->d_name))
+#else
+# define dirent direct
+# define NAMLEN(dirent) ((dirent)->d_namlen)
+# if HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif
+# if HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif
+# if HAVE_NDIR_H
+#  include <ndir.h>
+# endif
 #endif
 
 #include "compat.h"
@@ -69,7 +83,7 @@ __RCSID("$Id$");
 struct proposal {
   char code;
   char type;
-  char mid[13];
+  char mid[MID_MAXLEN + 1];
   unsigned long usize;
   unsigned long csize;
   struct proposal *next;
@@ -334,7 +348,7 @@ parse_proposal(char *propline)
       fprintf(stderr, "malformed proposal 4\n");
       return NULL;
     }
-    for (i = 0; i < 12; i++) {
+    for (i = 0; i < MID_MAXLEN; i++) {
       prop.mid[i] = *cp++;
       if (prop.mid[i] == ' ') {
 	prop.mid[i] = '\0';
@@ -347,7 +361,7 @@ parse_proposal(char *propline)
 	}
       }
     }
-    prop.mid[12] = '\0';
+    prop.mid[MID_MAXLEN] = '\0';
     if (*cp++ != ' ') {
       fprintf(stderr, "malformed proposal 6\n");
       return NULL;
@@ -431,6 +445,7 @@ prepare_outbound_proposals(void)
   unsigned char *cp;
   char *path;
   struct stat sb;
+  char name[MID_MAXLEN + 1];
 
   opropnext = &oproplist;
   if ((dirp = opendir(PENDING)) == NULL) {
@@ -438,7 +453,15 @@ prepare_outbound_proposals(void)
     exit(EXIT_FAILURE);
   }
   while ((dp = readdir(dirp)) != NULL) {
-    if (asprintf(&path, "%s/%s", PENDING, dp->d_name) == -1) {
+    if (NAMLEN(dp) > MID_MAXLEN) {
+      fprintf(stderr,
+	      "warning: skipping bad filename %s in pending directory %s\n",
+	      dp->d_name, PENDING);
+      continue;
+    }
+    strlcpy(name, dp->d_name, MID_MAXLEN + 1);
+    name[NAMLEN(dp)] = '\0';
+    if (asprintf(&path, "%s/%s", PENDING, name) == -1) {
       perror("asprintf()");
       exit(EXIT_FAILURE);
     }
@@ -450,21 +473,13 @@ prepare_outbound_proposals(void)
       free(path);
       continue;
     }
-    if (strlen(dp->d_name) > 12) {
-      fprintf(stderr,
-	      "warning: skipping bad filename %s in pending directory %s\n",
-	      dp->d_name, PENDING);
-      free(path);
-      continue;
-    }
-    printf("%s\n", dp->d_name);
     if ((prop = malloc(sizeof(struct proposal))) == NULL) {
       perror("malloc()");
       exit(EXIT_FAILURE);
     }
     prop->code = 'C';
     prop->type = 'E';
-    strlcpy(prop->mid, dp->d_name, 13);
+    strlcpy(prop->mid, name, MID_MAXLEN + 1);
     prop->path = path;
 
     if ((prop->ubuf = buffer_readfile(prop->path)) == NULL) {
