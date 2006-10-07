@@ -94,6 +94,7 @@ wl2mime(struct buffer *ibuf)
   struct tm tm;
   time_t date;
   char *ms;
+  char *smtp;
 
   if ((hbuf = buffer_new()) == NULL) {
     return NULL;
@@ -139,18 +140,39 @@ wl2mime(struct buffer *ibuf)
     } else if (strcasebegins(line, "From:")) {
       if (strcasebegins(linedata, "SMTP:")) {
 	linedata += 5;
+	g_mime_message_set_sender(message, linedata);
+      } else {
+	if (asprintf(&smtp, "%s@winlink.org", linedata) == -1) {
+	  perror("asprintf()");
+	  exit(EXIT_FAILURE);
+	}
+	g_mime_message_set_sender(message, smtp);
+	free(smtp);
       }
-      g_mime_message_set_sender(message, linedata);
     } else if (strcasebegins(line, "To:")) {
       if (strcasebegins(linedata, "SMTP:")) {
 	linedata += 5;
+	g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_TO, "", linedata);
+      } else {
+	if (asprintf(&smtp, "%s@winlink.org", linedata) == -1) {
+	  perror("asprintf()");
+	  exit(EXIT_FAILURE);
+	}
+	g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_TO, "", smtp);
+	free(smtp);
       }
-      g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_TO, "", linedata);
     } else if (strcasebegins(line, "Cc:")) {
       if (strcasebegins(linedata, "SMTP:")) {
 	linedata += 5;
+	g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_CC, "", linedata);
+      } else {
+	if (asprintf(&smtp, "%s@winlink.org", linedata) == -1) {
+	  perror("asprintf()");
+	  exit(EXIT_FAILURE);
+	}
+	g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_CC, "", smtp);
+	free(smtp);
       }
-      g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_CC, "", linedata);
     } else if (strcasebegins(line, "Subject:")) {
       g_mime_message_set_subject(message, linedata);
     } else if (strcasebegins(line, "Body:")) {
