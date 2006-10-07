@@ -45,6 +45,9 @@ __RCSID("$Id$");
 #if HAVE_CTYPE_H
 # include <ctype.h>
 #endif
+#if HAVE_STRING_H
+# include <string.h>
+#endif
 
 #include <gmime/gmime.h>
 
@@ -76,6 +79,7 @@ wl2mime(struct buffer *ibuf)
   struct buffer *bbuf;
   struct buffer *obuf;
   char *line;
+  char *linedata;
   int c;
   char ch;
   unsigned long len;
@@ -85,6 +89,8 @@ wl2mime(struct buffer *ibuf)
   GMimeDataWrapper *content;
   GMimeMultipart *multipart;
   GMimeMessage *message;
+  struct tm tm;
+  time_t date;
 
   if ((hbuf = buffer_new()) == NULL) {
     return NULL;
@@ -114,10 +120,41 @@ wl2mime(struct buffer *ibuf)
   while ((line = buffer_getline(hbuf, '\n')) != NULL) {
     strzapcc(line);
     printf("%s\n", line);
-    if (strcasebegins(line, "Body:")) {
+    if ((linedata = strchr(line, ':')) != NULL) {
+      linedata++;
+      while (isspace((unsigned char) *linedata)) {
+	linedata++;
+      }
+    }
+    if (strcasebegins(line, "Mid:")) {
+      g_mime_message_set_message_id(message, linedata);
+    } else if (strcasebegins(line, "Date:")) {
+      memset(&tm, 0, sizeof(struct tm));
+      if (strptime(linedata, "%Y/%m/%d %R", &tm) != NULL) {
+	date = mktime(&tm);
+	g_mime_message_set_date(message, date, 0);
+      }
+    } else if (strcasebegins(line, "From:")) {
+      if (strcasebegins(linedata, "SMTP:")) {
+	linedata += 5;
+      }
+      g_mime_message_set_sender(message, linedata);
+    } else if (strcasebegins(line, "To:")) {
+      if (strcasebegins(linedata, "SMTP:")) {
+	linedata += 5;
+      }
+      g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_TO, "", linedata);
+    } else if (strcasebegins(line, "Cc:")) {
+      if (strcasebegins(linedata, "SMTP:")) {
+	linedata += 5;
+      }
+      g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_CC, "", linedata);
+    } else if (strcasebegins(line, "Subject:")) {
+      g_mime_message_set_subject(message, linedata);
+    } else if (strcasebegins(line, "Body:")) {
       mime_part = g_mime_part_new_with_type("text", "plain");
       stream = g_mime_stream_mem_new();
-      len = strtoul(line + 5, &endp, 10);
+      len = strtoul(linedata, &endp, 10);
       while (len--) {
 	c = buffer_iterchar(bbuf);
 	ch = (char) c;
@@ -131,7 +168,7 @@ wl2mime(struct buffer *ibuf)
     } else if (strcasebegins(line, "File:")) {
       mime_part = g_mime_part_new_with_type("application", "octet-stream");
       stream = g_mime_stream_mem_new();
-      len = strtoul(line + 5, &endp, 10);
+      len = strtoul(linedata, &endp, 10);
       while (isspace((unsigned char) *endp)) {
 	endp++;
       }
