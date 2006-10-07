@@ -60,6 +60,7 @@ AC_HEADER_STDC
 AC_HEADER_TIME
 AC_HEADER_DIRENT
 AC_HEADER_STAT
+AC_HEADER_ASSERT
 
 dnl =======================================================================
 dnl Checks for typedefs, structures, and compiler characteristics.
