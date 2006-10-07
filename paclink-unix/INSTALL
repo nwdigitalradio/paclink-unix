@@ -42,9 +42,10 @@ http://pkgconfig.freedesktop.org/ if you need it.
 
 Once you have installed pkg-config, the configure script for
 paclink-unix should find and use it automatically if it is installed
-on your PATH.  Otherwise, set the environment variable PKG_CONFIG to
-the full path to pkg-config before running the configure script for
-paclink-unix.
+on your PATH.  Otherwise, pass the full path to pkg-config in the
+PKG_CONFIG variable on the command line to the configure script for
+paclink-unix, for example:
+	./configure PKG_CONFIG=/usr/pkg/bin/pkg-config
 
 glib
 ----
