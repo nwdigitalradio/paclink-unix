@@ -44,19 +44,37 @@ __RCSID("$Id$");
 #include "buffer.h"
 
 struct buffer *
-wl2mime(const char *wl2kfilename)
+wl2mime(struct buffer *ibuf)
 {
-  struct buffer *buf;
+  struct buffer *hbuf;
+  struct buffer *bbuf;
+  struct buffer *obuf;
+  char *line;
+  int c;
 
-  if ((buf = buffer_new()) == NULL) {
+  while ((line = buffer_getline(ibuf, '\n')) != NULL) {
+    if ((line[0] == '\r') || (line[0] == '\n')) {
+      break;
+    }
+    buffer_addstring(hbuf, line);
+    free(line);
+  }
+
+  while ((c = buffer_iterchar(ibuf)) != EOF) {
+    buffer_addchar(bbuf, c);
+  }
+
+  if ((obuf = buffer_new()) == NULL) {
     return NULL;
   }
+  return obuf;
 }
 
 int
 main(int argc, char *argv[])
 {
-  struct buffer *buf;
+  struct buffer *ibuf;
+  struct buffer *obuf;
   int c;
 
   g_mime_init(0);
@@ -65,9 +83,13 @@ main(int argc, char *argv[])
     fprintf(stderr, "Usage: %s messagefile\n", getprogname());
     exit(EXIT_FAILURE);
   }
-  buf = wl2mime(argv[1]);
-  buffer_rewind(buf);
-  while ((c = buffer_iterchar(buf)) != EOF) {
+  if ((ibuf = buffer_readfile(argv[1])) == NULL) {
+    perror(getprogname());
+    exit(EXIT_FAILURE);
+  }
+  obuf = wl2mime(ibuf);
+  buffer_rewind(obuf);
+  while ((c = buffer_iterchar(obuf)) != EOF) {
     if (putchar(c) == EOF) {
       exit(EXIT_FAILURE);
     }
