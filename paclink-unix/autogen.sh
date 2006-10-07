@@ -1,5 +1,7 @@
 #! /bin/sh
 
+#  $Id$
+#
 #  paclink-unix client for the Winlink 2000 ham radio email system.
 #
 #  Copyright 2006 Nicholas S. Castellano <n2qz@arrl.net> and others,
