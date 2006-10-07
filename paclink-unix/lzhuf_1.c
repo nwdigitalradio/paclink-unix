@@ -14,19 +14,26 @@
 # include "config.h"
 #endif
 
-#include <sys/types.h>
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
 #ifdef __RCSID
 __RCSID("$Id$");
 #endif
 
-#include <stdio.h>
+#if HAVE_STDIO_H
+# include <stdio.h>
+#endif
 #if HAVE_STDLIB_H
 # include <stdlib.h>
 #endif
 #if HAVE_STRING_H
 # include <string.h>
 #endif
-#include <ctype.h>
+#if HAVE_CTYPE_H
+# include <ctype.h>
+#endif
 
 #include "buffer.h"
 #include "lzhuf_1.h"

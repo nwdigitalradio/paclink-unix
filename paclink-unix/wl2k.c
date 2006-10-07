@@ -30,7 +30,9 @@
 __RCSID("$Id$");
 #endif
 
-#include <stdio.h>
+#if HAVE_STDIO_H
+# include <stdio.h>
+#endif
 #if HAVE_STDLIB_H
 # include <stdlib.h>
 #endif
@@ -43,9 +45,15 @@ __RCSID("$Id$");
 #if HAVE_UNISTD_H
 # include <unistd.h>
 #endif
-#include <dirent.h>
-#include <ctype.h>
-#include <sys/stat.h>
+#if HAVE_DIRENT_H
+# include <dirent.h>
+#endif
+#if HAVE_CTYPE_H
+# include <ctype.h>
+#endif
+#if HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
 
 #include "compat.h"
 #include "strutil.h"

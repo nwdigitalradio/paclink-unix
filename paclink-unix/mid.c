@@ -25,20 +25,34 @@
 # include "config.h"
 #endif
 
-#include <sys/types.h>
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
 #ifdef __RCSID
 __RCSID("$Id$");
 #endif
 
-#include <db.h>
-#include <time.h>
-
+#if TIME_WITH_SYS_TIME
+# include <sys/time.h>
+# include <time.h>
+#else
+# if HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  if HAVE_TIME_H
+#   include <time.h>
+#  endif
+# endif
+#endif
 #if HAVE_STDLIB_H
 # include <stdlib.h>
 #endif
 #ifdef HAVE_STRING_H
 # include <string.h>
 #endif
+
+#include <db.h>
 
 #include "mid.h"
 

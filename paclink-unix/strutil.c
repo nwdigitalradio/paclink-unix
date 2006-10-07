@@ -25,13 +25,21 @@
 # include "config.h"
 #endif
 
-#include <sys/types.h>
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
 #ifdef __RCSID
 __RCSID("$Id$");
 #endif
 
-#include <ctype.h>
-#include <string.h>
+#if HAVE_CTYPE_H
+# include <ctype.h>
+#endif
+#if HAVE_STRING_H
+# include <string.h>
+#endif
+
 #include "strutil.h"
 
 char *
