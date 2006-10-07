@@ -175,6 +175,11 @@ wl2mime(struct buffer *ibuf)
 	endp++;
       }
       g_mime_part_set_filename(mime_part, endp);
+
+      /* skip crlf */
+      buffer_iterchar(bbuf);
+      buffer_iterchar(bbuf);
+
       while (len--) {
 	c = buffer_iterchar(bbuf);
 	ch = (char) c;
