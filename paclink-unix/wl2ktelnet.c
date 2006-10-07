@@ -68,7 +68,7 @@ static void usage(void);
 static void
 usage(void)
 {
-  fprintf(stderr, "usage:  %s mycall yourcall hostname port timeoutsecs password\n", getprogname());
+  fprintf(stderr, "usage:  %s mycall yourcall hostname port timeoutsecs password emailaddress\n", getprogname());
 }
 
 int
@@ -89,10 +89,13 @@ main(int argc, char *argv[])
 #define PORT argv[4]
 #define TIMEOUTSECS argv[5]
 #define PASSWORD argv[6]
+#define EMAILADDRESS argv[7]
+
+  g_mime_init(0);
 
   setlinebuf(stdout);
 
-  if (argc != 7) {
+  if (argc != 8) {
     usage();
     exit(EXIT_FAILURE);
   }
@@ -175,9 +178,10 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  wl2kexchange(MYCALL, YOURCALL, fp);
+  wl2kexchange(MYCALL, YOURCALL, fp, EMAILADDRESS);
 
   fclose(fp);
+  g_mime_shutdown();
   exit(EXIT_SUCCESS);
   return 1;
 }

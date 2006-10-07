@@ -53,6 +53,8 @@ __RCSID("$Id$");
 
 #include "buffer.h"
 #include "strutil.h"
+#include "wl2mime.h"
+#include "mime2wl.h"
 
 static void
 write_message_to_screen (GMimeMessage *message)
@@ -91,6 +93,7 @@ wl2mime(struct buffer *ibuf)
   GMimeMessage *message;
   struct tm tm;
   time_t date;
+  char *ms;
 
   if ((hbuf = buffer_new()) == NULL) {
     return NULL;
@@ -119,7 +122,6 @@ wl2mime(struct buffer *ibuf)
   buffer_rewind(bbuf);
   while ((line = buffer_getline(hbuf, '\n')) != NULL) {
     strzapcc(line);
-    printf("%s\n", line);
     if ((linedata = strchr(line, ':')) != NULL) {
       linedata++;
       while (isspace((unsigned char) *linedata)) {
@@ -190,18 +192,22 @@ wl2mime(struct buffer *ibuf)
 
   g_mime_message_set_mime_part(message, (GMimeObject *) multipart);
 
-  write_message_to_screen(message);
-
   if ((obuf = buffer_new()) == NULL) {
     free(hbuf);
     free(bbuf);
     return NULL;
   }
+
+  ms = g_mime_object_to_string((GMimeObject *) message);
+  buffer_addstring(obuf, ms);
+  g_free(ms);
+
   free(hbuf);
   free(bbuf);
   return obuf;
 }
 
+#ifdef WL2MIME_MAIN
 int
 main(int argc, char *argv[])
 {
@@ -232,3 +238,4 @@ main(int argc, char *argv[])
   exit(0);
   return 1;
 }
+#endif

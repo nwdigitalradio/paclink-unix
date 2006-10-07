@@ -69,6 +69,7 @@ __RCSID("$Id$");
 #include "compat.h"
 #include "buffer.h"
 #include "mid.h"
+#include "mime2wl.h"
 
 struct wl2kmessage {
   struct buffer *hbuf; /* headers */
@@ -78,7 +79,6 @@ struct wl2kmessage {
 };
 
 static char *address_cleanup(const char *addr);
-struct buffer *mime2wl(const char *mimefilename, const char *callsign);
 static GMimeMessage *parse_message(int fd);
 static void mime_foreach_callback(GMimeObject *part, gpointer user_data);
 
@@ -384,6 +384,7 @@ mime2wl(const char *mimefilename, const char *callsign)
   return buf;
 }
 
+#ifdef MIME2WL_MAIN
 int
 main(int argc, char *argv[])
 {
@@ -409,3 +410,4 @@ main(int argc, char *argv[])
   exit(0);
   return 1;
 }
+#endif

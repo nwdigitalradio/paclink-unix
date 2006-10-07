@@ -23,11 +23,9 @@
 
 /* $Id$ */
 
-#ifndef WL2K_H
-#define WL2K_H
+#ifndef MIME2WL_H
+#define MIME2WL_H
 
-char *wl2kgetline(FILE *fp);
-void wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress);
+struct buffer *mime2wl(const char *mimefilename, const char *callsign);
 
 #endif
-

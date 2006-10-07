@@ -76,6 +76,7 @@ __RCSID("$Id$");
 #include "mid.h"
 #include "buffer.h"
 #include "lzhuf_1.h"
+#include "wl2mime.h"
 
 #define PROPLIMIT 5
 #define PENDING LOCALSTATEDIR "/wl2k/pending"
@@ -704,7 +705,7 @@ wl2kgetline(FILE *fp)
 }
 
 void
-wl2kexchange(char *mycall, char *yourcall, FILE *fp)
+wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 {
   char *cp;
   int proposals = 0;
@@ -722,6 +723,11 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
   char *endp;
   int opropcount = 0;
   char responsechar;
+  FILE *smfp;
+  struct buffer *mimebuf;
+  int c;
+  int r;
+  char *command;
 
   expire_mids();
 
@@ -869,10 +875,44 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
 	    perror("version_1_Decode()");
 	    exit(EXIT_FAILURE);
 	  }
+#if 0
 	  if (buffer_writefile(ipropary[i].mid, ipropary[i].ubuf) != 0) {
 	    perror("buffer_writefile()");
 	    exit(EXIT_FAILURE);
 	  }
+#else
+	  buffer_rewind(ipropary[i].ubuf);
+	  if ((mimebuf = wl2mime(ipropary[i].ubuf)) == NULL) {
+	    fprintf(stderr, "%s: wm2mime() failed\n", getprogname());
+	    exit(EXIT_FAILURE);
+	  }
+	  fflush(NULL);
+
+	  
+	  if (asprintf(&command, "%s -ba %s", SENDMAIL, emailaddress) == -1) {
+	    perror("asprintf()");
+	    exit(EXIT_FAILURE);
+	  }
+	  if ((smfp = popen(command, "w")) == NULL) {
+	    perror("popen()");
+	    exit(EXIT_FAILURE);
+	  }
+	  free(command);
+	  buffer_rewind(mimebuf);
+	  while ((c = buffer_iterchar(mimebuf)) != EOF) {
+	    if (putc(c, smfp) == EOF) {
+	      exit(EXIT_FAILURE);
+	    }
+	  }
+	  if ((r = pclose(smfp)) != 0) {
+	    if (r < 0) {
+	      perror("pclose()");
+	    } else {
+	      fprintf(stderr, "%s: sendmail failed\n", getprogname());
+	    }
+	    exit(EXIT_FAILURE);
+	  }
+#endif
 	  record_mid(ipropary[i].mid);
 	  buffer_free(ipropary[i].ubuf);
 	  ipropary[i].ubuf = NULL;
