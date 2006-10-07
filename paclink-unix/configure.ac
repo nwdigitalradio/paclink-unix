@@ -54,12 +54,12 @@ dnl =======================================================================
 dnl Checks for header files.
 dnl =======================================================================
 
-dnl checks stdlib.h stdarg.h string.h float.h defines STDC_HEADERS
+AC_CHECK_HEADERS([sys/time.h sys/stat.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h stdio.h string.h stdlib.h string.h paths.h netdb.h unistd.h signal.h strings.h stdarg.h assert.h fcntl.h ctype.h time.h])
+
 AC_HEADER_STDC
 AC_HEADER_TIME
 AC_HEADER_DIRENT
-
-AC_CHECK_HEADERS([sys/time.h sys/stat.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h stdio.h string.h stdlib.h string.h paths.h netdb.h unistd.h signal.h strings.h stdarg.h assert.h fcntl.h ctype.h time.h])
+AC_HEADER_STAT
 
 dnl =======================================================================
 dnl Checks for typedefs, structures, and compiler characteristics.

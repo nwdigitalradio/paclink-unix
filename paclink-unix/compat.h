@@ -46,8 +46,36 @@ const char *getprogname(void);
 size_t strlcpy(char *dst, const char *src, size_t size);
 #endif
 
+#ifdef STAT_MACROS_BROKEN
+# undef S_ISBLK
+# undef S_ISCHR
+# undef S_ISDIR
+# undef S_ISFIFO
+# undef S_ISLNK
+# undef S_ISREG
+# undef S_ISSOCK
+#endif
+
+#ifndef S_ISBLK
+# define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
+#endif
+#ifndef S_ISCHR
+# define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+#endif
+#ifndef S_ISDIR
+# define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
+#ifndef S_ISFIFO
+# define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#endif
+#ifndef S_ISLNK
+# define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#endif
 #ifndef S_ISREG
-#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+# define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
+#ifndef S_ISSOCK
+# define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 #endif
 
 #endif
