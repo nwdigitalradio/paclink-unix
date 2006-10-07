@@ -11,13 +11,6 @@ AC_LANG(C)
 
 AC_USE_SYSTEM_EXTENSIONS
 
-dnl AC_DEFINE([_POSIX_C_SOURCE], 200112, [Set POSIX level])
-dnl AC_DEFINE([_XOPEN_SOURCE], 600, [Set XOPEN level])
-dnl AC_DEFINE([_XOPEN_SOURCE_EXTENDED], 1, [Request prototypes for XOPEN extensions])
-dnl AC_DEFINE([_NETBSD_SOURCE], 1, [Request prototypes for NetBSD extensions])
-dnl AC_DEFINE([_BSD_SOURCE], 1, [Request prototypes for BSD extensions])
-dnl AC_DEFINE([__BSD_VISIBLE], 1, [Request prototypes for BSD extensions])
-
 dnl =======================================================================
 dnl Checks for programs.
 dnl =======================================================================
@@ -56,6 +49,18 @@ AX_PATH_BDB([3], [
 		 CPPFLAGS="$CPPFLAGS $BDB_CPPFLAGS"
 ])
 
+PKG_CHECK_MODULES(GMIME, gmime-2.0 >= 2.1.19, , AC_MSG_FAILURE([gmime-2.1.19 or newer not found]))
+CFLAGS="$CFLAGS $GMIME_CFLAGS"
+CPPFLAGS="$CPPFLAGS $GMIME_CPPFLAGS"
+LDFLAGS="$LDFLAGS $GMIME_LDFLAGS"
+LIBS="$LIBS $GMIME_LIBS"
+
+PKG_CHECK_MODULES(GLIB, glib-2.0 >= 2.12.3, , AC_MSG_FAILURE([glib-2.12.13 or newer not found]))
+CFLAGS="$CFLAGS $GLIB_CFLAGS"
+CPPFLAGS="$CPPFLAGS $GLIB_CPPFLAGS"
+LDFLAGS="$LDFLAGS $GLIB_LDFLAGS"
+LIBS="$LIBS $GLIB_LIBS"
+
 dnl =======================================================================
 dnl Checks for header files.
 dnl =======================================================================
@@ -69,7 +74,20 @@ AC_HEADER_STAT
 AC_HEADER_ASSERT
 
 dnl =======================================================================
-dnl Checks for typedefs, structures, and compiler characteristics.
+dnl Checks for types.
+dnl =======================================================================
+
+dnl =======================================================================
+dnl Checks for structures.
+dnl =======================================================================
+
+AC_CHECK_MEMBERS([struct sockaddr_in.sin_len], , ,[
+#include <sys/types.h>
+#include <netinet/in.h>
+])
+
+dnl =======================================================================
+dnl Checks for compiler characteristics.
 dnl =======================================================================
 
 AC_C_CONST
@@ -87,7 +105,16 @@ if test x"$compiler_has_attribute_unused" = xyes; then
    AC_DEFINE(ATTRIBUTE_UNUSED, __attribute__((__unused__)), [Define to attribute for unused variables])
 fi
 
+dnl =======================================================================
+dnl Checks for library functions.
+dnl =======================================================================
+
 AC_CHECK_FUNCS([vsnprintf])
+AC_REPLACE_FUNCS([getprogname asprintf vasprintf strlcpy])
+
+dnl =======================================================================
+dnl Checks for library symbols.
+dnl =======================================================================
 
 AC_MSG_CHECKING([for __progname])
 AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
@@ -119,24 +146,13 @@ if test x$ax_cv____Argv = xyes; then
   AC_DEFINE(HAVE____ARGV, 1, [Define to 1 if you have the global variable ___Argv])
 fi
 
-AC_CHECK_MEMBERS([struct sockaddr_in.sin_len], , ,[
-#include <sys/types.h>
-#include <netinet/in.h>
-])
+dnl =======================================================================
+dnl Checks for system services.
+dnl =======================================================================
 
-AC_REPLACE_FUNCS([getprogname asprintf vasprintf strlcpy])
-
-PKG_CHECK_MODULES(GMIME, gmime-2.0 >= 2.1.19, , AC_MSG_FAILURE([gmime-2.1.19 or newer not found]))
-CFLAGS="$CFLAGS $GMIME_CFLAGS"
-CPPFLAGS="$CPPFLAGS $GMIME_CPPFLAGS"
-LDFLAGS="$LDFLAGS $GMIME_LDFLAGS"
-LIBS="$LIBS $GMIME_LIBS"
-
-PKG_CHECK_MODULES(GLIB, glib-2.0 >= 2.12.3, , AC_MSG_FAILURE([glib-2.12.13 or newer not found]))
-CFLAGS="$CFLAGS $GLIB_CFLAGS"
-CPPFLAGS="$CPPFLAGS $GLIB_CPPFLAGS"
-LDFLAGS="$LDFLAGS $GLIB_LDFLAGS"
-LIBS="$LIBS $GLIB_LIBS"
+dnl =======================================================================
+dnl Miscellaneous.
+dnl =======================================================================
 
 CPPFLAGS="$CPPFLAGS -DLOCALSTATEDIR=\\\"${localstatedir}\\\""
 
