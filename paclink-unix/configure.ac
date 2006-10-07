@@ -47,7 +47,8 @@ AX_PATH_BDB([3], [
 		 LIBS="$BDB_LIBS $LIBS"
 		 LDFLAGS="$BDB_LDFLAGS $LDFLAGS"
 		 CPPFLAGS="$CPPFLAGS $BDB_CPPFLAGS"
-])
+], AC_MSG_FAILURE([Berkeley DB not found])
+)
 
 PKG_CHECK_MODULES(GMIME, gmime-2.0 >= 2.1.19, , AC_MSG_FAILURE([gmime-2.1.19 or newer not found]))
 CFLAGS="$CFLAGS $GMIME_CFLAGS"
