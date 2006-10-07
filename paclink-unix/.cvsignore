@@ -17,8 +17,9 @@ wl2mime
 
 paclink-unix-*.tar.gz
 
+run.sh
+
 typescript
-build.sh
 foo
 bar
 baz
