@@ -813,6 +813,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp)
       proposalcksum = (-proposalcksum) & 0xff;
       sentcksum = strtoul(line + 2, &endp, 16);
 
+      fprintf(stderr, "sentcksum=%lX proposalcksum=%lX\n", sentcksum, (unsigned long) proposalcksum);
       if (sentcksum != (unsigned long) proposalcksum) {
 	fprintf(stderr, "proposal cksum mismatch\n");
 	exit(EXIT_FAILURE);
