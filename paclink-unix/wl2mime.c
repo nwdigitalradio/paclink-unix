@@ -56,24 +56,6 @@ __RCSID("$Id$");
 #include "wl2mime.h"
 #include "mime2wl.h"
 
-static void
-write_message_to_screen (GMimeMessage *message)
-{
-  GMimeStream *stream;
-	
-  /* create a new stream for writing to stdout */
-  stream = g_mime_stream_fs_new(dup(1));
-	
-  /* write the message to the stream */
-  g_mime_object_write_to_stream((GMimeObject *) message, stream);
-	
-  /* flush the stream (kinda like fflush() in libc's stdio) */
-  g_mime_stream_flush(stream);
-	
-  /* free the output stream */
-  g_object_unref(stream);
-}
-
 struct buffer *
 wl2mime(struct buffer *ibuf)
 {
