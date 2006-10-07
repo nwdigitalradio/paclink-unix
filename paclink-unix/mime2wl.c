@@ -348,18 +348,6 @@ mime2wl(const char *mimefilename, const char *callsign)
   }
   internet_address_list_destroy(ialp);
 
-  ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_BCC);
-  while ((ia = internet_address_list_get_address(ial)) != NULL) {
-    header = internet_address_to_string(ia, 0);
-    clean = address_cleanup(header);
-    buffer_addstring(wl2k.hbuf, "Bcc: SMTP:");
-    buffer_addstring(wl2k.hbuf, clean);
-    buffer_addstring(wl2k.hbuf, "\r\n");
-    free(clean);
-    ial = internet_address_list_next(ial);
-  }
-  internet_address_list_destroy(ialp);
-  
   header = g_mime_message_get_subject(message);
   buffer_addstring(wl2k.hbuf, "Subject: ");
   buffer_addstring(wl2k.hbuf, header);
