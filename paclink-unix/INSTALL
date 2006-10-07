@@ -10,6 +10,19 @@ unlimited permission to copy, distribute and modify it.
 Pre-installation requirements
 =============================
 
+sendmail
+--------
+
+sendmail must be installed.  You can download the latest revision of
+sendmail from http://www.sendmail.org/ if you need it.
+
+Once you have installed sendmail, the configure script for
+paclink-unix should find and use it automatically if it is installed
+on your PATH.  Otherwise, pass the full path to sendmail in the
+SENDMAIL variable on the command line to the configure script for
+paclink-unix, for example:
+	./configure SENDMAIL=/usr/pkg/bin/sendmail
+
 Berkeley DB
 -----------
 

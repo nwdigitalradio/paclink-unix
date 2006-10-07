@@ -26,6 +26,12 @@ AC_PROG_CC
 AC_PROG_RANLIB
 AM_PROG_MKDIR_P
 
+AC_PATH_PROG([SENDMAIL], [sendmail], , [$PATH:/usr/libexec:/usr/sbin:/usr/lib/sendmail])
+if test -z "$SENDMAIL"; then
+  AC_MSG_FAILURE([sendmail not found])
+fi
+AC_DEFINE_UNQUOTED([SENDMAIL], ["$SENDMAIL"], [Define to full path of sendmail executable])
+
 dnl =======================================================================
 dnl Checks for libraries.
 dnl =======================================================================
