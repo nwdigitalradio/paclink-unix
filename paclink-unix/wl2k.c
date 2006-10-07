@@ -875,12 +875,14 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 	    perror("version_1_Decode()");
 	    exit(EXIT_FAILURE);
 	  }
+
 #if 0
 	  if (buffer_writefile(ipropary[i].mid, ipropary[i].ubuf) != 0) {
 	    perror("buffer_writefile()");
 	    exit(EXIT_FAILURE);
 	  }
-#else
+#endif
+
 	  buffer_rewind(ipropary[i].ubuf);
 	  if ((mimebuf = wl2mime(ipropary[i].ubuf)) == NULL) {
 	    fprintf(stderr, "%s: wm2mime() failed\n", getprogname());
@@ -888,7 +890,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 	  }
 	  fflush(NULL);
 
-	  
+	  fprintf(stderr, "%s: calling sendmail for delivery\n", getprogname());
 	  if (asprintf(&command, "%s -ba %s", SENDMAIL, emailaddress) == -1) {
 	    perror("asprintf()");
 	    exit(EXIT_FAILURE);
@@ -912,7 +914,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 	    }
 	    exit(EXIT_FAILURE);
 	  }
-#endif
+	  fprintf(stderr, "%s: delivery completed\n", getprogname());
 	  record_mid(ipropary[i].mid);
 	  buffer_free(ipropary[i].ubuf);
 	  ipropary[i].ubuf = NULL;
