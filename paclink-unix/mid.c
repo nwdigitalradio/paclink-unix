@@ -192,9 +192,10 @@ generate_mid(const char *callsign)
   size_t i;
   static int initialized = 0;
 
+#define CALLSIGN_MAXLEN 6 /* XXX ssid? */
+
   clen = strlen(callsign);
-  if (clen > 6) {
-    /* XXX ssid? */
+  if (clen > CALLSIGN_MAXLEN) {
     fprintf(stderr, "bad callsign %s\n", callsign);
     return NULL;
   }
@@ -203,7 +204,7 @@ generate_mid(const char *callsign)
     fprintf(stderr, "No room to generate mid!?\n");
     return NULL;
   }
-  strcpy(mid + rlen + 1, callsign);
+  strlcpy(mid + rlen + 1, callsign, CALLSIGN_MAXLEN + 1);
   mid[rlen] = '_';
   mid[MID_MAXLEN] = '\0';
   if (!initialized) {
