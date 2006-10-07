@@ -157,7 +157,9 @@ expire_mids(void)
   memset(&data, 0, sizeof(DBT));
 
   while ((ret = cursorp->c_get(cursorp, &key, &data, DB_NEXT)) == 0) {
+#if 0
     printf("checking mid %s\n", (char *) key.data);
+#endif
     if (data.size == sizeof(stored)) {
       memcpy(&stored, data.data, sizeof(stored));
       now = time(NULL);
