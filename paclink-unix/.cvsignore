@@ -12,10 +12,15 @@ stamp-h1
 
 lzhuf_1
 wl2ktelnet
-test_mime_encoding
 mime2wl
+wl2mime
 
+paclink-unix-*.tar.gz
+
+typescript
 build.sh
 foo
 bar
 baz
+*.eml
+*.msg
