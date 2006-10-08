@@ -51,6 +51,7 @@ __RCSID("$Id$");
 
 #include <gmime/gmime.h>
 
+#include "compat.h"
 #include "buffer.h"
 #include "strutil.h"
 #include "wl2mime.h"

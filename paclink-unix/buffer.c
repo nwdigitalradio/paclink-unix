@@ -43,6 +43,7 @@ __RCSID("$Id$");
 # include <string.h>
 #endif
 
+#include "compat.h"
 #include "buffer.h"
 
 struct buffer *

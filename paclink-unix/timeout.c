@@ -43,6 +43,7 @@ __RCSID("$Id$");
 # include <signal.h>
 #endif
 
+#include "compat.h"
 #include "timeout.h"
 
 unsigned int timeoutsecs;

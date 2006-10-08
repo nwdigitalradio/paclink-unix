@@ -54,6 +54,7 @@ __RCSID("$Id$");
 
 #include <db.h>
 
+#include "compat.h"
 #include "mid.h"
 
 /* returns 0 for success, non-zero for error */

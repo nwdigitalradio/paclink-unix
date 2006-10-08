@@ -35,6 +35,7 @@ __RCSID("$Id$");
 # include <ctype.h>
 #endif
 
+#include "compat.h"
 #include "buffer.h"
 #include "lzhuf_1.h"
 

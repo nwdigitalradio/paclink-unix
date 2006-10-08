@@ -40,6 +40,7 @@ __RCSID("$Id$");
 # include <string.h>
 #endif
 
+#include "compat.h"
 #include "strutil.h"
 
 char *
