@@ -58,6 +58,8 @@ __RCSID("$Id$");
 # include <netdb.h>
 #endif
 
+#include <gmime/gmime.h>
+
 #include "compat.h"
 #include "timeout.h"
 #include "wl2k.h"
