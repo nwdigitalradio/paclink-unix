@@ -21,7 +21,7 @@ mime2wl_SOURCES=mime2wl.c mime2wl.h buffer.c buffer.h mid.c mid.h
 wl2mime_CPPFLAGS=-DWL2MIME_MAIN
 wl2mime_SOURCES=wl2mime.c wl2mime.h buffer.c buffer.h strutil.c strutil.h
 
-wl2ktelnet_SOURCES=wl2ktelnet.c progname.h strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h mime2wl.c mime2wl.h
+wl2ktelnet_SOURCES=wl2ktelnet.c progname.h strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h
 
 TESTS=test_lzhuf_1
 
