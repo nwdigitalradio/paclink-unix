@@ -79,7 +79,6 @@ __RCSID("$Id$");
 #include "wl2mime.h"
 
 #define PROPLIMIT 5
-#define PENDING LOCALSTATEDIR "/wl2k/pending"
 
 struct proposal {
   char code;
@@ -426,7 +425,7 @@ dodelete(struct proposal **oproplist, struct proposal **nproplist)
   }
   while (*oproplist != *nproplist) {
     if (((*oproplist)->delete) && ((*oproplist)->path)) {
-      printf("%s: DELETING PROPOSAL: ", getprogname());
+      fprintf(stderr, "%s: DELETING PROPOSAL: ", getprogname());
       printprop(*oproplist);
 #if 1
       unlink((*oproplist)->path);
@@ -451,20 +450,20 @@ prepare_outbound_proposals(void)
   char name[MID_MAXLEN + 1];
 
   opropnext = &oproplist;
-  if ((dirp = opendir(PENDING)) == NULL) {
+  if ((dirp = opendir(WL2K_OUTBOX)) == NULL) {
     perror("opendir()");
     exit(EXIT_FAILURE);
   }
   while ((dp = readdir(dirp)) != NULL) {
     if (NAMLEN(dp) > MID_MAXLEN) {
       fprintf(stderr,
-	      "%s: warning: skipping bad filename %s in pending directory %s\n",
-	      getprogname(), dp->d_name, PENDING);
+	      "%s: warning: skipping bad filename %s in outbox directory %s\n",
+	      getprogname(), dp->d_name, WL2K_OUTBOX);
       continue;
     }
     strlcpy(name, dp->d_name, MID_MAXLEN + 1);
     name[NAMLEN(dp)] = '\0';
-    if (asprintf(&path, "%s/%s", PENDING, name) == -1) {
+    if (asprintf(&path, "%s/%s", WL2K_OUTBOX, name) == -1) {
       perror("asprintf()");
       exit(EXIT_FAILURE);
     }
@@ -589,8 +588,8 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     }
     printf("<%s\n", line);
 
-    if (strbegins(line, "FS ")) {
-      fprintf(stderr, "%s: b2 protocol error\n", getprogname());
+    if (!strbegins(line, "FS ")) {
+      fprintf(stderr, "%s: b2 protocol error 1\n", getprogname());
       exit(EXIT_FAILURE);
     }
     prop = *oproplist;
@@ -601,7 +600,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     }
     while (*cp && prop) {
       if (i == PROPLIMIT) {
-	fprintf(stderr, "%s: B2 protocol error\n", getprogname());
+	fprintf(stderr, "%s: B2 protocol error 2\n", getprogname());
 	exit(EXIT_FAILURE);
       }
       prop->accepted = 0;
@@ -628,7 +627,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 	cp = endp - 1;
 	break;
       default:
-	fprintf(stderr, "%s: B2 protocol error\n", getprogname());
+	fprintf(stderr, "%s: B2 protocol error 3\n", getprogname());
 	exit(EXIT_FAILURE);
 	break;
       }

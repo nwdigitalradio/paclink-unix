@@ -69,7 +69,7 @@ record_mid(char *mid)
   if (db_create(&dbp, NULL, 0) != 0) {
     return -1;
   }
-  if (dbp->open(dbp, NULL, MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0) {
+  if (dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0) {
     return -1;
   }
   memset(&key, 0, sizeof(DBT));
@@ -106,7 +106,7 @@ check_mid(char *mid)
   if (db_create(&dbp, NULL, 0) != 0) {
     return -1;
   }
-  if (dbp->open(dbp, NULL, MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0) {
+  if (dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0) {
     return -1;
   }
   memset(&key, 0, sizeof(DBT));
@@ -126,7 +126,7 @@ check_mid(char *mid)
 	ret = NOTFOUND;
       }
     } else {
-      fprintf(stderr, "MID database %s is corrupt\n", MID_DB);
+      fprintf(stderr, "MID database %s is corrupt\n", WL2K_MID_DB);
       exit(EXIT_FAILURE);
     }
   } else {
@@ -149,7 +149,7 @@ expire_mids(void)
   if (db_create(&dbp, NULL, 0) != 0) {
     return -1;
   }
-  if (dbp->open(dbp, NULL, MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0) {
+  if (dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0) {
     return -1;
   }
   dbp->cursor(dbp, NULL, &cursorp, 0);
@@ -169,12 +169,12 @@ expire_mids(void)
 	dbp->del(dbp, NULL, &key, 0);
       }
     } else {
-      fprintf(stderr, "MID database %s is corrupt\n", MID_DB);
+      fprintf(stderr, "MID database %s is corrupt\n", WL2K_MID_DB);
       exit(EXIT_FAILURE);
     }
   }
   if (ret != DB_NOTFOUND) {
-    fprintf(stderr, "MID database %s is corrupt\n", MID_DB);
+    fprintf(stderr, "MID database %s is corrupt\n", WL2K_MID_DB);
     exit(EXIT_FAILURE);
   }
   if (cursorp != NULL) {

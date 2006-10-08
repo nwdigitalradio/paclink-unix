@@ -39,21 +39,34 @@ __RCSID("$Id$");
 #if HAVE_STDLIB_H
 # include <stdlib.h>
 #endif
+#if HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+#if HAVE_STRING_H
+# include <string.h>
+#endif
+#if HAVE_CTYPE_H
+# include <ctype.h>
+#endif
 
 #include <gmime/gmime.h>
 
 #include "compat.h"
 #include "buffer.h"
 #include "mime2wl.h"
+#include "strutil.h"
 
 int
 main(int argc, char *argv[])
 {
   struct buffer *buf;
   int c;
+  char *mid;
+  FILE *fp;
 
   g_mime_init(0);
 
+#if 0
   unlink("/tmp/foo");
   if ((freopen("/tmp/foo", "w", stderr)) == NULL) {
     printf("no good patty\n");
@@ -61,6 +74,7 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
   setlinebuf(stderr);
+#endif
 
 #if 0
   fprintf(stderr, "argc %d\n", argc);
@@ -79,17 +93,42 @@ main(int argc, char *argv[])
 #endif
 
   if ((buf = mime2wl(0, "N2QZ")) == NULL) {
-    printf("i hate it when that happens\n");
+    fprintf(stderr, "%s: mime2wl() failed\n", getprogname());
     exit(EXIT_FAILURE);
   }
   buffer_rewind(buf);
 
+  if ((mid = buffer_getline(buf, '\n')) == NULL) {
+    fprintf(stderr, "%s: malformed message was produced\n", getprogname());
+    exit(EXIT_FAILURE);
+  }
+  if (!strcasebegins(mid, "Mid:")) {
+    fprintf(stderr, "%s: malformed message was produced\n", getprogname());
+    exit(EXIT_FAILURE);
+  }
+  mid += 4;
+  while (isspace((unsigned char) *mid)) {
+    mid++;
+  }
+  strzapcc(mid);
+  if (chdir(WL2K_OUTBOX) != 0) {
+    fprintf(stderr, "%s: chdir(%s): %s\n", getprogname(), WL2K_OUTBOX, strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+
+  buffer_rewind(buf);
+  /* XXX security: untaint mid */
+  if ((fp = fopen(mid, "w")) == NULL) {
+    fprintf(stderr, "%s: fopen(%s): %s\n", getprogname(), mid, strerror(errno));
+    exit(EXIT_FAILURE);
+  }
   while ((c = buffer_iterchar(buf)) != EOF) {
-    if (putc(c, stderr) == EOF) {
-      perror("putc()");
+    if (putc(c, fp) == EOF) {
+      fprintf(stderr, "%s: putc(): %s\n", getprogname(), strerror(errno));
       exit(EXIT_FAILURE);
     }
   }
+  fclose(fp);
 
   g_mime_shutdown();
   exit(EXIT_SUCCESS);

@@ -315,7 +315,10 @@ mime2wl(int fd, const char *callsign)
 
   header = g_mime_message_get_sender(message);
   clean = address_cleanup(header);
-  buffer_addstring(wl2k.hbuf, "From: SMTP:");
+  buffer_addstring(wl2k.hbuf, "From: ");
+  if (strchr(clean, '@')) {
+    buffer_addstring(wl2k.hbuf, "SMTP:");
+  }
   buffer_addstring(wl2k.hbuf, clean);
   buffer_addstring(wl2k.hbuf, "\r\n");
   free(clean);
@@ -324,7 +327,10 @@ mime2wl(int fd, const char *callsign)
   while ((ia = internet_address_list_get_address(ial)) != NULL) {
     header = internet_address_to_string(ia, 0);
     clean = address_cleanup(header);
-    buffer_addstring(wl2k.hbuf, "To: SMTP:");
+    buffer_addstring(wl2k.hbuf, "To: ");
+    if (strchr(clean, '@')) {
+      buffer_addstring(wl2k.hbuf, "SMTP:");
+    }
     buffer_addstring(wl2k.hbuf, clean);
     buffer_addstring(wl2k.hbuf, "\r\n");
     free(clean);
@@ -336,7 +342,10 @@ mime2wl(int fd, const char *callsign)
   while ((ia = internet_address_list_get_address(ial)) != NULL) {
     header = internet_address_to_string(ia, 0);
     clean = address_cleanup(header);
-    buffer_addstring(wl2k.hbuf, "Cc: SMTP:");
+    buffer_addstring(wl2k.hbuf, "Cc: ");
+    if (strchr(clean, '@')) {
+      buffer_addstring(wl2k.hbuf, "SMTP:");
+    }
     buffer_addstring(wl2k.hbuf, clean);
     buffer_addstring(wl2k.hbuf, "\r\n");
     free(clean);
