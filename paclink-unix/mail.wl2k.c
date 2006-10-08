@@ -51,29 +51,42 @@ main(int argc, char *argv[])
 {
   struct buffer *buf;
   int c;
-#if 0
-  FILE *fp;
-
-  fp = fopen("/tmp/foo", "w");
-  fprintf(fp, "argc %d\n", argc);
-  while (argc--) {
-    fprintf(fp, "%s\n", argv[0]);
-    argv++;
-  }
-
-  while ((c = getchar()) != EOF) {
-    putc(c, fp);
-  }
-ma
-  fclose(fp);
-#endif
 
   g_mime_init(0);
 
-  buf = mime2wl(0, "N2QZ");
+  unlink("/tmp/foo");
+  if ((freopen("/tmp/foo", "w", stderr)) == NULL) {
+    printf("no good patty\n");
+    perror("freopen()");
+    exit(EXIT_FAILURE);
+  }
+  setlinebuf(stderr);
+
+#if 0
+  fprintf(stderr, "argc %d\n", argc);
+
+  while (argc--) {
+    fprintf(stderr, "%s\n", argv[0]);
+    argv++;
+  }
+#endif
+
+#if 0
+  while ((c = getchar()) != EOF) {
+    putc(c, stderr);
+  }
+  exit(0);
+#endif
+
+  if ((buf = mime2wl(0, "N2QZ")) == NULL) {
+    printf("i hate it when that happens\n");
+    exit(EXIT_FAILURE);
+  }
   buffer_rewind(buf);
+
   while ((c = buffer_iterchar(buf)) != EOF) {
-    if (putchar(c) == EOF) {
+    if (putc(c, stderr) == EOF) {
+      perror("putc()");
       exit(EXIT_FAILURE);
     }
   }

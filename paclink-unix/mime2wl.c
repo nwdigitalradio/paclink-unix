@@ -397,7 +397,7 @@ main(int argc, char *argv[])
     perror("open");
     exit(EXIT_FAILURE);
   }
-  obuf = mime2wl(argv[1], "N2QZ");
+  obuf = mime2wl(fd, "N2QZ");
   buffer_rewind(obuf);
   while ((c = buffer_iterchar(obuf)) != EOF) {
     if (putchar(c) == EOF) {
