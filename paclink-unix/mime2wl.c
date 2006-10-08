@@ -241,6 +241,7 @@ mime_foreach_callback(GMimeObject *part, gpointer user_data)
     }
     free(slen);
 
+    buffer_addstring(buf, "\r\n");
     while (!g_mime_stream_eos(stream) && (r = g_mime_stream_read(stream, &c, 1)) >= 0) {
       buffer_addchar(buf, (int) c);
     }
@@ -374,7 +375,6 @@ mime2wl(const char *mimefilename, const char *callsign)
   }
   buffer_addbuf(buf, wl2k.hbuf);
   buffer_addbuf(buf, wl2k.fbuf);
-  buffer_addstring(buf, "\r\n");
   buffer_addbuf(buf, wl2k.bbuf);
   buffer_addbuf(buf, wl2k.abuf);
   buffer_free(wl2k.hbuf);
