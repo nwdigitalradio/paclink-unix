@@ -21,11 +21,64 @@
  *
  */
 
-/* $Id$ */
-
-#ifndef MIME2WL_H
-#define MIME2WL_H
-
-struct buffer *mime2wl(int fd, const char *callsign);
-
+#if HAVE_CONFIG_H
+# include "config.h"
 #endif
+
+#if HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+
+#ifdef __RCSID
+__RCSID("$Id$");
+#endif
+
+#if HAVE_STDIO_H
+# include <stdio.h>
+#endif
+#if HAVE_STDLIB_H
+# include <stdlib.h>
+#endif
+
+#include <gmime/gmime.h>
+
+#include "compat.h"
+#include "buffer.h"
+#include "mime2wl.h"
+
+int
+main(int argc, char *argv[])
+{
+  struct buffer *buf;
+  int c;
+#if 0
+  FILE *fp;
+
+  fp = fopen("/tmp/foo", "w");
+  fprintf(fp, "argc %d\n", argc);
+  while (argc--) {
+    fprintf(fp, "%s\n", argv[0]);
+    argv++;
+  }
+
+  while ((c = getchar()) != EOF) {
+    putc(c, fp);
+  }
+ma
+  fclose(fp);
+#endif
+
+  g_mime_init(0);
+
+  buf = mime2wl(0, "N2QZ");
+  buffer_rewind(buf);
+  while ((c = buffer_iterchar(buf)) != EOF) {
+    if (putchar(c) == EOF) {
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  g_mime_shutdown();
+  exit(EXIT_SUCCESS);
+  return 1;
+}

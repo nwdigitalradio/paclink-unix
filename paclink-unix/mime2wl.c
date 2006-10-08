@@ -256,9 +256,8 @@ mime_foreach_callback(GMimeObject *part, gpointer user_data)
 }
 
 struct buffer *
-mime2wl(const char *mimefilename, const char *callsign)
+mime2wl(int fd, const char *callsign)
 {
-  int fd;
   GMimeMessage *message;
   const char *header;
   char *clean;
@@ -276,10 +275,6 @@ mime2wl(const char *mimefilename, const char *callsign)
   ssize_t len;
   char *slen;
 
-  if ((fd = open(mimefilename, O_RDONLY)) == -1) {
-    perror("open");
-    exit(EXIT_FAILURE);
-  }
   message = parse_message(fd);
   close(fd);
 
@@ -388,8 +383,9 @@ mime2wl(const char *mimefilename, const char *callsign)
 int
 main(int argc, char *argv[])
 {
-  struct buffer *buf;
+  struct buffer *obuf;
   int c;
+  int fd;
 
   g_mime_init(0);
 
@@ -397,9 +393,13 @@ main(int argc, char *argv[])
     fprintf(stderr, "Usage: %s messagefile\n", getprogname());
     exit(EXIT_FAILURE);
   }
-  buf = mime2wl(argv[1], "N2QZ");
-  buffer_rewind(buf);
-  while ((c = buffer_iterchar(buf)) != EOF) {
+  if ((fd = open(argv[1], O_RDONLY)) == -1) {
+    perror("open");
+    exit(EXIT_FAILURE);
+  }
+  obuf = mime2wl(argv[1], "N2QZ");
+  buffer_rewind(obuf);
+  while ((c = buffer_iterchar(obuf)) != EOF) {
     if (putchar(c) == EOF) {
       exit(EXIT_FAILURE);
     }
