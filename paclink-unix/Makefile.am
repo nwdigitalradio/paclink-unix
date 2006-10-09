@@ -7,7 +7,7 @@ ACLOCAL_AMFLAGS=-I m4
 SUBDIRS=lib
 LDADD=lib/libcompat.a
 
-EXTRA_DIST=ascmail binmail.uue
+EXTRA_DIST=ascmail binmail.uue test_lzhuf_1 lzhuf_1.zip.uue
 
 clean-local:
 	rm -f *~ .*~ *.orig *.rej core *.core TAGS .depend foo bar baz binmail *.test
