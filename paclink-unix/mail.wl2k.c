@@ -55,6 +55,7 @@ __RCSID("$Id$");
 #include "buffer.h"
 #include "mime2wl.h"
 #include "strutil.h"
+#include "timeout.h"
 
 int
 main(int argc, char *argv[])
@@ -63,34 +64,22 @@ main(int argc, char *argv[])
   int c;
   char *mid;
   FILE *fp;
+  int i;
 
   g_mime_init(0);
 
-#if 0
-  unlink("/tmp/foo");
-  if ((freopen("/tmp/foo", "w", stderr)) == NULL) {
-    printf("no good patty\n");
-    perror("freopen()");
-    exit(EXIT_FAILURE);
-  }
+  setlinebuf(stdout);
   setlinebuf(stderr);
-#endif
 
-#if 0
-  fprintf(stderr, "argc %d\n", argc);
+  /* XXX remove this when we get more stable and stop hanging so much */
+  settimeout(60);
 
-  while (argc--) {
-    fprintf(stderr, "%s\n", argv[0]);
-    argv++;
+  fprintf(stderr, "%s: euid: %lu egid: %lu\n", getprogname(), (unsigned long) geteuid(), (unsigned long) getegid());
+
+  fprintf(stderr, "%s: argc: %d\n", getprogname(), argc);
+  for (i = 0; i < argc; i++) {
+    fprintf(stderr, "%s: argv[%d]: %s\n", getprogname(), i, argv[i]);
   }
-#endif
-
-#if 0
-  while ((c = getchar()) != EOF) {
-    putc(c, stderr);
-  }
-  exit(0);
-#endif
 
   if ((buf = mime2wl(0, "N2QZ")) == NULL) {
     fprintf(stderr, "%s: mime2wl() failed\n", getprogname());

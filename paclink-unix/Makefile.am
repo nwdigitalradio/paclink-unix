@@ -32,7 +32,7 @@ wl2mime_SOURCES=wl2mime.c wl2mime.h buffer.c buffer.h strutil.c strutil.h compat
 
 wl2ktelnet_SOURCES=wl2ktelnet.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h
 
-mail_wl2k_SOURCES=mail.wl2k.c buffer.c buffer.h mime2wl.c mime2wl.h mid.c mid.h strutil.c strutil.h compat.h
+mail_wl2k_SOURCES=mail.wl2k.c buffer.c buffer.h mime2wl.c mime2wl.h mid.c mid.h strutil.c strutil.h timeout.c timeout.h compat.h
 
 TESTS=test_lzhuf_1
 
