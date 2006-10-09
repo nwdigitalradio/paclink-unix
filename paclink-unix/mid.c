@@ -102,11 +102,15 @@ check_mid(char *mid)
   time_t stored;
   time_t now;
   int ret;
+  int r;
 
   if (db_create(&dbp, NULL, 0) != 0) {
+    fprintf(stderr, "%s: check_mid(): db_create() failed\n", getprogname());
     return -1;
   }
-  if (dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0) {
+  if ((r = dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE)) != 0) {
+    dbp->err(dbp, r, NULL);
+    dbp->close(dbp, 0);
     return -1;
   }
   memset(&key, 0, sizeof(DBT));
@@ -145,11 +149,15 @@ expire_mids(void)
   time_t stored;
   time_t now;
   int ret;
+  int r;
 
   if (db_create(&dbp, NULL, 0) != 0) {
+    fprintf(stderr, "%s: expire_mids(): db_create() failed\n", getprogname());
     return -1;
   }
-  if (dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0) {
+  if ((r = dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE)) != 0) {
+    dbp->err(dbp, r, NULL);
+    dbp->close(dbp, 0);
     return -1;
   }
   dbp->cursor(dbp, NULL, &cursorp, 0);
@@ -194,6 +202,7 @@ generate_mid(const char *callsign)
   char midchars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   size_t i;
   static int initialized = 0;
+  int r;
 
 #define CALLSIGN_MAXLEN 6 /* XXX ssid? */
 
@@ -218,7 +227,11 @@ generate_mid(const char *callsign)
     for (i = 0; i < rlen; i++) {
       mid[i] = midchars[random() % (sizeof(midchars) - 1)];
     }
-  } while (check_mid(mid));
+  } while ((r = check_mid(mid)) > 0);
+  if (r < 0) {
+    fprintf(stderr, "failure in check_mid()\n");
+    return NULL;
+  }
   record_mid(mid);
   return strdup(mid);
 }
