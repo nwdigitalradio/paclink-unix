@@ -65,7 +65,7 @@ glib
 
 glib library version 2.12.3 or greater must be installed.  You can
 download the latest revision of glib from
-ftp://ftp.gtk.org/pub/gtk/v2.0/ if you need it.
+ftp://ftp.gtk.org/pub/glib/ if you need it.
 
 Once you have installed glib, the configure script for paclink-unix
 should find and use it automatically via pkg-config.
