@@ -294,14 +294,14 @@ putcompressed(struct proposal *prop, FILE *fp)
       perror("fprintf()");
       exit(EXIT_FAILURE);
     }
-    while (rem--) {
+    while (len--) {
       resettimeout();
       cksum += *cp;
       if (fputc(*cp++, fp) == EOF) {
 	perror("fputc()");
 	exit(EXIT_FAILURE);
       }
-      len--;
+      rem--;
     }
   }
 
