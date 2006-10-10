@@ -307,7 +307,9 @@ mime2wl(int fd, const char *callsign)
     time(&tloc);
   }
   tm = gmtime(&tloc);
-  strftime(date, 17, "%Y/%m/%d %H:%M", tm);
+  if (strftime(date, sizeof(date), "%Y/%m/%d %H:%M", tm) == 0) {
+    return NULL;
+  }
   buffer_addstring(wl2k.hbuf, date);
   buffer_addstring(wl2k.hbuf, "\r\n");
 
