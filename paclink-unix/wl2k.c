@@ -736,7 +736,10 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
   int r;
   char *command;
 
-  expire_mids();
+  if (expire_mids() == -1) {
+    fprintf(stderr, "%s: expire_mids() failed\n", getprogname());
+    exit(EXIT_FAILURE);
+  }
 
   oproplist = prepare_outbound_proposals();
 

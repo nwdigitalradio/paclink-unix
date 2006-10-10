@@ -65,11 +65,15 @@ record_mid(char *mid)
   DBT key, data;
   time_t now;
   int ret;
+  int r;
 
   if (db_create(&dbp, NULL, 0) != 0) {
+    fprintf(stderr, "%s: record_mid(): db_create() failed\n", getprogname());
     return -1;
   }
-  if (dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0) {
+  if ((r = dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0)) {
+    dbp->err(dbp, r, "%s: %s", getprogname(), WL2K_MID_DB);
+    dbp->close(dbp, 0);
     return -1;
   }
   memset(&key, 0, sizeof(DBT));
@@ -109,7 +113,7 @@ check_mid(char *mid)
     return -1;
   }
   if ((r = dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE)) != 0) {
-    dbp->err(dbp, r, NULL);
+    dbp->err(dbp, r, "%s: %s", getprogname(), WL2K_MID_DB);
     dbp->close(dbp, 0);
     return -1;
   }
@@ -156,7 +160,7 @@ expire_mids(void)
     return -1;
   }
   if ((r = dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE)) != 0) {
-    dbp->err(dbp, r, NULL);
+    dbp->err(dbp, r, "%s: %s", getprogname(), WL2K_MID_DB);
     dbp->close(dbp, 0);
     return -1;
   }
