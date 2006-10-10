@@ -26,7 +26,7 @@
 #endif
 
 #if HAVE_SYS_TYPES_H
-#include <sys/types.h>
+# include <sys/types.h>
 #endif
 
 #ifdef __RCSID
@@ -47,6 +47,12 @@ __RCSID("$Id$");
 #endif
 #if HAVE_CTYPE_H
 # include <ctype.h>
+#endif
+#if HAVE_SYS_ERRNO_H
+# include <sys/errno.h>
+#endif
+#if HAVE_ERRNO_H
+# include <errno.h>
 #endif
 
 #include <gmime/gmime.h>
