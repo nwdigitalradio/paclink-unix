@@ -25,7 +25,10 @@
 # include "config.h"
 #endif
 
-#include <sys/types.h>
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
 #ifdef __RCSID
 __RCSID("$Id$");
 #endif
@@ -50,6 +53,12 @@ __RCSID("$Id$");
 #endif
 #if HAVE_SYS_STAT_H
 # include <sys/stat.h>
+#endif
+#if HAVE_SYS_ERRNO_H
+# include <sys/errno.h>
+#endif
+#if HAVE_ERRNO_H
+# include <errno.h>
 #endif
 
 #if HAVE_DIRENT_H
@@ -445,12 +454,15 @@ prepare_outbound_proposals(void)
   struct dirent *dp;
   char *line;
   unsigned char *cp;
-  char *path;
   struct stat sb;
   char name[MID_MAXLEN + 1];
 
   opropnext = &oproplist;
-  if ((dirp = opendir(WL2K_OUTBOX)) == NULL) {
+  if (chdir(WL2K_OUTBOX) != 0) {
+    fprintf(stderr, "%s: chdir(%s): %s\n", getprogname(), WL2K_OUTBOX, strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+  if ((dirp = opendir(".")) == NULL) {
     perror("opendir()");
     exit(EXIT_FAILURE);
   }
@@ -463,16 +475,10 @@ prepare_outbound_proposals(void)
     }
     strlcpy(name, dp->d_name, MID_MAXLEN + 1);
     name[NAMLEN(dp)] = '\0';
-    if (asprintf(&path, "%s/%s", WL2K_OUTBOX, name) == -1) {
-      perror("asprintf()");
-      exit(EXIT_FAILURE);
-    }
-    if (stat(path, &sb)) {
-      free(path);
+    if (stat(name, &sb)) {
       continue;
     }
     if (!(S_ISREG(sb.st_mode))) {
-      free(path);
       continue;
     }
     if ((prop = malloc(sizeof(struct proposal))) == NULL) {
@@ -482,7 +488,7 @@ prepare_outbound_proposals(void)
     prop->code = 'C';
     prop->type = 'E';
     strlcpy(prop->mid, name, MID_MAXLEN + 1);
-    prop->path = path;
+    prop->path = strdup(name);
 
     if ((prop->ubuf = buffer_readfile(prop->path)) == NULL) {
       perror(prop->path);
