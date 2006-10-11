@@ -63,7 +63,7 @@ paclink-unix, for example:
 glib
 ----
 
-glib library version 2.12.3 or greater must be installed.  You can
+glib library version 2.10.3 or greater must be installed.  You can
 download the latest revision of glib from
 ftp://ftp.gtk.org/pub/glib/ if you need it.
 
