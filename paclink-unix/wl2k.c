@@ -111,7 +111,7 @@ static struct proposal *parse_proposal(char *propline);
 static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist);
 static void printprop(struct proposal *prop);
 static void putcompressed(struct proposal *prop, FILE *fp);
-static char *tgetline(FILE *fp, int terminator);
+static char *tgetline(FILE *fp, int terminator, int ignore);
 static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 
 static int
@@ -671,7 +671,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 }
 
 static char *
-tgetline(FILE *fp, int terminator)
+tgetline(FILE *fp, int terminator, int ignore)
 {
   static struct buffer *buf = NULL;
   int c;
@@ -696,7 +696,7 @@ tgetline(FILE *fp, int terminator)
       }
       return buf->data;
     }
-    if (buffer_addchar(buf, c) == -1) {
+    if ((c != ignore) && buffer_addchar(buf, c) == -1) {
       perror("buffer_addchar()");
       exit(EXIT_FAILURE);
     }
@@ -707,8 +707,10 @@ tgetline(FILE *fp, int terminator)
 char *
 wl2kgetline(FILE *fp)
 {
+  char *cp;
 
-  return tgetline(fp, '\r');
+  cp = tgetline(fp, '\r', '\n');
+  return cp;
 }
 
 void
@@ -749,7 +751,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("<%s\n", line);
-    if (line[0] == '[') {
+    if (strchr(line, '[')) {
       inboundsid = strdup(line);
       if ((cp = strrchr(inboundsid, '-')) == NULL) {
 	fprintf(stderr, "%s: bad sid %s\n", getprogname(), inboundsid);
@@ -766,7 +768,13 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 	fprintf(stderr, "%s: sid %s does not support B2F protocol\n", getprogname(), inboundsid);
 	exit(EXIT_FAILURE);
       }
+      fprintf(stderr, "%s: sid %s inboundsidcodes %s\n", getprogname(), inboundsid, inboundsidcodes);
+      
     } else if (line[strlen(line) - 1] == '>') {
+      if (inboundsidcodes == NULL) {
+	fprintf(stderr, "%s: inboundsidcodes not set\n", getprogname());
+	exit(EXIT_FAILURE);
+      }
       if (strchr(inboundsidcodes, 'I')) {
 	printf(">; %s DE %s QTC %d\n", yourcall, mycall, opropcount);
 	resettimeout();
@@ -797,6 +805,8 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("<%s\n", line);
     if (strbegins(line, ";")) {
+      /* do nothing */
+    } else if (strlen(line) == 0) {
       /* do nothing */
     } else if (strbegins(line, "FC")) {
       dodelete(&oproplist, &nproplist);
@@ -944,7 +954,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 	return;
       }
     } else {
-      fprintf(stderr, "%s: unrecognized command: %s\n", getprogname(), line);
+      fprintf(stderr, "%s: unrecognized command (len %lu): /%s/\n", getprogname(), (unsigned long) strlen(line), line);
       exit(EXIT_FAILURE);
     }
   }
