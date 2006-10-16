@@ -252,7 +252,7 @@ main(int argc, char *argv[])
   fprintf(fp, "\r\n");
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("%s\n", line);
-    if (strcasestr(line, "cmd:")) {
+    if (strstr(line, "cmd:")) {
       fprintf(fp, "mycall %s\r", MYCALL);
       printf("mycall %s\n", MYCALL);
       fprintf(fp, "tones 4\r");
@@ -273,7 +273,7 @@ main(int argc, char *argv[])
 #if 0
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("%s\n", line);
-    if (strcasestr(line, "Mycall:")) {
+    if (strstr(line, "Mycall:")) {
       break;
     }
   }
@@ -285,7 +285,7 @@ main(int argc, char *argv[])
 
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("%s\n", line);
-    if (strcasestr(line, "cmd:")) {
+    if (strstr(line, "cmd:")) {
       fprintf(fp, "c %s\r", YOURCALL);
       printf("c %s\n", YOURCALL);
       break;
