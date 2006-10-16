@@ -84,7 +84,7 @@ AC_DEFUN([AX_PATH_BDB], [
      CPPFLAGS="-I$ax_path_bdb_INC $CPPFLAGS"
  
      ax_path_bdb_save_LDFLAGS=$LDFLAGS
-     LDFLAGS="-Wl,-R,$ax_path_bdb_LIB -L$ax_path_bdb_LIB $LDFLAGS"
+     LDFLAGS="-L$ax_path_bdb_LIB $LDFLAGS"
  
      # Check for specific header file db.h
      AC_MSG_CHECKING([db.h presence in $ax_path_bdb_INC])
@@ -94,7 +94,7 @@ AC_DEFUN([AX_PATH_BDB], [
        AX_PATH_BDB_NO_OPTIONS([$1], [ENVONLY], [
          ax_path_bdb_ok=yes
          BDB_CPPFLAGS="-I$ax_path_bdb_INC"
-         BDB_LDFLAGS="-Wl,-R,$ax_path_bdb_LIB -L$ax_path_bdb_LIB"
+         BDB_LDFLAGS="-L$ax_path_bdb_LIB"
        ])
      else
        AC_MSG_RESULT([no])
@@ -247,7 +247,7 @@ ax_compare_version=no
         BDB_LIBS="-ldb"
 	if test "x$ax_path_bdb_path_find_highest_DIR" != x ; then
 	  BDB_CPPFLAGS="-I$ax_path_bdb_path_find_highest_DIR/include"
-	  BDB_LDFLAGS="-Wl,-R,$ax_path_bdb_path_find_highest_DIR/lib -L$ax_path_bdb_path_find_highest_DIR/lib"
+	  BDB_LDFLAGS="-L$ax_path_bdb_path_find_highest_DIR/lib"
 	fi
         BDB_VERSION="$ax_path_bdb_path_find_highest_VERSION"
       fi
@@ -344,7 +344,7 @@ AC_DEFUN([AX_PATH_BDB_PATH_GET_VERSION], [
     LIBS="$LIBS -ldb"
 
     ax_path_bdb_path_get_version_save_LDFLAGS="$LDFLAGS"
-    LDFLAGS="-Wl,-R,$1/lib -L$1/lib $LDFLAGS"
+    LDFLAGS="-L$1/lib $LDFLAGS"
 
     # Compile and run a program that compares the version defined in
     # the header file with a version defined in the library function
