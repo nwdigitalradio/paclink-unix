@@ -1,0 +1,19 @@
+$Id$
+
+serial TNC support
+
+memory allocation/freeing audit
+
+return code checking audit
+
+security audit
+
+tactical callsign support
+
+comm scripting
+
+direct SMTP support (inbound forwarded to port 25, outbound direct
+SMTP from client to paclink-unix SMTP server)
+
+documentation :-)
+
