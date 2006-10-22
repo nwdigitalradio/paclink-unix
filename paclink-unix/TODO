@@ -2,11 +2,15 @@ $Id$
 
 serial TNC support
 
+HTML -> text conversion
+
 memory allocation/freeing audit
 
 return code checking audit
 
 security audit
+
+file locking
 
 tactical callsign support
 
