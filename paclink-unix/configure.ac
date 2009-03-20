@@ -32,6 +32,7 @@ dnl =======================================================================
 AC_SEARCH_LIBS(socket, socket)
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(herror, resolv)
+AC_SEARCH_LIBS(ax25_aton, ax25)
 
 AC_CHECK_FILE(/usr/pkg/include/db4/db.h,
 [
@@ -66,7 +67,7 @@ dnl =======================================================================
 dnl Checks for header files.
 dnl =======================================================================
 
-AC_CHECK_HEADERS([sys/errno.h sys/time.h sys/stat.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h errno.h stdio.h string.h stdlib.h string.h paths.h netdb.h unistd.h signal.h strings.h stdarg.h assert.h fcntl.h ctype.h time.h])
+AC_CHECK_HEADERS([sys/errno.h sys/time.h sys/stat.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h errno.h stdio.h string.h stdlib.h string.h paths.h netdb.h unistd.h signal.h strings.h stdarg.h assert.h fcntl.h ctype.h time.h netax25/ax25.h netax25/axlib.h])
 
 AC_HEADER_STDC
 AC_HEADER_TIME

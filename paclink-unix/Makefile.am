@@ -12,7 +12,7 @@ EXTRA_DIST=ascmail binmail.uue test_lzhuf_1 lzhuf_1.zip.uue wl2k.m4
 clean-local:
 	rm -f *~ .*~ *.orig *.rej core *.core TAGS .depend foo bar baz binmail *.test
 
-bin_PROGRAMS=lzhuf_1 wl2ktelnet wl2kserial
+bin_PROGRAMS=lzhuf_1 wl2ktelnet wl2kserial wl2kax25
 libexec_PROGRAMS=mail.wl2k
 noinst_PROGRAMS=mime2wl wl2mime
 
@@ -31,6 +31,8 @@ wl2mime_CPPFLAGS=-DWL2MIME_MAIN $(WL2K_CPPFLAGS)
 wl2mime_SOURCES=wl2mime.c wl2mime.h buffer.c buffer.h strutil.c strutil.h compat.h
 
 wl2ktelnet_SOURCES=wl2ktelnet.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h
+
+wl2kax25_SOURCES=wl2kax25.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h
 
 wl2kserial_SOURCES=wl2kserial.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h
 
