@@ -12,7 +12,12 @@ EXTRA_DIST=ascmail binmail.uue test_lzhuf_1 lzhuf_1.zip.uue wl2k.m4
 clean-local:
 	rm -f *~ .*~ *.orig *.rej core *.core TAGS .depend foo bar baz binmail *.test
 
-bin_PROGRAMS=lzhuf_1 wl2ktelnet wl2kserial wl2kax25
+bin_PROGRAMS=lzhuf_1 wl2ktelnet wl2kserial
+
+if HAVE_AX25
+  bin_PROGRAMS+=wl2kax25
+endif
+
 libexec_PROGRAMS=mail.wl2k
 noinst_PROGRAMS=mime2wl wl2mime
 
@@ -21,7 +26,7 @@ WL2K_MID_DB=$(localstatedir)/wl2k/mid.db
 WL2K_CPPFLAGS=-DWL2K_OUTBOX=\"$(WL2K_OUTBOX)\" -DWL2K_MID_DB=\"$(WL2K_MID_DB)\"
 AM_CPPFLAGS=$(WL2K_CPPFLAGS)
 
-lzhuf_1_CPPFLAGS=-DLZHUF_1_MAIN $(WL2K_CPPFLAGS)
+#lzhuf_1_CPPFLAGS=-DLZHUF_1_MAIN $(WL2K_CPPFLAGS)
 lzhuf_1_SOURCES=lzhuf_1.c buffer.c buffer.h compat.h
 
 mime2wl_CPPFLAGS=-DMIME2WL_MAIN $(WL2K_CPPFLAGS)

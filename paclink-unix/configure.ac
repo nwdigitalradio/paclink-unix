@@ -18,6 +18,7 @@ dnl =======================================================================
 AC_PROG_CC
 AC_PROG_RANLIB
 AM_PROG_MKDIR_P
+AM_PROG_CC_C_O
 
 AC_PATH_PROG([SENDMAIL], [sendmail], , [$PATH:/usr/libexec:/usr/sbin:/usr/lib:/usr/lib/sendmail:/usr/pkg/libexec/sendmail])
 if test -z "$SENDMAIL"; then
