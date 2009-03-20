@@ -3,6 +3,9 @@ $Id$
 Nicholas S. Castellano N2QZ <n2qz@arrl.net>
 Started this crazy thing
 
+Dana Borgman KA1WPM <ka1wpm@arrl.net>
+Contributed the Linux AX25 packet driver module
+
 Haruyasu Yoshizaki
 Author of lzhuf_1.c
 
