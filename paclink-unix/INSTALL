@@ -14,7 +14,10 @@ sendmail
 --------
 
 sendmail must be installed.  You can download the latest revision of
-sendmail from http://www.sendmail.org/ if you need it.
+sendmail from http://www.sendmail.org/ if you need it.  You will need
+to manually configure a mailer for paclink-unix using wl2k.m4, so you
+may need to install an optional package for sendmail configuration.
+On Fedora Linux, you can install the package `sendmail-cf' using yum.
 
 Once you have installed sendmail, the configure script for
 paclink-unix should find and use it automatically if it is installed
@@ -28,7 +31,8 @@ Berkeley DB
 
 Berkeley DB library version 3 or greater must be installed.  You can
 download the latest revision of version 4 from
-http://www.oracle.com/database/berkeley-db.html if you need it.
+http://www.oracle.com/database/berkeley-db.html if you need it.  On
+Fedora Linux, you can install the package `db4-devel' using yum.
 
 They seem to have made it as difficult as possible to find the build
 instructions in the latest release of bdb from Oracle.  To do a
@@ -51,7 +55,8 @@ pkg-config
 
 pkg-config version 0.14 or greater must be installed.  You can
 download the latest revision of pkg-config from
-http://pkgconfig.freedesktop.org/ if you need it.
+http://pkgconfig.freedesktop.org/ if you need it.  On Fedora Linux,
+you can install the package `pkgconfig' using yum.
 
 Once you have installed pkg-config, the configure script for
 paclink-unix should find and use it automatically if it is installed
@@ -64,8 +69,9 @@ glib
 ----
 
 glib library version 2.10.3 or greater must be installed.  You can
-download the latest revision of glib from
-ftp://ftp.gtk.org/pub/glib/ if you need it.
+download the latest revision of glib from ftp://ftp.gtk.org/pub/glib/
+if you need it.  On Fedora Linux, you can install the package
+`glib2-devel' using yum.
 
 Once you have installed glib, the configure script for paclink-unix
 should find and use it automatically via pkg-config.
@@ -75,7 +81,8 @@ gmime
 
 gmime library version 2.1.19 or greater must be installed.  You can
 download the latest revision of gmime from
-http://spruce.sourceforge.net/gmime/ if you need it.
+http://spruce.sourceforge.net/gmime/ if you need it.  On Fedora Linux,
+you can install the package `gmime-devel' using yum.
 
 Once you have installed gmime, the configure script for paclink-unix
 should find and use it automatically via pkg-config.
@@ -88,7 +95,8 @@ It is required only if you are doing development work, building from
 CVS, or if you need to modify the build infrastrucure for some reason.
 The recommended version for paclink-unix development is 2.60 or newer.
 You can download autoconf from http://www.gnu.org/software/autoconf/
-if you need it.
+if you need it.  On Fedora Linux, you can install the package
+`autoconf' using yum.
 
 autoconf has other dependencies such as m4 and perl.  See README and
 INSTALL in the autoconf distribution for details.
@@ -101,9 +109,19 @@ required only if you are doing development work, building from CVS, or
 if you need to modify the build infrastrucure for some reason.  The
 recommended version for paclink-unix development is 1.96 or newer.
 You can download automake from http://www.gnu.org/software/automake/
-if you need it.
+if you need it.  On Fedora Linux, you can install the package
+`automake' using yum.
 
 Before installing automake you must first install autoconf.
+
+ax25
+----
+
+Linux supports a native AX.25 network stack.  If the AX.25 headers are
+detected at build time, paclink-unix will build a driver program
+`wl2kax25'.  These headers are standard on some versions of Linux, and
+optional on others.  On Fedora Linux, you can install the package
+`libax25-devel' using yum.
 
 Basic Installation
 ==================
