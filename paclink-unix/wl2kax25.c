@@ -70,12 +70,19 @@ __RCSID("$Id$");
 # include <netdb.h>
 #endif
 
+#if HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+
 #include <gmime/gmime.h>
+#include <poll.h>
 
 #include "compat.h"
 #include "timeout.h"
 #include "wl2k.h"
 #include "strutil.h"
+
+#define BUFMAX 256
 
 static void usage(void);
 
@@ -113,6 +120,11 @@ main(int argc, char *argv[])
       struct sockaddr_rose rose;
    } sockaddr;
    char *dev;
+   pid_t procID;
+   int sv[2];
+   int ready;
+   struct pollfd fds[2];
+   unsigned char axread[BUFMAX], axwrite[BUFMAX];
 
 #define MYCALL  argv[1]
 #define YOURCALL argv[2]
@@ -140,80 +152,146 @@ main(int argc, char *argv[])
       exit(EXIT_FAILURE);
    }
 
-   // Begin AX25 socket code
-   if (ax25_config_load_ports() == 0)
-      fprintf(stderr, "wl2kax25: no AX.25 port data configured\n");
-
-   if (portname != NULL) {
-      if ((dev = ax25_config_get_dev(portname)) == NULL) {
-         fprintf(stderr, "wl2kax25: invalid port name - %s\n",
-               portname);
-         return(EXIT_FAILURE);
+   if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv))
+   {
+      perror("socketpair");
+      exit(EXIT_FAILURE);
+   }
+   // Fork a process
+   if ((procID = fork())) {
+      // Parent processing
+      if (-1 == procID) {
+         fprintf(stderr, "fork\n");
+         exit(EXIT_FAILURE);
       }
-   }
 
-   if ((s = socket(AF_AX25, SOCK_SEQPACKET, 0)) == -1) {
-      perror("socket");
-      printf("%d\n", __LINE__);
-      exit(EXIT_FAILURE);
-   }
-   ax25_aton(ax25_config_get_addr(portname), &sockaddr.ax25);
-   ax25_aton(MYCALL, &sockaddr.ax25);
-   if (sockaddr.ax25.fsa_ax25.sax25_ndigis == 0) {
-      ax25_aton_entry(ax25_config_get_addr(portname),
-            sockaddr.ax25.fsa_digipeater[0].
-            ax25_call);
-      sockaddr.ax25.fsa_ax25.sax25_ndigis = 1;
-   }
-   sockaddr.ax25.fsa_ax25.sax25_family = AF_AX25;
-   addrlen = sizeof(struct full_sockaddr_ax25);
+      close(sv[1]);
 
-   if (bind(s, (struct sockaddr *) &sockaddr, addrlen) == -1) {
-      perror("bind");
+      // Begin AX25 socket code
+      if (ax25_config_load_ports() == 0)
+         fprintf(stderr, "wl2kax25: no AX.25 port data configured\n");
+
+      if (portname != NULL) {
+         if ((dev = ax25_config_get_dev(portname)) == NULL) {
+            fprintf(stderr, "wl2kax25: invalid port name - %s\n",
+                  portname);
+            return(EXIT_FAILURE);
+         }
+      }
+
+      if ((s = socket(AF_AX25, SOCK_SEQPACKET, 0)) == -1) {
+         perror("socket");
+         printf("%d\n", __LINE__);
+         exit(EXIT_FAILURE);
+      }
+      ax25_aton(ax25_config_get_addr(portname), &sockaddr.ax25);
+      ax25_aton(MYCALL, &sockaddr.ax25);
+      if (sockaddr.ax25.fsa_ax25.sax25_ndigis == 0) {
+         ax25_aton_entry(ax25_config_get_addr(portname),
+               sockaddr.ax25.fsa_digipeater[0].
+               ax25_call);
+         sockaddr.ax25.fsa_ax25.sax25_ndigis = 1;
+      }
+      sockaddr.ax25.fsa_ax25.sax25_family = AF_AX25;
+      addrlen = sizeof(struct full_sockaddr_ax25);
+
+      if (bind(s, (struct sockaddr *) &sockaddr, addrlen) == -1) {
+         perror("bind");
+         close(s);
+         exit(EXIT_FAILURE);
+      }
+
+
+      if (ax25_aton(YOURCALL, &sockaddr.ax25) < 0) {
+         close(s);
+         perror("ax25_aton()");
+         exit(EXIT_FAILURE);
+      }
+      sockaddr.rose.srose_family = AF_AX25;
+      addrlen = sizeof(struct full_sockaddr_ax25);
+
+
+      if (connect(s, (struct sockaddr *) &sockaddr, addrlen) != 0) {
+         close(s);
+         perror("connect()");
+         exit(EXIT_FAILURE);
+      }
+      // End AX25 socket code
+
+      resettimeout();
+
+      printf("Connected.\n");
+
+      fds[0].fd = s;
+      fds[0].events = POLLIN;
+      fds[1].fd = sv[0];
+      fds[1].events = POLLIN;
+
+      // poll here and feed to the ax25 socket.
+      // Data must be chunked to the appropriate size
+      for (;;) {
+         ready = poll(fds, sizeof(fds)/sizeof(struct pollfd), -1);
+
+         if (-1 == ready) {
+            if (EINTR == errno)
+               break;
+            perror("poll");
+            exit(EXIT_FAILURE);
+         }
+
+         // Inbound
+         if (fds[0].revents & POLLIN) {
+            unsigned int len = 0;
+            len = read(fds[0].fd, axread, sizeof(axread));
+            if (len > 0 )
+               write(fds[1].fd, axread, len);
+         }
+
+         // Outbound
+         if (fds[1].revents & POLLIN) {
+            unsigned int len = 0;
+            len = read(fds[1].fd, axwrite, sizeof(axwrite));
+            if (len > 0 )
+               write(fds[0].fd, axwrite, len);
+         }
+      }
+
+      printf("Closing ax25 connection\n");
+
+      g_mime_shutdown();
+      close(sv[0]);
       close(s);
-      exit(EXIT_FAILURE);
+      exit(EXIT_SUCCESS);
+      return 1;
    }
+   else
+   {
+      // Child processing
+      printf("Child process\n");
+      close(sv[0]);
 
+      if ((fp = fdopen(sv[1], "r+b")) == NULL) {
+         close(sv[1]);
+         perror("fdopen()");
+         exit(EXIT_FAILURE);
+      }
 
-   if (ax25_aton(YOURCALL, &sockaddr.ax25) < 0) {
-      close(s);
-      perror("ax25_aton()");
-      exit(EXIT_FAILURE);
+      setbuf(fp, NULL);
+
+      /*
+       * The messages are exchanged in this call
+       *
+       * TODO: The sid sent by the client should contain an NXX,
+       *       where NXX represents N followed by two digits of SSID.
+       *       This allows the RMS to find the correct registered
+       *       user in case the SSID has been changed in the network.
+       */
+
+      printf("Child process calling wl2kexchange()\n");
+      wl2kexchange(MYCALL, YOURCALL, fp, EMAILADDRESS);
+      fclose(fp);
+      printf("Child process exiting\n");
+      return(EXIT_SUCCESS);
+
    }
-   sockaddr.rose.srose_family = AF_AX25;
-   addrlen = sizeof(struct full_sockaddr_ax25);
-
-
-   if (connect(s, (struct sockaddr *) &sockaddr, addrlen) != 0) {
-      close(s);
-      perror("connect()");
-      exit(EXIT_FAILURE);
-   }
-   // End AX25 socket code
-
-   resettimeout();
-
-   printf("Connected.\n");
-
-   if ((fp = fdopen(s, "r+b")) == NULL) {
-      close(s);
-      perror("fdopen()");
-      exit(EXIT_FAILURE);
-   }
-
-   /*
-    * The messages are exchanged in this call
-    *
-    * TODO: The sid sent by the client should contain an NXX,
-    *       where NXX represents N followed by two digits of SSID.
-    *       This allows the RMS to find the correct registered
-    *       user in case the SSID has been changed in the network.
-    */
-
-   wl2kexchange(MYCALL, YOURCALL, fp, EMAILADDRESS);
-
-   fclose(fp);
-   g_mime_shutdown();
-   exit(EXIT_SUCCESS);
-   return 1;
 }
