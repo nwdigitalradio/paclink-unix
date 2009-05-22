@@ -163,7 +163,7 @@ buffer_getstring(struct buffer *b)
 {
   char *cp;
 
-  cp = strdup(b->data);
+  cp = strdup((const char *) b->data);
   return cp;
 }
 
@@ -193,7 +193,7 @@ buffer_getline(struct buffer *b, int terminator)
     }
   }
   buffer_addchar(t, '\0');
-  cp = strdup(t->data);
+  cp = strdup((const char *) t->data);
   buffer_free(t);
   return cp;
 }

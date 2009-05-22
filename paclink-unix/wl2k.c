@@ -193,7 +193,7 @@ getcompressed(FILE *fp)
     buffer_free(buf);
     return NULL;
   }
-  if (strcmp(offset, "0") != 0) {
+  if (strcmp((const char *) offset, "0") != 0) {
     buffer_free(buf);
     return NULL;
   }
@@ -247,15 +247,15 @@ putcompressed(struct proposal *prop, FILE *fp)
   unsigned char title[81];
   unsigned char offset[7];
   int cksum = 0;
-  char *cp;
+  unsigned char *cp;
   long rem;
 
-  strlcpy(title, prop->title, sizeof(title));
-  snprintf(offset, sizeof(offset), "%lu", prop->offset);
+  strlcpy((char *) title, prop->title, sizeof(title));
+  snprintf((char *) offset, sizeof(offset), "%lu", prop->offset);
 
   fprintf(stderr, "%s: transmitting [%s] [offset %s]\n", getprogname(), title, offset);
 
-  len = strlen(title) + strlen(offset) + 2;
+  len = strlen((const char *) title) + strlen((const char *) offset) + 2;
   resettimeout();
   if (fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL) == -1) {
     perror("fprintf()");
@@ -512,14 +512,14 @@ prepare_outbound_proposals(void)
     while ((line = buffer_getline(prop->ubuf, '\n')) != NULL) {
       if (strbegins(line, "Subject:")) {
 	strzapcc(line);
-	cp = line + 8;
+	cp = ((unsigned char *) line) + 8;
 	while (isspace(*cp)) {
 	  cp++;
 	}
-	if (strlen(cp) > 80) {
+	if (strlen((const char *) cp) > 80) {
 	  cp[80] = '\0';
 	}
-	prop->title = strdup(cp);
+	prop->title = strdup((const char *) cp);
       }
       free(line);
     }
@@ -573,7 +573,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 	perror("fprintf()");
 	exit(EXIT_FAILURE);
       }
-      for (cp = sp; *cp; cp++) {
+      for (cp = (unsigned char *) sp; *cp; cp++) {
 	cksum += (unsigned char) *cp;
       }
       free(sp);
@@ -600,7 +600,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     }
     prop = *oproplist;
     i = 0;
-    cp = line + 3;
+    cp = ((unsigned char *) line) + 3;
     while (*cp && isspace(*cp)) {
       cp++;
     }
@@ -629,8 +629,8 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
       case 'A': case 'a':
       case '!':
 	prop->accepted = 1;
-	prop->offset = strtoul(cp, &endp, 10);
-	cp = endp - 1;
+	prop->offset = strtoul((const char *) cp, &endp, 10);
+	cp = ((unsigned char *) endp) - 1;
 	break;
       default:
 	fprintf(stderr, "%s: B2 protocol error 3\n", getprogname());
@@ -694,7 +694,7 @@ tgetline(FILE *fp, int terminator, int ignore)
 	perror("buffer_addchar()");
 	exit(EXIT_FAILURE);
       }
-      return buf->data;
+      return (char *) buf->data;
     }
     if ((c != ignore) && buffer_addchar(buf, c) == -1) {
       perror("buffer_addchar()");
