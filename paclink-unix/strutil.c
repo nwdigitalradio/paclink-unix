@@ -44,11 +44,14 @@ __RCSID("$Id$");
 #include "strutil.h"
 
 char *
-strupper(unsigned char *s)
+strupper(char *s)
 {
   unsigned char *cp;
 
-  for (cp = s; *cp; cp++) {
+  if (s == NULL) {
+    return NULL;
+  }
+  for (cp = (unsigned char *) s; *cp; cp++) {
     if (islower(*cp)) {
       *cp = toupper(*cp);
     }
