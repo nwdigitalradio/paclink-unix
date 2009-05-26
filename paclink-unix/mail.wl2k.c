@@ -62,6 +62,7 @@ __RCSID("$Id$");
 #include "mime2wl.h"
 #include "strutil.h"
 #include "timeout.h"
+#include "conf.h"
 
 int
 main(int argc, char *argv[])
@@ -71,6 +72,8 @@ main(int argc, char *argv[])
   char *mid;
   FILE *fp;
   int i;
+  struct conf *conf;
+  char *mycall;
 
   g_mime_init(0);
 
@@ -87,7 +90,12 @@ main(int argc, char *argv[])
     fprintf(stderr, "%s: argv[%d]: %s\n", getprogname(), i, argv[i]);
   }
 
-  if ((buf = mime2wl(0, "N2QZ")) == NULL) {
+  conf = conf_read();
+  if ((mycall = conf_get(conf, "mycall")) == NULL) {
+    fprintf(stderr, "%s: failed to read mycall from configuration file\n", getprogname());
+  }
+
+  if ((buf = mime2wl(0, mycall)) == NULL) {
     fprintf(stderr, "%s: mime2wl() failed\n", getprogname());
     exit(EXIT_FAILURE);
   }

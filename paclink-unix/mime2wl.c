@@ -70,6 +70,7 @@ __RCSID("$Id$");
 #include "buffer.h"
 #include "mid.h"
 #include "mime2wl.h"
+#include "conf.h"
 
 struct wl2kmessage {
   struct buffer *hbuf; /* headers */
@@ -397,6 +398,8 @@ main(int argc, char *argv[])
   struct buffer *obuf;
   int c;
   int fd;
+  struct conf *conf;
+  char *mycall;
 
   g_mime_init(0);
 
@@ -408,7 +411,11 @@ main(int argc, char *argv[])
     perror("open");
     exit(EXIT_FAILURE);
   }
-  obuf = mime2wl(fd, "N2QZ");
+  conf = conf_read();
+  if ((mycall = conf_get(conf, "mycall")) == NULL) {
+    fprintf(stderr, "%s: failed to read mycall from configuration file\n", getprogname());
+  }
+  obuf = mime2wl(fd, mycall);
   buffer_rewind(obuf);
   while ((c = buffer_iterchar(obuf)) != EOF) {
     if (putchar(c) == EOF) {
