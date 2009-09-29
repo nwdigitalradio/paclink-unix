@@ -81,7 +81,7 @@ struct wl2kmessage {
 
 static char *address_cleanup(const char *addr);
 static GMimeMessage *parse_message(int fd);
-static void mime_foreach_callback(GMimeObject *part, gpointer user_data);
+static void mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data);
 
 static char *
 address_cleanup(const char *addr)
@@ -147,7 +147,7 @@ parse_message(int fd)
 }
 
 static void
-mime_foreach_callback(GMimeObject *part, gpointer user_data)
+mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data)
 {
   GMimeContentType *content_type;
   struct wl2kmessage *wl2k = user_data;
@@ -160,20 +160,20 @@ mime_foreach_callback(GMimeObject *part, gpointer user_data)
   char *slen;
   struct buffer *buf;
 	
-  /* 'part' points to the current part node that g_mime_message_foreach_part() is iterating over */
+  /* 'part' points to the current part node that g_mime_message_foreach() is iterating over */
 	
   /* find out what class 'part' is... */
   if (GMIME_IS_MESSAGE_PART(part)) {
     /* message/rfc822 or message/news */
     GMimeMessage *message;
 		
-    /* g_mime_message_foreach_part() won't descend into
+    /* g_mime_message_foreach() won't descend into
        child message parts, so if we want to process any
        subparts of this child message, we'll have to call
-       g_mime_message_foreach_part() again here. */
+       g_mime_message_foreach() again here. */
 		
     message = g_mime_message_part_get_message((GMimeMessagePart *) part);
-    g_mime_message_foreach_part(message, mime_foreach_callback, wl2k);
+    g_mime_message_foreach(message, mime_foreach_callback, wl2k);
     g_object_unref(message);
   } else if (GMIME_IS_MESSAGE_PARTIAL(part)) {
     /* message/partial */
@@ -196,7 +196,7 @@ mime_foreach_callback(GMimeObject *part, gpointer user_data)
 
     buf = wl2k->abuf;
 
-    content_type = g_mime_part_get_content_type((GMimePart *) part);
+    content_type = (GMimeContentType *)g_mime_object_get_content_type (GMIME_OBJECT (part));
 
     if ((fn == NULL) && (buffer_length(wl2k->bbuf) == 0UL)) {
       if (g_mime_content_type_is_type(content_type, "text", "plain")) {
@@ -275,6 +275,7 @@ mime2wl(int fd, const char *callsign)
   static char *nobody = "No message body\r\n";
   ssize_t len;
   char *slen;
+  int idx;
 
   message = parse_message(fd);
   close(fd);
@@ -327,7 +328,8 @@ mime2wl(int fd, const char *callsign)
   free(clean);
 
   ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_TO);
-  while ((ia = internet_address_list_get_address(ial)) != NULL) {
+  idx = 0;
+  while ((ia = internet_address_list_get_address(ial, idx)) != NULL) {
     header = internet_address_to_string(ia, 0);
     clean = address_cleanup(header);
     buffer_addstring(wl2k.hbuf, "To: ");
@@ -337,12 +339,12 @@ mime2wl(int fd, const char *callsign)
     buffer_addstring(wl2k.hbuf, clean);
     buffer_addstring(wl2k.hbuf, "\r\n");
     free(clean);
-    ial = internet_address_list_next(ial);
+    idx++;
   }
-  internet_address_list_destroy(ialp);
 
   ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_CC);
-  while ((ia = internet_address_list_get_address(ial)) != NULL) {
+  idx = 0;
+  while ((ia = internet_address_list_get_address(ial, idx)) != NULL) {
     header = internet_address_to_string(ia, 0);
     clean = address_cleanup(header);
     buffer_addstring(wl2k.hbuf, "Cc: ");
@@ -352,9 +354,8 @@ mime2wl(int fd, const char *callsign)
     buffer_addstring(wl2k.hbuf, clean);
     buffer_addstring(wl2k.hbuf, "\r\n");
     free(clean);
-    ial = internet_address_list_next(ial);
+    idx++;
   }
-  internet_address_list_destroy(ialp);
 
   header = g_mime_message_get_subject(message);
   buffer_addstring(wl2k.hbuf, "Subject: ");
@@ -362,7 +363,7 @@ mime2wl(int fd, const char *callsign)
   buffer_addstring(wl2k.hbuf, "\r\n");
   buffer_addstring(wl2k.hbuf, "Mbo: SMTP\r\n");
 
-  g_mime_message_foreach_part(message, mime_foreach_callback, &wl2k);
+  g_mime_message_foreach(message, mime_foreach_callback, &wl2k);
 
   if (buffer_length(wl2k.bbuf) == 0UL) {
     len = strlen(nobody);

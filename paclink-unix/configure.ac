@@ -52,7 +52,7 @@ AX_PATH_BDB([3], [
 ], AC_MSG_FAILURE([Berkeley DB not found])
 )
 
-PKG_CHECK_MODULES(GMIME, gmime-2.0 >= 2.1.19, , AC_MSG_FAILURE([gmime-2.1.19 or newer not found]))
+PKG_CHECK_MODULES(GMIME, gmime-2.4 >= 2.4.3, , AC_MSG_FAILURE([gmime-2.4.3 or newer not found]))
 CFLAGS="$CFLAGS $GMIME_CFLAGS"
 CPPFLAGS="$CPPFLAGS $GMIME_CPPFLAGS"
 LDFLAGS="$LDFLAGS $GMIME_LDFLAGS"

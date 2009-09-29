@@ -167,11 +167,11 @@ wl2mime(struct buffer *ibuf)
 	ch = (char) c;
 	g_mime_stream_write(stream, &ch, 1);
       }
-      content = g_mime_data_wrapper_new_with_stream(stream, GMIME_PART_ENCODING_DEFAULT);
+      content = g_mime_data_wrapper_new_with_stream(stream, GMIME_CONTENT_ENCODING_DEFAULT);
       g_object_unref(stream);
       g_mime_part_set_content_object(mime_part, content);
       g_object_unref(content);
-      g_mime_multipart_add_part(multipart, (GMimeObject *) mime_part);
+      g_mime_multipart_add(multipart, (GMimeObject *) mime_part);
     } else if (strcasebegins(line, "File:")) {
       mime_part = g_mime_part_new_with_type("application", "octet-stream");
       stream = g_mime_stream_mem_new();
@@ -190,12 +190,12 @@ wl2mime(struct buffer *ibuf)
 	ch = (char) c;
 	g_mime_stream_write(stream, &ch, 1);
       }
-      content = g_mime_data_wrapper_new_with_stream(stream, GMIME_PART_ENCODING_DEFAULT);
+      content = g_mime_data_wrapper_new_with_stream(stream, GMIME_CONTENT_ENCODING_DEFAULT);
       g_object_unref(stream);
       g_mime_part_set_content_object(mime_part, content);
       g_object_unref(content);
-      g_mime_part_set_encoding(mime_part, GMIME_PART_ENCODING_BASE64);
-      g_mime_multipart_add_part(multipart, (GMimeObject *) mime_part);
+      g_mime_part_set_content_encoding(mime_part, GMIME_CONTENT_ENCODING_BASE64);
+      g_mime_multipart_add(multipart, (GMimeObject *) mime_part);
     }
     free(line);
   }
