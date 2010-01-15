@@ -245,7 +245,7 @@ main(int argc, char *argv[])
             len = read(fds[0].fd, axread, sizeof(axread));
             if (len > 0 )
                write(fds[1].fd, axread, len);
-	    elsif (len == 0) {
+	    else if (len == 0) {
 	       printf("EOF on ax25 socket, exiting...\n");
 	       exit(EXIT_FAILURE);
 	    }
@@ -257,7 +257,7 @@ main(int argc, char *argv[])
             len = read(fds[1].fd, axwrite, sizeof(axwrite));
             if (len > 0 )
                write(fds[0].fd, axwrite, len);
-	    elsif (len == 0) {
+	    else if (len == 0) {
 	       printf("EOF on child fd, terminating communications loop.\n");
 	       break;
 	    }
