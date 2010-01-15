@@ -157,6 +157,17 @@ dnl =======================================================================
 AM_CONDITIONAL([HAVE_AX25], [test x$have_ax25 = xyes])
 
 dnl =======================================================================
+dnl Package options
+dnl =======================================================================
+
+AC_ARG_ENABLE([postfix],
+            [AS_HELP_STRING([--enable-postfix],
+               [enable postfix (default is no)])],
+            [enable_postfix=$enableval],
+            [enable_postfix=no])
+AM_CONDITIONAL([ENABLE_POSTFIX], [test x$enable_postfix = xyes])
+
+dnl =======================================================================
 dnl Output our results.
 dnl =======================================================================
 

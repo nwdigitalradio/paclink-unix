@@ -911,7 +911,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 	  fflush(NULL);
 
 	  fprintf(stderr, "%s: calling sendmail for delivery\n", getprogname());
-	  if (asprintf(&command, "%s -ba %s", SENDMAIL, emailaddress) == -1) {
+	  if (asprintf(&command, "%s %s %s", SENDMAIL, SENDMAIL_FLAGS, emailaddress) == -1) {
 	    perror("asprintf()");
 	    exit(EXIT_FAILURE);
 	  }
