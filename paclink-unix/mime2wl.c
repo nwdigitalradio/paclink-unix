@@ -133,6 +133,9 @@ parse_message(int fd)
 	
   /* create a new parser object to parse the stream */
   parser = g_mime_parser_new_with_stream(stream);
+
+  /* If persist is FALSE, the parser will always load message content into memory.  This allows input to come from a pipe. */
+  g_mime_parser_set_persist_stream (parser, FALSE);
 	
   /* unref the stream (parser owns a ref, so this object does not actually get free'd until we destroy the parser) */
   g_object_unref(stream);
