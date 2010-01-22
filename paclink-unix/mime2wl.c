@@ -64,6 +64,7 @@ __RCSID("$Id$");
 # include <fcntl.h>
 #endif
 
+#include <unistd.h>
 #include <gmime/gmime.h>
 
 #include "compat.h"
@@ -127,12 +128,36 @@ parse_message(int fd)
   GMimeMessage *message;
   GMimeParser *parser;
   GMimeStream *stream;
-	
+  GMimeStreamFilter *filtstream;
+  GMimeFilter *filtcrlf;
+  int id_filtcrlf;
+
   /* create a stream to read from the file descriptor */
   stream = g_mime_stream_fs_new(dup(fd));
-	
-  /* create a new parser object to parse the stream */
-  parser = g_mime_parser_new_with_stream(stream);
+
+  /*
+   * Create a line terminator filter
+   * 
+   * First arg line-feed parameter: TRUE
+   *   - lone line-feeds will be 'encoded' into CRLF 
+   * Second arg dots parameter TRUE,
+   *   - a '.' at the beginning of a line will be 'encoded' into ".."
+   *  
+   *  Returns : new GMimeFilterCRLF filter. 
+   */
+  filtcrlf = g_mime_filter_crlf_new(TRUE, TRUE);
+
+  /* create a new filter object */
+  filtstream = g_mime_stream_filter_new (stream);
+
+  /*
+   * Add the line terminator filter to the filter stream
+   * Returns : an id for the filter.
+   */
+  id_filtcrlf = g_mime_stream_filter_add (filtstream, filtcrlf);
+
+  /* create a new parser object to parse the filter stream */
+  parser = g_mime_parser_new_with_stream((GMimeStream *)filtstream);
 
   /* If persist is FALSE, the parser will always load message content into memory.  This allows input to come from a pipe. */
   g_mime_parser_set_persist_stream (parser, FALSE);
