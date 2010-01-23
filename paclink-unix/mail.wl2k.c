@@ -64,6 +64,10 @@ __RCSID("$Id$");
 #include "timeout.h"
 #include "conf.h"
 
+/* prototypes */
+void usage(void);
+
+
 int
 main(int argc, char *argv[])
 {
@@ -74,8 +78,30 @@ main(int argc, char *argv[])
   int i;
   struct conf *conf;
   char *mycall;
-
+  bool bRecordMid = TRUE;   /* default is record mid on mail send */
+  
   g_mime_init(0);
+
+  opterr = 0;
+
+  while ((c = getopt (argc, argv, "m")) != -1) {
+    switch (c) {
+      case 'm':
+        bRecordMid = FALSE;
+        break;
+      case '?':
+        if (isprint (optopt)) {
+          fprintf (stderr, "%s: Unknown option `-%c'.\n",
+             getprogname(), optopt);
+        } else {
+          fprintf (stderr,"%s: Unknown option character `\\x%x'.\n",
+             getprogname(), optopt);
+        }
+        usage();
+      default:
+        usage();
+    }
+  }
 
   setlinebuf(stdout);
   setlinebuf(stderr);
@@ -95,7 +121,7 @@ main(int argc, char *argv[])
     fprintf(stderr, "%s: failed to read mycall from configuration file\n", getprogname());
   }
 
-  if ((buf = mime2wl(0, mycall)) == NULL) {
+  if ((buf = mime2wl(0, mycall, bRecordMid)) == NULL) {
     fprintf(stderr, "%s: mime2wl() failed\n", getprogname());
     exit(EXIT_FAILURE);
   }
@@ -136,4 +162,10 @@ main(int argc, char *argv[])
   g_mime_shutdown();
   exit(EXIT_SUCCESS);
   return 1;
+}
+
+void usage(void)
+{
+  fprintf(stderr, "Usage: %s [-m]\n", getprogname());
+  exit(EXIT_FAILURE);
 }

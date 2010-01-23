@@ -26,6 +26,10 @@
 #ifndef MID_H
 #define MID_H
 
+#ifndef bool
+#include <stdbool.h>
+#endif /* bool */
+
 #define MID_MAXLEN 12
 
 #define MID_DB_MODE 0600
@@ -35,6 +39,6 @@
 int record_mid(char *mid);
 int check_mid(char *mid);
 int expire_mids(void);
-char *generate_mid(const char *callsign);
+char *generate_mid(const char *callsign, bool bRecordMid);
 
 #endif

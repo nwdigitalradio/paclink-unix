@@ -198,7 +198,7 @@ expire_mids(void)
 }
 
 char *
-generate_mid(const char *callsign)
+generate_mid(const char *callsign, bool bRecordMid)
 {
   size_t clen;
   size_t rlen;
@@ -236,6 +236,10 @@ generate_mid(const char *callsign)
     fprintf(stderr, "failure in check_mid()\n");
     return NULL;
   }
-  record_mid(mid);
+
+  /* Not recording mid allows receiving mail sent to self */
+  if(bRecordMid) {
+    record_mid(mid);
+  }
   return strdup(mid);
 }

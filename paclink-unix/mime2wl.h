@@ -26,6 +26,10 @@
 #ifndef MIME2WL_H
 #define MIME2WL_H
 
-struct buffer *mime2wl(int fd, const char *callsign);
+#ifndef bool
+#include <stdbool.h>
+#endif /* bool */
+
+struct buffer *mime2wl(int fd, const char *callsign, bool bRecMid);
 
 #endif

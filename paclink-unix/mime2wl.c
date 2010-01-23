@@ -285,7 +285,7 @@ mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data
 }
 
 struct buffer *
-mime2wl(int fd, const char *callsign)
+mime2wl(int fd, const char *callsign, bool bRecMid)
 {
   GMimeMessage *message;
   const char *header;
@@ -324,7 +324,7 @@ mime2wl(int fd, const char *callsign)
     return NULL;
   }
 
-  if ((mid = generate_mid(callsign)) == NULL) {
+  if ((mid = generate_mid(callsign, bRecMid)) == NULL) {
     return NULL;
   }
   buffer_addstring(wl2k.hbuf, "Mid: ");
@@ -421,6 +421,14 @@ mime2wl(int fd, const char *callsign)
 }
 
 #ifdef MIME2WL_MAIN
+void usage(void);
+
+void usage(void)
+{
+  fprintf(stderr, "Usage: %s [-m] messagefile\n", getprogname());
+  exit(EXIT_FAILURE);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -429,14 +437,37 @@ main(int argc, char *argv[])
   int fd;
   struct conf *conf;
   char *mycall;
+  bool bRecordMid = TRUE;   /* default is record mid on mail send */
 
   g_mime_init(0);
 
-  if (argc != 2) {
-    fprintf(stderr, "Usage: %s messagefile\n", getprogname());
-    exit(EXIT_FAILURE);
+  opterr = 0;
+
+  while ((c = getopt (argc, argv, "m")) != -1)
+    switch (c)
+    {
+      case 'm':
+        bRecordMid = FALSE;
+        break;
+      case '?':
+        if (isprint (optopt)) {
+          fprintf (stderr, "%s: Unknown option `-%c'.\n",
+                   getprogname(), optopt);
+        } else {
+          fprintf (stderr,"%s: Unknown option character `\\x%x'.\n",
+                   getprogname(), optopt);
+        }
+        usage();
+      default:
+        usage();
+    }
+
+  /* check for the cmd line arg: message_filename */ 
+  if(argc == optind) {
+    usage();
   }
-  if ((fd = open(argv[1], O_RDONLY)) == -1) {
+
+  if ((fd = open(argv[optind], O_RDONLY)) == -1) {
     perror("open");
     exit(EXIT_FAILURE);
   }
@@ -444,7 +475,7 @@ main(int argc, char *argv[])
   if ((mycall = conf_get(conf, "mycall")) == NULL) {
     fprintf(stderr, "%s: failed to read mycall from configuration file\n", getprogname());
   }
-  obuf = mime2wl(fd, mycall);
+  obuf = mime2wl(fd, mycall, bRecordMid);
   buffer_rewind(obuf);
   while ((c = buffer_iterchar(obuf)) != EOF) {
     if (putchar(c) == EOF) {
