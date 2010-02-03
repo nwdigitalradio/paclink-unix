@@ -82,7 +82,14 @@ __RCSID("$Id$");
 #include "wl2k.h"
 #include "strutil.h"
 
-#define BUFMAX 256
+#define BUFMAXIN  (256)
+#define BUFMAXOUT (512)
+
+unsigned char axread[BUFMAXIN];
+unsigned char axwrite[BUFMAXOUT];
+
+#define DFLTPACLEN   255   /* default packet length */
+size_t paclen = DFLTPACLEN;
 
 static void usage(void);
 
@@ -124,7 +131,9 @@ main(int argc, char *argv[])
    int sv[2];
    int ready;
    struct pollfd fds[2];
-   unsigned char axread[BUFMAX], axwrite[BUFMAX];
+   ssize_t len;
+   unsigned char *pbuf;
+   ssize_t byteswritten;
 
 #define MYCALL  argv[1]
 #define YOURCALL argv[2]
@@ -143,8 +152,8 @@ main(int argc, char *argv[])
       exit(EXIT_FAILURE);
    }
 
-   strupper((unsigned char *) MYCALL);
-   strupper((unsigned char *) YOURCALL);
+   strupper((char *) MYCALL);
+   strupper((char *) YOURCALL);
 
    timeoutsecs = (int) strtol(TIMEOUTSECS, &endp, 10);
    if (*endp != '\0') {
@@ -241,26 +250,53 @@ main(int argc, char *argv[])
 
          // Inbound
          if (fds[0].revents & POLLIN) {
-            unsigned int len = 0;
+
             len = read(fds[0].fd, axread, sizeof(axread));
-            if (len > 0 )
-               write(fds[1].fd, axread, len);
-	    else if (len == 0) {
-	       printf("EOF on ax25 socket, exiting...\n");
-	       exit(EXIT_FAILURE);
-	    }
+            if ( len > 0 ) {
+
+               pbuf = axread;
+
+               while(len > 0) {
+                  byteswritten = write(fds[1].fd, pbuf, MIN(paclen, (size_t)len));
+
+                  if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
+                     fprintf(stderr,"%s error on inbound write: %s)\n",
+                             getprogname(), strerror(errno));
+                     break;
+                  }
+                  pbuf += byteswritten;
+                  len -=    byteswritten;
+               }
+
+            } else if (len == 0) {
+               printf("EOF on ax25 socket, exiting...\n");
+               exit(EXIT_FAILURE);
+            }
          }
 
          // Outbound
          if (fds[1].revents & POLLIN) {
-            unsigned int len = 0;
+
             len = read(fds[1].fd, axwrite, sizeof(axwrite));
-            if (len > 0 )
-               write(fds[0].fd, axwrite, len);
-	    else if (len == 0) {
-	       printf("EOF on child fd, terminating communications loop.\n");
-	       break;
-	    }
+            if (len > 0 ) {
+
+               pbuf = axwrite;
+
+               while(len > 0) {
+                  byteswritten = write(fds[0].fd, pbuf, MIN(paclen, (size_t)len));
+                  if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
+                     fprintf(stderr,"%s error on outbound write: %s)\n",
+                             getprogname(), strerror(errno));
+                     break;
+                  }
+                  pbuf += byteswritten;
+                  len -=    byteswritten;
+               }
+
+            }   else if (len == 0) {
+               printf("EOF on child fd, terminating communications loop.\n");
+               break;
+            }
          }
       }
 
@@ -284,7 +320,8 @@ main(int argc, char *argv[])
          _exit(EXIT_FAILURE);
       }
 
-      setbuf(fp, NULL);
+      /* set buf size to paclen */
+      setvbuf(fp, NULL, _IOFBF, paclen);
 
       /*
        * The messages are exchanged in this call

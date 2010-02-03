@@ -157,7 +157,7 @@ getcompressed(FILE *fp)
   for (i = 0; i < 80; i++) {
     c = getrawchar(fp);
     len--;
-    title[i] = c;
+    title[i] = (unsigned char)c;
     if (c == CHRNUL) {
       ungetc(c, fp);
       len++;
@@ -175,7 +175,7 @@ getcompressed(FILE *fp)
   for (i = 0; i < 6; i++) {
     c = getrawchar(fp);
     len--;
-    offset[i] = c;
+    offset[i] = (unsigned char)c;
     if (c == CHRNUL) {
       ungetc(c, fp);
       len++;
@@ -242,13 +242,13 @@ getcompressed(FILE *fp)
 static void
 putcompressed(struct proposal *prop, FILE *fp)
 {
-  int len;
-  int i;
+  size_t len;
   unsigned char title[81];
   unsigned char offset[7];
   int cksum = 0;
   unsigned char *cp;
   long rem;
+  unsigned char msglen;
 
   strlcpy((char *) title, prop->title, sizeof(title));
   snprintf((char *) offset, sizeof(offset), "%lu", prop->offset);
@@ -256,70 +256,86 @@ putcompressed(struct proposal *prop, FILE *fp)
   fprintf(stderr, "%s: transmitting [%s] [offset %s]\n", getprogname(), title, offset);
 
   len = strlen((const char *) title) + strlen((const char *) offset) + 2;
+
+  /* ** Send hearder */
   resettimeout();
   if (fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL) == -1) {
     perror("fprintf()");
     exit(EXIT_FAILURE);
   }
+  fflush(fp);
 
-  rem = prop->csize;
+  rem = (long)prop->csize;
   cp = prop->cbuf->data;
 
   if (rem < 6) {
     fprintf(stderr, "%s: invalid compressed data\n", getprogname());
     exit(EXIT_FAILURE);
   }
-  resettimeout();
-  if (fprintf(fp, "%c%c", CHRSTX, 6) == -1) {
-    perror("fprintf()");
-    exit(EXIT_FAILURE);
-  }
-  for (i = 0; i < 6; i++) {
+
+#if 0 /* why??? */
+  {
+    int i;
+
     resettimeout();
-    cksum += *cp;
-    if (fputc(*cp++, fp) == EOF) {
-      perror("fputc()");
+    if (fprintf(fp, "%c%c", CHRSTX, 6) == -1) {
+      perror("fprintf()");
       exit(EXIT_FAILURE);
     }
+    for (i = 0; i < 6; i++) {
+      resettimeout();
+      cksum += *cp;
+      if (fputc(*cp++, fp) == EOF) {
+        perror("fputc()");
+        exit(EXIT_FAILURE);
+      }
+    }
+    rem -= 6;
   }
-  rem -= 6;
+#endif /* why */
 
   cp += prop->offset;
-  rem -= prop->offset;
+  rem -= (long)prop->offset;
 
   if (rem < 0) {
     fprintf(stderr, "%s: invalid offset\n", getprogname());
     exit(EXIT_FAILURE);
   }
 
+  /* ** Send message */
   while (rem > 0) {
     fprintf(stderr, "%s: ... %ld\n", getprogname(), rem);
     if (rem > 250) {
-      len = 250;
+      msglen = 250;
     } else {
-      len = rem;
+      msglen = (unsigned char)rem;
     }
-    if (fprintf(fp, "%c%c", CHRSTX, len) == -1) {
+    if (fprintf(fp, "%c%c", CHRSTX, msglen) == -1) {
       perror("fprintf()");
       exit(EXIT_FAILURE);
     }
-    while (len--) {
+
+    /* ** send buffer to ax25 stack */
+    while (msglen--) {
       resettimeout();
       cksum += *cp;
       if (fputc(*cp++, fp) == EOF) {
-	perror("fputc()");
-	exit(EXIT_FAILURE);
+        perror("fputc()");
+        exit(EXIT_FAILURE);
       }
       rem--;
     }
+    fflush(fp);
   }
 
+  /* ** Send checksum */
   cksum = -cksum & 0xff;
   resettimeout();
   if (fprintf(fp, "%c%c", CHREOT, cksum) == -1) {
     perror("fprintf()");
     exit(EXIT_FAILURE);
   }
+  fflush(fp);
   resettimeout();
 }
 
@@ -769,7 +785,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 	exit(EXIT_FAILURE);
       }
       fprintf(stderr, "%s: sid %s inboundsidcodes %s\n", getprogname(), inboundsid, inboundsidcodes);
-      
+
     } else if (line[strlen(line) - 1] == '>') {
       if (inboundsidcodes == NULL) {
 	fprintf(stderr, "%s: inboundsidcodes not set\n", getprogname());
@@ -844,7 +860,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 	fprintf(stderr, "%s: proposal cksum mismatch\n", getprogname());
 	exit(EXIT_FAILURE);
       }
-      
+
       fprintf(stderr, "%s: %d proposal%s received\n", getprogname(), proposals, ((proposals == 1) ? "" : "s"));
 
       if (proposals != 0) {
