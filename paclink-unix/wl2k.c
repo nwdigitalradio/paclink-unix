@@ -453,8 +453,12 @@ dodelete(struct proposal **oproplist, struct proposal **nproplist)
       fprintf(stderr, "%s: DELETING PROPOSAL: ", getprogname());
       printprop(*oproplist);
 #if 1
-      unlink((*oproplist)->path);
+      if(unlink((*oproplist)->path) < 0) {
+        fprintf(stderr, "%s: Can't delete file: %s: %s\n",
+                getprogname(), (*oproplist)->path, strerror(errno));
+      }
 #endif
+      (*oproplist)->delete = 0;
     }
     oproplist = &((*oproplist)->next);
   }
@@ -551,7 +555,8 @@ prepare_outbound_proposals(void)
   }
   closedir(dirp);
 
-  printf("---\n");
+  printf("---");
+  printf("%s\n", oproplist ? " outbound proposal list" : "");
 
   for (prop = oproplist; prop != NULL; prop = prop->next) {
     printprop(prop);
