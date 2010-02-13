@@ -1,1 +1,36 @@
 $Id$
+
+Thu Feb 11 15:52:59 PST 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Fix for bug # 2950104 excessive proposal deletion.
+    * Add check for unlink failure.
+      File modified:  wl2k.c
+
+Wed Feb 03 09:56 PST 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Fix for Bug # 2945529 sending multiple messages or messages
+      larger than around 250 bytes over writes output buffer.
+      Files modified:
+        wl2kax25.c
+        wl2k.c
+
+Fri Jan 22 17:10 PST 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Add a command line option (-m) to allow receiving messages
+      sent to yourself.  Helpful for debugging & mimics behavior
+      of Airmail3.exe.
+      Files modified:
+        mid.h
+        mime2wl.h
+        mid.c
+        mime2wl.c
+        mail.wl2k.c
+
+Fri Jan 22 11:28 PST 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Add a gmime line terminator filter to encode lone line-feeds
+      into CRLF pair.
+    * Add call to g_mime_parser_set_persist_stream() so that parser
+      will always load message content into memory.  This allows
+      input to come from a pipe.
+      File modified:  mime2wl.c
