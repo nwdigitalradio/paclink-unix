@@ -219,7 +219,7 @@ main(int argc, char *argv[])
       sockaddr.rose.srose_family = AF_AX25;
       addrlen = sizeof(struct full_sockaddr_ax25);
 
-
+      settimeout(timeoutsecs);      
       if (connect(s, (struct sockaddr *) &sockaddr, addrlen) != 0) {
          close(s);
          perror("connect()");
