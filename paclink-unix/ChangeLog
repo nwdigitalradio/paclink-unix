@@ -1,5 +1,11 @@
 $Id$
 
+Wed Mar  3 16:34:40 PST 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Fix for bug # 2958148, message retrieval latency.
+      Mbo mail header is now dependent on From mail header.
+      File modified:  mime2wl.c
+
 Thu Feb 11 15:52:59 PST 2010  Basil Gunn <basil@pacabunga.com>
 
     * Fix for bug # 2950104 excessive proposal deletion.
@@ -25,7 +31,7 @@ Fri Jan 22 17:10 PST 2010  Basil Gunn <basil@pacabunga.com>
         mid.c
         mime2wl.c
         mail.wl2k.c
-
+e
 Fri Jan 22 11:28 PST 2010  Basil Gunn <basil@pacabunga.com>
 
     * Add a gmime line terminator filter to encode lone line-feeds
