@@ -64,6 +64,7 @@ __RCSID("$Id$");
 # include <fcntl.h>
 #endif
 
+#include <syslog.h>
 #include <unistd.h>
 #include <gmime/gmime.h>
 
@@ -80,9 +81,91 @@ struct wl2kmessage {
   struct buffer *abuf; /* attachment data */
 };
 
+static unsigned int roundup_np2(unsigned int v);
+static char *mbo_header(char *from_mheader, const char *callsign);
 static char *address_cleanup(const char *addr);
 static GMimeMessage *parse_message(int fd);
 static void mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data);
+
+/*
+ * Round up to the next highest power of 2 for a 32 bit integer
+ * - in edge case where v=0, routine returns 0
+ * Malloc is more efficient allocating small block sizes
+ *  in powers of 2.
+ */
+static unsigned int roundup_np2(unsigned int v)
+{
+  v--;
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  v |= v >> 8;
+  v |= v >> 16;
+  v++;
+
+  return(v);
+}
+
+/*
+ * Enter with:
+ *   -pointer to 'From:' header
+ *   -pointer to callsign string.
+ *
+ * Exit with pointer to string that will be used for 'Mbo:' header
+ *
+ * -if the mbo string is not the call sign, log message.
+ */
+static char *
+mbo_header(char *mh_from, const char *callsign)
+{
+  char *atptr;
+  char *pmh_mbo;
+  size_t memsize;
+
+  /* How much memory to malloc -
+   * +6 for 'SMTP:' and terminating null */
+  memsize = strlen(mh_from)+6;
+
+  /* Always make small memory allocations power of 2 */
+  memsize = roundup_np2(memsize);
+
+  /* Get the memory & initialize it */
+  pmh_mbo = (char *)calloc(memsize, 1);
+
+	/* Did we get the memory? */
+  if(pmh_mbo == NULL) {
+    syslog(LOG_ERR, "mbo_header: memory alloc error\n");
+    return NULL;
+  }
+
+  /* Get pointer to at sign in 'from:' header */
+  atptr = strchr(mh_from, '@');
+
+  /* check for an '@' & some string following */
+  if (atptr && strlen(atptr+1)) {
+    /* If the domain name is NOT 'winlink' then set mbo to
+     * SMTP:from@somedomain */
+    if(strncasecmp(atptr+1, "winlink", 7)) {
+      strcpy(pmh_mbo, "SMTP:");
+      strncat(pmh_mbo, mh_from, (size_t)MIN(strlen(mh_from), memsize-6) );
+    } else {
+      /* if the domain name IS 'winlink' then set mbo to string
+       * in front of at sign */
+      strncpy(pmh_mbo, mh_from, (size_t)MIN((size_t)(atptr-mh_from), memsize-1) );
+
+      /* Check if the mbo string is NOT call sign */
+      if(strncasecmp(pmh_mbo, callsign, strlen(callsign) )) {
+        syslog(LOG_WARNING, "mbo_header: mbo string not callsign [%s]\n",
+               pmh_mbo);
+      }
+    }
+  } else {
+    /* if there is no '@' then just set mbo to mail header 'from' string */
+    strncpy(pmh_mbo, mh_from, (size_t)MIN((size_t)(atptr-mh_from), memsize-1) );
+  }
+
+  return(pmh_mbo);
+}
 
 static char *
 address_cleanup(const char *addr)
@@ -137,18 +220,18 @@ parse_message(int fd)
 
   /*
    * Create a line terminator filter
-   * 
+   *
    * First arg line-feed parameter: TRUE
-   *   - lone line-feeds will be 'encoded' into CRLF 
+   *   - lone line-feeds will be 'encoded' into CRLF
    * Second arg dots parameter TRUE,
    *   - a '.' at the beginning of a line will be 'encoded' into ".."
-   *  
-   *  Returns : new GMimeFilterCRLF filter. 
+   *
+   *  Returns : new GMimeFilterCRLF filter.
    */
   filtcrlf = g_mime_filter_crlf_new(TRUE, TRUE);
 
   /* create a new filter object */
-  filtstream = g_mime_stream_filter_new (stream);
+  filtstream = (GMimeStreamFilter *)g_mime_stream_filter_new (stream);
 
   /*
    * Add the line terminator filter to the filter stream
@@ -161,16 +244,16 @@ parse_message(int fd)
 
   /* If persist is FALSE, the parser will always load message content into memory.  This allows input to come from a pipe. */
   g_mime_parser_set_persist_stream (parser, FALSE);
-	
+
   /* unref the stream (parser owns a ref, so this object does not actually get free'd until we destroy the parser) */
   g_object_unref(stream);
-	
+
   /* parse the message from the stream */
   message = g_mime_parser_construct_message(parser);
-	
+
   /* free the parser (and the stream) */
   g_object_unref(parser);
-	
+
   return message;
 }
 
@@ -187,25 +270,25 @@ mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data
   ssize_t len;
   char *slen;
   struct buffer *buf;
-	
+
   /* 'part' points to the current part node that g_mime_message_foreach() is iterating over */
-	
+
   /* find out what class 'part' is... */
   if (GMIME_IS_MESSAGE_PART(part)) {
     /* message/rfc822 or message/news */
     GMimeMessage *message;
-		
+
     /* g_mime_message_foreach() won't descend into
        child message parts, so if we want to process any
        subparts of this child message, we'll have to call
        g_mime_message_foreach() again here. */
-		
+
     message = g_mime_message_part_get_message((GMimeMessagePart *) part);
     g_mime_message_foreach(message, mime_foreach_callback, wl2k);
     g_object_unref(message);
   } else if (GMIME_IS_MESSAGE_PARTIAL(part)) {
     /* message/partial */
-		
+
     /* this is an incomplete message part, probably a
        large message that the sender has broken into
        smaller parts and is sending us bit by bit. we
@@ -214,7 +297,7 @@ mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data
        parts? */
   } else if (GMIME_IS_MULTIPART(part)) {
     /* multipart/mixed, multipart/alternative, multipart/related, multipart/signed, multipart/encrypted, etc... */
-		
+
     /* we'll get to finding out if this is a signed/encrypted multipart later... */
   } else if (GMIME_IS_PART(part)) {
     /* a normal leaf part, could be text/plain or image/jpeg etc */
@@ -290,6 +373,8 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
   GMimeMessage *message;
   const char *header;
   char *clean;
+  char *mheader_from;
+  char *mheader_mbo;
   char *mid;
   struct wl2kmessage wl2k;
   struct buffer *buf;
@@ -346,14 +431,13 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
   buffer_addstring(wl2k.hbuf, "Type: Private\r\n");
 
   header = g_mime_message_get_sender(message);
-  clean = address_cleanup(header);
+  mheader_from = address_cleanup(header);
   buffer_addstring(wl2k.hbuf, "From: ");
-  if (strchr(clean, '@')) {
+  if (strchr(mheader_from, '@')) {
     buffer_addstring(wl2k.hbuf, "SMTP:");
   }
-  buffer_addstring(wl2k.hbuf, clean);
+  buffer_addstring(wl2k.hbuf, mheader_from);
   buffer_addstring(wl2k.hbuf, "\r\n");
-  free(clean);
 
   ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_TO);
   idx = 0;
@@ -389,12 +473,20 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
   buffer_addstring(wl2k.hbuf, "Subject: ");
   buffer_addstring(wl2k.hbuf, header);
   buffer_addstring(wl2k.hbuf, "\r\n");
-  buffer_addstring(wl2k.hbuf, "Mbo: SMTP\r\n");
+
+  mheader_mbo = mbo_header(mheader_from, callsign);
+  buffer_addstring(wl2k.hbuf, "Mbo: ");
+  buffer_addstring(wl2k.hbuf, mheader_mbo);
+  buffer_addstring(wl2k.hbuf, "\r\n");
+  if(mheader_from)
+	  free(mheader_from);
+  if(mheader_mbo)
+	  free(mheader_mbo);
 
   g_mime_message_foreach(message, mime_foreach_callback, &wl2k);
 
   if (buffer_length(wl2k.bbuf) == 0UL) {
-    len = strlen(nobody);
+    len = (ssize_t)strlen(nobody);
     if (asprintf(&slen, "%ld", (long) len) == -1) {
       perror("asprintf()");
       exit(EXIT_FAILURE);
@@ -462,7 +554,7 @@ main(int argc, char *argv[])
         usage();
     }
 
-  /* check for the cmd line arg: message_filename */ 
+  /* check for the cmd line arg: message_filename */
   if(argc == optind) {
     usage();
   }
