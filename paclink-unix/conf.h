@@ -26,6 +26,12 @@
 #ifndef CONF_H
 #define CONF_H
 
+#define DFLT_TIMEOUTSECS (120)  /* default time out seconds */
+#define DFLT_TELNET_PORT 8772
+#define DFLT_TELNET_CALL "wl2k"
+#define DFLT_TELNET_HOSTNAME "server.winlink.org"
+#define DFLT_TELNET_PASSWORD "CMSTelnet"
+
 struct conf {
   char *var;
   char *value;
