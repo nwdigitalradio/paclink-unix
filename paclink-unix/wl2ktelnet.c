@@ -45,6 +45,9 @@ __RCSID("$Id$");
 #if HAVE_UNISTD_H
 # include <unistd.h>
 #endif
+#if HAVE_CTYPE_H
+# include <ctype.h>
+#endif
 #if HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
 #endif
@@ -58,63 +61,72 @@ __RCSID("$Id$");
 # include <netdb.h>
 #endif
 
+#ifndef bool
+#include <stdbool.h>
+#endif /* bool */
+
+#include <getopt.h>
 #include <gmime/gmime.h>
 
 #include "compat.h"
+#include "version.h"
+#include "conf.h"
 #include "timeout.h"
 #include "wl2k.h"
 #include "strutil.h"
 
+/*
+ * Config parameters struct
+ */
+typedef struct _wl2ktelnet_config {
+  char *mycall;
+  char *targetcall;
+  char *hostname;
+  unsigned short  hostport;
+  char *password;
+  char *emailaddr;
+  int  timeoutsecs;
+  int  bVerbose;
+}cfg_t;
+
+static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
+static void displayversion(void);
+static void displayconfig(cfg_t *cfg);
 
-static void
-usage(void)
-{
-  fprintf(stderr, "usage:  %s mycall yourcall hostname port timeoutsecs password emailaddress\n", getprogname());
-}
-
+/**
+ * Function: main
+ *
+ * The calling convention for this function is:
+ *
+ * wl2ktelnet -c targetcall -t timeoutsecs -e emailaddress -p password HOSTNAME PORT
+ *
+ * The parameters are:
+ * mycall :  my call sign, which MUST be set in wl2k.conf
+ * targetcall: callsign for the telnet server (WL2K)
+ * timeoutsecs: timeout in seconds
+ * emailaddress: email address where the retrieved message will be sent via sendmail
+ * password of the telnet host (CMSTelnet)
+ * hostname of the telnet host (server.winlink.org)
+ * port to be used for the telnet host (8772)
+ *
+ */
 int
 main(int argc, char *argv[])
 {
-  char *endp;
   struct hostent *host;
   int s;
   struct sockaddr_in s_in;
-  int port;
   FILE *fp;
   char *line;
-  int timeoutsecs;
+  static cfg_t cfg;
 
-#define MYCALL argv[1]
-#define YOURCALL argv[2]
-#define HOSTNAME argv[3]
-#define PORT argv[4]
-#define TIMEOUTSECS argv[5]
-#define PASSWORD argv[6]
-#define EMAILADDRESS argv[7]
+  loadconfig(argc, argv, &cfg);
 
   g_mime_init(0);
 
   setlinebuf(stdout);
 
-  if (argc != 8) {
-    usage();
-    exit(EXIT_FAILURE);
-  }
-
-  strupper(MYCALL);
-  strupper(YOURCALL);
-
-  port = (int) strtol(PORT, &endp, 10);
-  if (*endp != '\0') {
-    usage();
-    exit(EXIT_FAILURE);
-  }
-  timeoutsecs = (int) strtol(TIMEOUTSECS, &endp, 10);
-  if (*endp != '\0') {
-    usage();
-    exit(EXIT_FAILURE);
-  }
   if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
     perror("socket()");
     exit(EXIT_FAILURE);
@@ -125,20 +137,20 @@ main(int argc, char *argv[])
   s_in.sin_len = sizeof(struct sockaddr_in);
 #endif
   s_in.sin_family = AF_INET;
-  s_in.sin_addr.s_addr = inet_addr(HOSTNAME);
+  s_in.sin_addr.s_addr = inet_addr(cfg.hostname);
   if ((int) s_in.sin_addr.s_addr == -1) {
-    host = gethostbyname(HOSTNAME);
+    host = gethostbyname(cfg.hostname);
     if (host) {
       memcpy(&s_in.sin_addr.s_addr, host->h_addr, (unsigned) host->h_length);
     } else {
-      herror(HOSTNAME);
+      herror(cfg.hostname);
       exit(EXIT_FAILURE);
     }
   }
-  s_in.sin_port = htons(port);
-  printf("Connecting to %s %s ...\n", HOSTNAME, PORT);
+  s_in.sin_port = htons((unsigned short)cfg.hostport);
+  printf("Connecting to %s %d ...\n", cfg.hostname, cfg.hostport);
 
-  settimeout(timeoutsecs);
+  settimeout(cfg.timeoutsecs);
   if (connect(s, (struct sockaddr *) &s_in, sizeof(struct sockaddr_in)) != 0) {
     close(s);
     perror("connect()");
@@ -157,8 +169,8 @@ main(int argc, char *argv[])
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("%s", line);
     if (strncmp("Callsign", line, 8) == 0) {
-      fprintf(fp, ".%s\r\n", MYCALL);
-      printf(" %s\n", MYCALL);
+      fprintf(fp, ".%s\r\n", cfg.mycall);
+      printf(" %s\n", cfg.mycall);
       break;
     }
     putchar('\n');
@@ -171,7 +183,7 @@ main(int argc, char *argv[])
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("%s\n", line);
     if (strncmp("Password", line, 8) == 0) {
-      fprintf(fp, "%s\r\n", PASSWORD);
+      fprintf(fp, "%s\r\n", cfg.password);
       break;
     }
   }
@@ -180,10 +192,306 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  wl2kexchange(MYCALL, YOURCALL, fp, EMAILADDRESS);
+  wl2kexchange(cfg.mycall, cfg.targetcall, fp, cfg.emailaddr);
 
   fclose(fp);
   g_mime_shutdown();
   exit(EXIT_SUCCESS);
   return 1;
+}
+
+/*
+ * Prints usage information and exits
+ *  - does not return
+ */
+static void
+usage(void)
+{
+  fprintf(stderr, "usage:  %s\n", getprogname());
+  fprintf(stderr, "usage:  %s options HOSTNAME PORT\n", getprogname());
+  fprintf(stderr, "  -c  --target-call   Set callsign to call\n");
+  fprintf(stderr, "  -p  --password      Set password for login\n");
+  fprintf(stderr, "  -t  --timeout       Set timeout in seconds\n");
+  fprintf(stderr, "  -e  --email-address Set your e-mail address\n");
+  fprintf(stderr, "  -v  --version       Display program version only\n");
+  fprintf(stderr, "  -V  --verbose       Print verbose messages\n");
+  fprintf(stderr, "  -C  --configuration Display configuration only\n");
+  fprintf(stderr, "  -h  --help          Display this usage info\n");
+  exit(EXIT_SUCCESS);
+}
+
+/*
+ * Display version number of this program
+ */
+static void
+displayversion(void)
+{
+  printf("%s version %d.%02d(%d)\n",
+         getprogname(),
+         PLU_MAJOR_VERSION,
+         PLU_MINOR_VERSION,
+         PLU_BUILD);
+}
+
+/*
+ * Display configuration parameters
+ *  parsed from defaults, config file & command line
+ */
+static void
+displayconfig(cfg_t *cfg)
+{
+
+  fprintf(stderr, "Using this config:\n");
+
+  if(cfg->mycall) {
+    fprintf(stderr, "  My callsign: %s\n", cfg->mycall);
+  }
+
+  if(cfg->targetcall) {
+    fprintf(stderr, "  Target callsign: %s\n", cfg->targetcall);
+  }
+
+  if(cfg->hostname) {
+    fprintf(stderr, "  Host name: %s\n", cfg->hostname);
+  }
+
+  fprintf(stderr, "  Host port: %d\n", cfg->hostport);
+
+  fprintf(stderr, "  Timeout: %d\n", cfg->timeoutsecs);
+
+  if(cfg->password) {
+    fprintf(stderr, "  Login password: %s\n", cfg->password);
+  }
+
+  if(cfg->emailaddr) {
+    fprintf(stderr, "  Email address: %s\n", cfg->emailaddr);
+  }
+  fprintf(stderr, "  Flags: verbose = %s\n", cfg->bVerbose ? "On" : "Off");
+}
+
+/* Load these 7 config parameters:
+ * mycall targetcall hostname port timeoutsecs password emailaddress
+ */
+static bool
+loadconfig(int argc, char **argv, cfg_t *config)
+{
+  struct conf *fileconf;
+  char *endp;
+  int next_option;
+  int option_index = 0; /* getopt_long stores the option index here. */
+  char *cfgbuf;
+  static int verbose_flag=FALSE;
+  static int displayconfig_flag=FALSE;
+  bool bRequireConfig_pass = TRUE;
+  /* short options */
+  static const char *short_options = "hVvCc:t:e:p:";
+  /* long options */
+  static struct option long_options[] =
+  {
+    /* This option sets a flag. */
+    {"verbose",       no_argument,  &verbose_flag, TRUE},
+    {"config",        no_argument,  &displayconfig_flag, TRUE},
+    /* These options don't set a flag.
+    We distinguish them by their indices. */
+    {"version",       no_argument,       NULL, 'v'},
+    {"help",          no_argument,       NULL, 'h'},
+    {"target-call",   required_argument, NULL, 'c'},
+    {"timeout",       required_argument, NULL, 't'},
+    {"email-address", required_argument, NULL, 'e'},
+    {"password",      required_argument, NULL, 'p'},
+    {NULL, no_argument, NULL, 0} /* array termination */
+  };
+
+  /* get a temporary buffer to build strings */
+  cfgbuf = (char *)malloc(256);
+  if(cfgbuf == NULL) {
+    fprintf(stderr, "%s: loadconfig, out of memory\n", getprogname());
+    return(FALSE);
+  }
+
+  /*
+   * Initialize default config
+   */
+
+  /* use either cuserid(NULL) or  getenv("LOGNAME"),
+   *  - getlogin() does NOT work */
+  sprintf(cfgbuf, "%s@localhost", cuserid(NULL) );
+  config->emailaddr = strdup(cfgbuf);
+
+  strcpy(cfgbuf, DFLT_TELNET_PASSWORD);
+  config->password = strdup(cfgbuf);
+
+  strcpy(cfgbuf, DFLT_TELNET_CALL);
+  config->targetcall = strdup(cfgbuf);
+
+  strcpy(cfgbuf, DFLT_TELNET_HOSTNAME);
+  config->hostname = strdup(cfgbuf);
+
+  free(cfgbuf);
+
+  config->mycall = NULL;
+  config->timeoutsecs = DFLT_TIMEOUTSECS;
+  config->hostport = DFLT_TELNET_PORT;
+  config->bVerbose = FALSE;
+
+  /*
+   * Get config from config file
+   */
+
+  fileconf = conf_read();
+  if ((config->mycall = conf_get(fileconf, "mycall")) == NULL) {
+    fprintf(stderr, "%s: failed to read mycall from configuration file\n", getprogname());
+    exit(EXIT_FAILURE);
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "timeout")) != NULL) {
+    config->timeoutsecs = (int) strtol(cfgbuf, &endp, 10);
+    if (*endp != '\0') {
+      usage();  /* does not return */
+    }
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "email")) != NULL) {
+    config->emailaddr = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "password")) != NULL) {
+    config->password = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "hostname")) != NULL) {
+    config->hostname = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "hostport")) != NULL) {
+    config->hostport = (unsigned short) strtol(cfgbuf, &endp, 10);
+    if (*endp != '\0') {
+      usage();  /* does not return */
+    }
+  }
+
+
+  /*
+   * Get config from command line
+   */
+
+  opterr = 0;
+  option_index = 0;
+  next_option = getopt_long (argc, argv, short_options,
+                             long_options, &option_index);
+
+  while( next_option != -1 ) {
+
+    switch (next_option)
+    {
+      case 0:   /* long option without a short arg */
+        /* If this option set a flag, do nothing else now. */
+        if (long_options[option_index].flag != 0)
+          break;
+        fprintf (stderr, "Debug: option %s", long_options[option_index].name);
+        if (optarg)
+          fprintf (stderr," with arg %s", optarg);
+        fprintf (stderr,"\n");
+        break;
+      case 'v':
+        displayversion();
+        exit(0);
+        break;
+      case 'V':   /* set verbose flag */
+        verbose_flag = TRUE;
+        break;
+      case 'c':   /* set callsign to contact */
+        config->targetcall = optarg;
+        break;
+      case 'C':   /* set display config flag */
+        printf("Debug: Display config option set with short option\n");
+        displayconfig_flag = TRUE;
+        break;
+      case 't':   /* set time out in seconds */
+        config->timeoutsecs = (int) strtol(optarg, &endp, 10);
+        if (*endp != '\0') {
+          usage(); /* does not return */
+        }
+        break;
+      case 'e':   /* set email address */
+        config->emailaddr = optarg;
+        break;
+      case 'p':   /* set password */
+        config->password = optarg;
+        break;
+      case 'h':
+        usage();  /* does not return */
+        break;
+      case '?':
+        if (isprint (optopt)) {
+          fprintf (stderr, "%s: Unknown option `-%c'.\n",
+                   getprogname(), optopt);
+        } else {
+          fprintf (stderr,"%s: Unknown option character `\\x%x'.\n",
+                   getprogname(), optopt);
+        }
+        /* fall through */
+      default:
+        usage();  /* does not return */
+        break;
+    }
+
+    next_option = getopt_long (argc, argv, short_options,
+                               long_options, &option_index);
+  }
+
+  /* set verbose flag here in case long option was used */
+  config->bVerbose = verbose_flag;
+
+  /*
+   * Get positional command line args hostname hostport
+   */
+
+  if(optind < argc) {
+    config->hostname = argv[optind++];
+  }
+
+  if(optind < argc) {
+    config->hostport = (unsigned short) strtol(argv[optind], &endp, 10);
+    if (*endp != '\0') {
+      usage();  /* does not return */
+    }
+  }
+
+  /* test for required parameters */
+  if(config->targetcall == NULL) {
+    fprintf(stderr,  "%s: Need to specify target callsign\n", getprogname() );
+    bRequireConfig_pass = FALSE;
+  }
+  if(config->hostname == NULL) {
+    fprintf(stderr,  "%s: Need to specify hostname\n", getprogname() );
+    bRequireConfig_pass = FALSE;
+  }
+  if(config->hostport == 0) {
+    fprintf(stderr,  "%s: Need to specify hostport\n", getprogname() );
+    bRequireConfig_pass = FALSE;
+  }
+
+  strupper((char *) config->mycall);
+  strupper((char *) config->targetcall);
+
+  /* If display config flag set just dump the configuration & exit */
+  if(displayconfig_flag) {
+    displayversion();
+    displayconfig(config);
+    exit(EXIT_SUCCESS);
+  }
+
+  /* Check configuration requirements */
+  if(!bRequireConfig_pass) {
+    usage();  /* does not return */
+  }
+
+  /* Be verbose */
+  if(config->bVerbose) {
+    displayversion();
+    displayconfig(config);
+  }
+
+  return(TRUE);
 }

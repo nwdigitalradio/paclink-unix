@@ -45,12 +45,22 @@ __RCSID("$Id$");
 #if HAVE_UNISTD_H
 # include <unistd.h>
 #endif
+#if HAVE_CTYPE_H
+# include <ctype.h>
+#endif
 #include <fcntl.h>
 #include <termios.h>
 
+#ifndef bool
+#include <stdbool.h>
+#endif /* bool */
+
+#include <getopt.h>
 #include <gmime/gmime.h>
 
 #include "compat.h"
+#include "version.h"
+#include "conf.h"
 #include "timeout.h"
 #include "wl2k.h"
 #include "strutil.h"
@@ -65,7 +75,7 @@ __RCSID("$Id$");
 
 const struct baudrate {
   const char *asc;
-  int num;
+  speed_t num;
 } baudrates[] = {
   {"50", B50},
   {"75", B75},
@@ -116,74 +126,62 @@ const struct baudrate {
   {NULL, 0}
 };
 
+/*
+ * Config parameters struct
+ */
+typedef struct _wl2ktelnet_config {
+  char    *mycall;
+  char    *targetcall;
+  char    *serialdevice;
+  char    *emailaddr;
+  speed_t baudrate;
+  int     timeoutsecs;
+  int     bVerbose;
+}cfg_t;
+
+static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
+static void displayversion(void);
+static void displayconfig(cfg_t *cfg);
 
-static void
-usage(void)
-{
-  fprintf(stderr, "usage:  %s mycall yourcall device baud timeoutsecs emailaddress\n", getprogname());
-}
-
+/**
+ * Function: main
+ *
+ * The calling convention for this function is:
+ *
+ * wl2kserial -c target call -d device -b baudrate -t timeoutsecs -e emailaddress
+ *
+ * The parameters are:
+ * mycall :  my call sign, which MUST be set in wl2k.conf
+ * targetcall: callsign to contact
+ * device: serial device to use
+ * baudrate: baudrate to set for serial device
+ * timeoutsecs: timeout in seconds
+ * emailaddress: email address where the retrieved message will be sent via sendmail
+ *
+ */
 int
 main(int argc, char *argv[])
 {
-  char *endp;
   int fd;
   FILE *fp;
   char *line;
-  int timeoutsecs;
   struct termios init;
   struct termios t;
   int flags;
-  struct baudrate *bp;
-  int baud;
+  static cfg_t cfg;
 
-#define MYCALL argv[1]
-#define YOURCALL argv[2]
-#define DEVICE argv[3]
-#define BAUD argv[4]
-#define TIMEOUTSECS argv[5]
-#define EMAILADDRESS argv[6]
+  loadconfig(argc, argv, &cfg);
 
   g_mime_init(0);
 
   setlinebuf(stdout);
 
-  if (argc != 7) {
-    usage();
-    exit(EXIT_FAILURE);
-  }
-
-  strupper(MYCALL);
-  strupper(YOURCALL);
-
-  baud = B0;
-  for (bp = baudrates; bp->asc != NULL; bp++) {
-    if (strcmp(bp->asc, BAUD) == 0) {
-      baud = bp->num;
-    }
-  }
-  if (baud == B0) {
-    usage();
-    fprintf(stderr, "invalid baud '%s' -- valid baud rates are: ", BAUD);
-    for (bp = baudrates; bp->asc != NULL; bp++) {
-      fprintf(stderr, "%s ", bp->asc);
-    }
-    fprintf(stderr, "\n");
-    exit(EXIT_FAILURE);
-  }
-
-  timeoutsecs = (int) strtol(TIMEOUTSECS, &endp, 10);
-  if (*endp != '\0') {
-    usage();
-    exit(EXIT_FAILURE);
-  }
+  settimeout(cfg.timeoutsecs);
 
   /* open device */
-  settimeout(timeoutsecs);
-
-  printf("Opening %s ...\n", DEVICE);
-  if ((fd = open(DEVICE, O_RDWR | O_NONBLOCK)) == -1) {
+  printf("Opening %s ...\n", cfg.serialdevice);
+  if ((fd = open(cfg.serialdevice, O_RDWR | O_NONBLOCK)) == -1) {
     perror("open()");
     exit(EXIT_FAILURE);
   }
@@ -199,7 +197,7 @@ main(int argc, char *argv[])
     perror("tcgetattr()");
     exit(EXIT_FAILURE);
   }
-  if ((cfsetspeed(&t, B9600)) == -1) {
+  if ((cfsetspeed(&t, cfg.baudrate)) == -1) {
     perror("cfsetspeed()");
     exit(EXIT_FAILURE);
   }
@@ -220,24 +218,24 @@ main(int argc, char *argv[])
 # define MDMBUF 0
 #endif
 
-  t.c_iflag &= ~(INPCK | ISTRIP | INLCR | IGNCR | ICRNL | IXON | IXOFF | IMAXBEL);
+  t.c_iflag &= (tcflag_t)~(INPCK | ISTRIP | INLCR | IGNCR | ICRNL | IXON | IXOFF | IMAXBEL);
   t.c_iflag |= (IGNBRK | IGNPAR);
 
-  t.c_oflag &= ~OPOST;
+  t.c_oflag &= (tcflag_t)~OPOST;
 
   t.c_cflag &= ~(CSIZE | PARENB | CRTSCTS | CCTS_OFLOW | CCTS_IFLOW | MDMBUF);
   t.c_cflag |= (CS8 | CREAD | CLOCAL);
 
-  t.c_lflag &= ~(ICANON | ISIG | IEXTEN | ECHO);
+  t.c_lflag &= (tcflag_t)~(ICANON | ISIG | IEXTEN | ECHO);
 
   t.c_cc[VMIN] = 1;
   t.c_cc[VTIME] = 0;
-  
+
   if ((tcsetattr(fd, TCSAFLUSH, &t)) == -1) {
     perror("tcsetattr()");
     exit(EXIT_FAILURE);
   }
-  
+
   resettimeout();
 
   printf("Connected.\n");
@@ -253,8 +251,8 @@ main(int argc, char *argv[])
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("%s\n", line);
     if (strstr(line, "cmd:")) {
-      fprintf(fp, "mycall %s\r", MYCALL);
-      printf("mycall %s\n", MYCALL);
+      fprintf(fp, "mycall %s\r", cfg.mycall);
+      printf("mycall %s\n", cfg.mycall);
       fprintf(fp, "tones 4\r");
       printf("tones 4\n");
       fprintf(fp, "chobell 0\r");
@@ -286,8 +284,8 @@ main(int argc, char *argv[])
   while ((line = wl2kgetline(fp)) != NULL) {
     printf("%s\n", line);
     if (strstr(line, "cmd:")) {
-      fprintf(fp, "c %s\r", YOURCALL);
-      printf("c %s\n", YOURCALL);
+      fprintf(fp, "c %s\r", cfg.targetcall);
+      printf("c %s\n", cfg.targetcall);
       break;
     }
   }
@@ -296,10 +294,314 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  wl2kexchange(MYCALL, YOURCALL, fp, EMAILADDRESS);
+  wl2kexchange(cfg.mycall, cfg.targetcall, fp, cfg.emailaddr);
 
   fclose(fp);
   g_mime_shutdown();
   exit(EXIT_SUCCESS);
   return 1;
+}
+
+/*
+ * Prints usage information and exits
+ *  - does not return
+ */
+static void
+usage(void)
+{
+  fprintf(stderr, "usage:  %s -c target-call -d device -b baudrate options\n", getprogname());
+  fprintf(stderr, "  -c  --target-call   Set callsign to call\n");
+  fprintf(stderr, "  -d  --device        Set serial device name\n");
+  fprintf(stderr, "  -b  --baudrate      Set baud rate of serial device\n");
+  fprintf(stderr, "  -t  --timeout       Set timeout in seconds\n");
+  fprintf(stderr, "  -e  --email-address Set your e-mail address\n");
+  fprintf(stderr, "  -v  --version       Display version of this program\n");
+  fprintf(stderr, "  -V  --verbose       Print verbose messages\n");
+  fprintf(stderr, "  -C  --configuration Display configuration only\n");
+  fprintf(stderr, "  -h  --help          Display this usage info\n");
+  exit(EXIT_SUCCESS);
+}
+
+/*
+ * Display version number of this program
+ */
+static void
+displayversion(void)
+{
+  printf("%s version %d.%02d(%d)\n",
+         getprogname(),
+         PLU_MAJOR_VERSION,
+         PLU_MINOR_VERSION,
+         PLU_BUILD);
+}
+
+/*
+ * Display configuration parameters
+ *  parsed from defaults, config file & command line
+ */
+static void
+displayconfig(cfg_t *cfg)
+{
+  struct baudrate *bp;
+
+  fprintf(stderr, "Using this config:\n");
+
+  if(cfg->mycall) {
+    fprintf(stderr, "  My callsign: %s\n", cfg->mycall);
+  }
+  if(cfg->targetcall) {
+    fprintf(stderr, "  Target callsign: %s\n", cfg->targetcall);
+  }
+  if(cfg->serialdevice) {
+    fprintf(stderr, "  Serial device: %s\n", cfg->serialdevice);
+  }
+
+  fprintf(stderr, "  Baud rate: ");
+  /* Loop through the baud rate table */
+  for (bp = baudrates; bp->asc != NULL; bp++) {
+    if (bp->num == cfg->baudrate) {
+      break;
+    }
+  }
+  if(bp->asc != NULL) {
+    fprintf(stderr, " %s\n", bp->asc);
+  } else {
+    fprintf(stderr, "Invalid\n");
+  }
+
+  fprintf(stderr, "  Timeout: %d\n", cfg->timeoutsecs);
+
+  if(cfg->emailaddr) {
+    fprintf(stderr, "  Email address: %s\n", cfg->emailaddr);
+  }
+  fprintf(stderr, "  Flags: verbose = %s\n", cfg->bVerbose ? "On" : "Off");
+}
+
+/* Load these 6 config parameters:
+ * mycall targetcall device baud timeoutsecs emailaddress
+ */
+static bool
+loadconfig(int argc, char **argv, cfg_t *config)
+{
+  struct conf *fileconf;
+  char *endp;
+  struct baudrate *bp;
+  speed_t baud;
+  int next_option;
+  int option_index = 0; /* getopt_long stores the option index here. */
+  char *cfgbuf;
+  static int verbose_flag=FALSE;
+  static int displayconfig_flag=FALSE;
+  bool bRequireConfig_pass = TRUE;
+  char strDefaultBaudRate[]="9600";  /* String of default baudrate */
+  char *pBaudRate = strDefaultBaudRate;
+  /* short options */
+  static const char *short_options = "hVvCc:t:e:d:b:";
+  /* long options */
+  static struct option long_options[] =
+  {
+    /* This option sets a flag. */
+    {"verbose",       no_argument,  &verbose_flag, TRUE},
+    {"config",        no_argument,  &displayconfig_flag, TRUE},
+    /* These options don't set a flag.
+    We distinguish them by their indices. */
+    {"version",       no_argument,       NULL, 'v'},
+    {"help",          no_argument,       NULL, 'h'},
+    {"target-call",   required_argument, NULL, 'c'},
+    {"timeout",       required_argument, NULL, 't'},
+    {"email-address", required_argument, NULL, 'e'},
+    {"device",        required_argument, NULL, 'd'},
+    {"baudrate",      required_argument, NULL, 'b'},
+    {NULL, no_argument, NULL, 0} /* array termination */
+  };
+
+
+  /* get a temporary buffer to build strings */
+  cfgbuf = (char *)malloc(256);
+  if(cfgbuf == NULL) {
+    fprintf(stderr, "%s: loadconfig, out of memory\n", getprogname());
+    return(FALSE);
+  }
+
+  /*
+   * Initialize default config
+   */
+
+  /* use either cuserid(NULL) or  getenv("LOGNAME"),
+   *  - getlogin() does NOT work */
+  sprintf(cfgbuf, "%s@localhost", cuserid(NULL) );
+  config->emailaddr = strdup(cfgbuf);
+
+  free(cfgbuf);
+
+  config->mycall = NULL;
+  config->targetcall = NULL;
+  config->timeoutsecs = DFLT_TIMEOUTSECS;
+  config->serialdevice = NULL;
+  config->baudrate = B9600;
+  config->bVerbose = FALSE;
+
+  /*
+   * Get config from config file
+   */
+  fileconf = conf_read();
+  if ((config->mycall = conf_get(fileconf, "mycall")) == NULL) {
+    fprintf(stderr, "%s: failed to read mycall from configuration file\n", getprogname());
+    exit(EXIT_FAILURE);
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "timeout")) != NULL) {
+    config->timeoutsecs = (int) strtol(cfgbuf, &endp, 10);
+    if (*endp != '\0') {
+      usage();  /* does not return */
+    }
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "email")) != NULL) {
+    config->emailaddr = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "device")) != NULL) {
+    config->serialdevice = cfgbuf;
+  }
+
+  /* Get pointer to an ASCII baud rate */
+  if ((cfgbuf = conf_get(fileconf, "baud")) != NULL) {
+    pBaudRate = cfgbuf;
+  }
+
+  /*
+   * Get config from command line
+   */
+  opterr = 0;
+  option_index = 0;
+  next_option = getopt_long (argc, argv, short_options,
+                             long_options, &option_index);
+
+  while( next_option != -1 ) {
+
+    switch (next_option)
+    {
+      case 0:   /* long option without a short arg */
+        /* If this option set a flag, do nothing else now. */
+        if (long_options[option_index].flag != 0)
+          break;
+        fprintf (stderr, "Debug: option %s", long_options[option_index].name);
+        if (optarg)
+          fprintf (stderr," with arg %s", optarg);
+        fprintf (stderr,"\n");
+        break;
+      case 'v':
+        displayversion();
+        exit(0);
+        break;
+      case 'V':   /* set verbose flag */
+        verbose_flag = TRUE;
+        break;
+      case 'c':   /* set callsign to contact */
+        config->targetcall = optarg;
+        break;
+      case 'C':   /* set display config flag */
+        displayconfig_flag = TRUE;
+        break;
+      case 't':   /* set time out in seconds */
+        config->timeoutsecs = (int) strtol(optarg, &endp, 10);
+        if (*endp != '\0') {
+          usage(); /* does not return */
+        }
+        break;
+      case 'e':   /* set email address */
+        config->emailaddr = optarg;
+        break;
+      case 'd':   /* set serial device name */
+        config->serialdevice = optarg;
+        break;
+      case 'b':  /* Get pointer to an ASCII baud rate */
+        pBaudRate = optarg;
+        break;
+      case 'h':
+        usage();  /* does not return */
+        break;
+      case '?':
+        if (isprint (optopt)) {
+          fprintf (stderr, "%s: Unknown option `-%c'.\n",
+                   getprogname(), optopt);
+        } else {
+          fprintf (stderr,"%s: Unknown option character `\\x%x'.\n",
+                   getprogname(), optopt);
+        }
+        /* fall through */
+      default:
+        usage();  /* does not return */
+        break;
+    }
+
+    next_option = getopt_long (argc, argv, short_options,
+                               long_options, &option_index);
+  }
+
+  /* set verbose flag here in case long option was used */
+  config->bVerbose = verbose_flag;
+
+  if(pBaudRate != NULL) {
+    /* Convert ASCII baud rate into some usable bits */
+    baud = B0;
+    for (bp = baudrates; bp->asc != NULL; bp++) {
+      if (strcmp(bp->asc, pBaudRate) == 0) {
+        baud = bp->num;
+        break;
+      }
+    }
+
+    /* Verify a valid baudrate */
+    if (baud == B0) {
+      fprintf(stderr, "%s: Invalid baud '%s' -- valid baud rates are: ",
+              getprogname(), pBaudRate);
+      for (bp = baudrates; bp->asc != NULL; bp++) {
+        fprintf(stderr, "%s ", bp->asc);
+      }
+      fprintf(stderr, "\n");
+      usage();  /* does not return */
+    }
+
+    /* Save the baudrate bits in the config struct */
+    config->baudrate = baud;
+  }
+
+  /* test for required parameters */
+  if(config->targetcall == NULL) {
+    fprintf(stderr,  "%s: Need to specify target callsign\n", getprogname() );
+    bRequireConfig_pass = FALSE;
+  }
+  if(config->serialdevice == NULL) {
+    fprintf(stderr,  "%s: Need to specify serial device\n", getprogname() );
+    bRequireConfig_pass = FALSE;
+  }
+  if(config->baudrate == 0) {
+    fprintf(stderr,  "%s: Need to specify baud rate of serial device\n", getprogname() );
+    bRequireConfig_pass = FALSE;
+  }
+
+  strupper((char *) config->mycall);
+  strupper((char *) config->targetcall);
+
+  /* If display config flag set just dump the configuration & exit */
+  if(displayconfig_flag) {
+    displayversion();
+    displayconfig(config);
+    exit(EXIT_SUCCESS);
+  }
+
+  /* Check configuration requirements */
+  if(!bRequireConfig_pass) {
+    usage();  /* does not return */
+  }
+
+  /* Be verbose */
+  if(config->bVerbose) {
+    displayversion();
+    displayconfig(config);
+  }
+
+  return(TRUE);
 }

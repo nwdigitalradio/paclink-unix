@@ -57,6 +57,9 @@ __RCSID("$Id$");
 #if HAVE_UNISTD_H
 # include <unistd.h>
 #endif
+#if HAVE_CTYPE_H
+# include <ctype.h>
+#endif
 #if HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
 #endif
@@ -74,10 +77,17 @@ __RCSID("$Id$");
 #include <fcntl.h>
 #endif
 
+#ifndef bool
+#include <stdbool.h>
+#endif /* bool */
+
+#include <getopt.h>
 #include <gmime/gmime.h>
 #include <poll.h>
 
 #include "compat.h"
+#include "version.h"
+#include "conf.h"
 #include "timeout.h"
 #include "wl2k.h"
 #include "strutil.h"
@@ -91,251 +101,485 @@ unsigned char axwrite[BUFMAXOUT];
 #define DFLTPACLEN   255   /* default packet length */
 size_t paclen = DFLTPACLEN;
 
-static void usage(void);
+/*
+ * Config parameters struct
+ */
+typedef struct _wl2kax25_config {
+  char *mycall;
+  char *targetcall;
+  char *ax25port;
+  char *emailaddr;
+  int  timeoutsecs;
+  int  bVerbose;
+}cfg_t;
 
-static void
-usage(void)
-{
-  fprintf(stderr, "usage:  %s mycall yourcall ax25port timeoutsecs emailaddress\n", getprogname());
-}
+static bool loadconfig(int argc, char **argv, cfg_t *cfg);
+static void usage(void);
+static void displayversion(void);
+static void displayconfig(cfg_t *cfg);
 
 /**
  * Function: main
  *
- * Note that the calling convention for this function will most probably change
- * in the near future.
+ * The calling convention for this function is:
  *
- * For now, the parameters are:
- * mycall :  my call sign
- * yourcall: callsign for the RMS
+ * wl2kax25 -c targetcall -a ax25port -t timeoutsecs -e emailaddress
+ *
+ * The parameters are:
+ * mycall :  my call sign, which MUST be set in wl2k.conf
+ * targetcall: callsign for the RMS
  * ax25port: name of the ax25 port to use (e.g., sm0)
  * timeoutsecs: timeout in seconds
- * emailaddress: email address where the retrieved message will be send via sendmail
+ * emailaddress: email address where the retrieved message will be sent via sendmail
  *
- * The yourcall parameter does not support a path yet.
+ * The targetcall parameter does not support a path yet.
  */
 int
 main(int argc, char *argv[])
 {
-   char *endp;
-   int s;
-   FILE *fp;
-   int timeoutsecs;
-   unsigned int addrlen = 0;
-   union {
-      struct full_sockaddr_ax25 ax25;
-      struct sockaddr_rose rose;
-   } sockaddr;
-   char *dev;
-   pid_t procID;
-   int sv[2];
-   int ready;
-   struct pollfd fds[2];
-   ssize_t len;
-   unsigned char *pbuf;
-   ssize_t byteswritten;
+  int s;
+  FILE *fp;
+  unsigned int addrlen = 0;
+  union {
+    struct full_sockaddr_ax25 ax25;
+    struct sockaddr_rose rose;
+  } sockaddr;
+  char *dev;
+  pid_t procID;
+  int sv[2];
+  int ready;
+  struct pollfd fds[2];
+  ssize_t len;
+  unsigned char *pbuf;
+  ssize_t byteswritten;
+  static cfg_t cfg;
 
-#define MYCALL  argv[1]
-#define YOURCALL argv[2]
-#define PORTNAME argv[3]
-#define TIMEOUTSECS argv[4]
-#define EMAILADDRESS argv[5]
+  loadconfig(argc, argv, &cfg);
 
-   char *portname = (char *) PORTNAME;
+  g_mime_init(0);
 
-   g_mime_init(0);
+  setlinebuf(stdout);
 
-   setlinebuf(stdout);
-
-   if (argc != 6) {
-      usage();
+  if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv))
+  {
+    perror("socketpair");
+    exit(EXIT_FAILURE);
+  }
+  // Fork a process
+  if ((procID = fork())) {
+    // Parent processing
+    if (-1 == procID) {
+      fprintf(stderr, "fork\n");
       exit(EXIT_FAILURE);
-   }
+    }
 
-   strupper((char *) MYCALL);
-   strupper((char *) YOURCALL);
+    close(sv[1]);
 
-   timeoutsecs = (int) strtol(TIMEOUTSECS, &endp, 10);
-   if (*endp != '\0') {
-      usage();
+    // Begin AX25 socket code
+    if (ax25_config_load_ports() == 0)
+      fprintf(stderr, "wl2kax25: no AX.25 port data configured\n");
+
+    if (cfg.ax25port != NULL) {
+      if ((dev = ax25_config_get_dev(cfg.ax25port)) == NULL) {
+        fprintf(stderr, "wl2kax25: invalid port name - %s\n",
+            cfg.ax25port);
+        return(EXIT_FAILURE);
+      }
+    }
+
+    if ((s = socket(AF_AX25, SOCK_SEQPACKET, 0)) == -1) {
+      perror("socket");
+      printf("%d\n", __LINE__);
       exit(EXIT_FAILURE);
-   }
+    }
+    ax25_aton(ax25_config_get_addr(cfg.ax25port), &sockaddr.ax25);
+    ax25_aton(cfg.mycall, &sockaddr.ax25);
+    if (sockaddr.ax25.fsa_ax25.sax25_ndigis == 0) {
+      ax25_aton_entry(ax25_config_get_addr(cfg.ax25port),
+          sockaddr.ax25.fsa_digipeater[0].
+          ax25_call);
+      sockaddr.ax25.fsa_ax25.sax25_ndigis = 1;
+    }
+    sockaddr.ax25.fsa_ax25.sax25_family = AF_AX25;
+    addrlen = sizeof(struct full_sockaddr_ax25);
 
-   if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv))
-   {
-      perror("socketpair");
-      exit(EXIT_FAILURE);
-   }
-   // Fork a process
-   if ((procID = fork())) {
-      // Parent processing
-      if (-1 == procID) {
-         fprintf(stderr, "fork\n");
-         exit(EXIT_FAILURE);
-      }
-
-      close(sv[1]);
-
-      // Begin AX25 socket code
-      if (ax25_config_load_ports() == 0)
-         fprintf(stderr, "wl2kax25: no AX.25 port data configured\n");
-
-      if (portname != NULL) {
-         if ((dev = ax25_config_get_dev(portname)) == NULL) {
-            fprintf(stderr, "wl2kax25: invalid port name - %s\n",
-                  portname);
-            return(EXIT_FAILURE);
-         }
-      }
-
-      if ((s = socket(AF_AX25, SOCK_SEQPACKET, 0)) == -1) {
-         perror("socket");
-         printf("%d\n", __LINE__);
-         exit(EXIT_FAILURE);
-      }
-      ax25_aton(ax25_config_get_addr(portname), &sockaddr.ax25);
-      ax25_aton(MYCALL, &sockaddr.ax25);
-      if (sockaddr.ax25.fsa_ax25.sax25_ndigis == 0) {
-         ax25_aton_entry(ax25_config_get_addr(portname),
-               sockaddr.ax25.fsa_digipeater[0].
-               ax25_call);
-         sockaddr.ax25.fsa_ax25.sax25_ndigis = 1;
-      }
-      sockaddr.ax25.fsa_ax25.sax25_family = AF_AX25;
-      addrlen = sizeof(struct full_sockaddr_ax25);
-
-      if (bind(s, (struct sockaddr *) &sockaddr, addrlen) == -1) {
-         perror("bind");
-         close(s);
-         exit(EXIT_FAILURE);
-      }
-
-
-      if (ax25_aton(YOURCALL, &sockaddr.ax25) < 0) {
-         close(s);
-         perror("ax25_aton()");
-         exit(EXIT_FAILURE);
-      }
-      sockaddr.rose.srose_family = AF_AX25;
-      addrlen = sizeof(struct full_sockaddr_ax25);
-
-      settimeout(timeoutsecs);      
-      if (connect(s, (struct sockaddr *) &sockaddr, addrlen) != 0) {
-         close(s);
-         perror("connect()");
-         exit(EXIT_FAILURE);
-      }
-      // End AX25 socket code
-
-      resettimeout();
-
-      printf("Connected.\n");
-
-      fds[0].fd = s;
-      fds[0].events = POLLIN;
-      fds[1].fd = sv[0];
-      fds[1].events = POLLIN;
-
-      // poll here and feed to the ax25 socket.
-      // Data must be chunked to the appropriate size
-      for (;;) {
-         ready = poll(fds, sizeof(fds)/sizeof(struct pollfd), -1);
-
-         if (-1 == ready) {
-            if (EINTR == errno)
-               break;
-            perror("poll");
-            exit(EXIT_FAILURE);
-         }
-
-         // Inbound
-         if (fds[0].revents & POLLIN) {
-
-            len = read(fds[0].fd, axread, sizeof(axread));
-            if ( len > 0 ) {
-
-               pbuf = axread;
-
-               while(len > 0) {
-                  byteswritten = write(fds[1].fd, pbuf, MIN(paclen, (size_t)len));
-
-                  if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
-                     fprintf(stderr,"%s error on inbound write: %s)\n",
-                             getprogname(), strerror(errno));
-                     break;
-                  }
-                  pbuf += byteswritten;
-                  len -=    byteswritten;
-               }
-
-            } else if (len == 0) {
-               printf("EOF on ax25 socket, exiting...\n");
-               exit(EXIT_FAILURE);
-            }
-         }
-
-         // Outbound
-         if (fds[1].revents & POLLIN) {
-
-            len = read(fds[1].fd, axwrite, sizeof(axwrite));
-            if (len > 0 ) {
-
-               pbuf = axwrite;
-
-               while(len > 0) {
-                  byteswritten = write(fds[0].fd, pbuf, MIN(paclen, (size_t)len));
-                  if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
-                     fprintf(stderr,"%s error on outbound write: %s)\n",
-                             getprogname(), strerror(errno));
-                     break;
-                  }
-                  pbuf += byteswritten;
-                  len -=    byteswritten;
-               }
-
-            }   else if (len == 0) {
-               printf("EOF on child fd, terminating communications loop.\n");
-               break;
-            }
-         }
-      }
-
-      printf("Closing ax25 connection\n");
-
-      g_mime_shutdown();
-      close(sv[0]);
+    if (bind(s, (struct sockaddr *) &sockaddr, addrlen) == -1) {
+      perror("bind");
       close(s);
-      exit(EXIT_SUCCESS);
-      return 1;
-   }
-   else
-   {
-      // Child processing
-      printf("Child process\n");
-      close(sv[0]);
+      exit(EXIT_FAILURE);
+    }
 
-      if ((fp = fdopen(sv[1], "r+b")) == NULL) {
-         close(sv[1]);
-         perror("fdopen()");
-         _exit(EXIT_FAILURE);
+
+    if (ax25_aton(cfg.targetcall, &sockaddr.ax25) < 0) {
+      close(s);
+      perror("ax25_aton()");
+      exit(EXIT_FAILURE);
+    }
+    sockaddr.rose.srose_family = AF_AX25;
+    addrlen = sizeof(struct full_sockaddr_ax25);
+
+    settimeout(cfg.timeoutsecs);
+    if (connect(s, (struct sockaddr *) &sockaddr, addrlen) != 0) {
+      close(s);
+      perror("connect()");
+      exit(EXIT_FAILURE);
+    }
+    // End AX25 socket code
+
+    resettimeout();
+
+    printf("Connected.\n");
+
+    fds[0].fd = s;
+    fds[0].events = POLLIN;
+    fds[1].fd = sv[0];
+    fds[1].events = POLLIN;
+
+    // poll here and feed to the ax25 socket.
+    // Data must be chunked to the appropriate size
+    for (;;) {
+      ready = poll(fds, sizeof(fds)/sizeof(struct pollfd), -1);
+
+      if (-1 == ready) {
+        if (EINTR == errno)
+          break;
+        perror("poll");
+        exit(EXIT_FAILURE);
       }
 
-      /* set buf size to paclen */
-      setvbuf(fp, NULL, _IOFBF, paclen);
+      // Inbound
+      if (fds[0].revents & POLLIN) {
 
-      /*
-       * The messages are exchanged in this call
-       *
-       * TODO: The sid sent by the client should contain an NXX,
-       *       where NXX represents N followed by two digits of SSID.
-       *       This allows the RMS to find the correct registered
-       *       user in case the SSID has been changed in the network.
-       */
+        len = read(fds[0].fd, axread, sizeof(axread));
+        if ( len > 0 ) {
 
-      printf("Child process calling wl2kexchange()\n");
-      wl2kexchange(MYCALL, YOURCALL, fp, EMAILADDRESS);
-      fclose(fp);
-      printf("Child process exiting\n");
-      _exit(EXIT_SUCCESS);
-   }
+          pbuf = axread;
+
+          while(len > 0) {
+            byteswritten = write(fds[1].fd, pbuf, MIN(paclen, (size_t)len));
+
+            if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
+              fprintf(stderr,"%s error on inbound write: %s)\n",
+                getprogname(), strerror(errno));
+              break;
+            }
+            pbuf += byteswritten;
+            len -=    byteswritten;
+          }
+
+        } else if (len == 0) {
+          printf("EOF on ax25 socket, exiting...\n");
+          exit(EXIT_FAILURE);
+        }
+      }
+
+      // Outbound
+      if (fds[1].revents & POLLIN) {
+
+        len = read(fds[1].fd, axwrite, sizeof(axwrite));
+        if (len > 0 ) {
+
+          pbuf = axwrite;
+
+          while(len > 0) {
+            byteswritten = write(fds[0].fd, pbuf, MIN(paclen, (size_t)len));
+            if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
+              fprintf(stderr,"%s error on outbound write: %s)\n",
+                getprogname(), strerror(errno));
+              break;
+            }
+            pbuf += byteswritten;
+            len -=    byteswritten;
+          }
+
+        }   else if (len == 0) {
+          printf("EOF on child fd, terminating communications loop.\n");
+          break;
+        }
+      }
+    }
+
+    printf("Closing ax25 connection\n");
+
+    g_mime_shutdown();
+    close(sv[0]);
+    close(s);
+    exit(EXIT_SUCCESS);
+    return 1;
+  }
+  else
+  {
+    // Child processing
+    printf("Child process\n");
+    close(sv[0]);
+
+    if ((fp = fdopen(sv[1], "r+b")) == NULL) {
+      close(sv[1]);
+      perror("fdopen()");
+      _exit(EXIT_FAILURE);
+    }
+
+    /* set buf size to paclen */
+    setvbuf(fp, NULL, _IOFBF, paclen);
+
+    /*
+     * The messages are exchanged in this call
+     *
+     * TODO: The sid sent by the client should contain an NXX,
+     *       where NXX represents N followed by two digits of SSID.
+     *       This allows the RMS to find the correct registered
+     *       user in case the SSID has been changed in the network.
+     */
+
+    printf("Child process calling wl2kexchange()\n");
+    wl2kexchange(cfg.mycall, cfg.targetcall, fp, cfg.emailaddr);
+    fclose(fp);
+    printf("Child process exiting\n");
+    _exit(EXIT_SUCCESS);
+  }
+}
+
+/*
+ * Prints usage information and exits
+ *  - does not return
+ */
+static void
+usage(void)
+{
+  fprintf(stderr, "usage:  %s -c target-call options\n", getprogname());
+  fprintf(stderr, "  -c  --target-call   Set callsign to call\n");
+  fprintf(stderr, "  -a  --ax25port      Set AX25 port to use\n");
+  fprintf(stderr, "  -t  --timeout       Set timeout in seconds\n");
+  fprintf(stderr, "  -e  --email-address Set your e-mail address\n");
+  fprintf(stderr, "  -v  --version       Display program version only\n");
+  fprintf(stderr, "  -V  --verbose       Print verbose messages\n");
+  fprintf(stderr, "  -C  --configuration Display configuration only\n");
+  fprintf(stderr, "  -h  --help          Display this usage info\n");
+  exit(EXIT_SUCCESS);
+}
+
+/*
+ * Display version number of this program
+ */
+static void
+displayversion(void)
+{
+  printf("%s version %d.%02d(%d)\n",
+         getprogname(),
+         PLU_MAJOR_VERSION,
+         PLU_MINOR_VERSION,
+         PLU_BUILD);
+}
+
+/*
+ * Display configuration parameters
+ *  parsed from defaults, config file & command line
+ */
+static void
+displayconfig(cfg_t *cfg)
+{
+
+  fprintf(stderr, "Using this config:\n");
+  if(cfg->emailaddr) {
+    fprintf(stderr, "  Email address: %s\n", cfg->emailaddr);
+  }
+  fprintf(stderr, "  Timeout: %d\n", cfg->timeoutsecs);
+
+  if(cfg->mycall) {
+    fprintf(stderr, "  My callsign: %s\n", cfg->mycall);
+  }
+  if(cfg->targetcall) {
+    fprintf(stderr, "  Target callsign: %s\n", cfg->targetcall);
+  }
+  if(cfg->ax25port) {
+    fprintf(stderr, "  Ax25 port: %s\n", cfg->ax25port);
+  }
+
+  fprintf(stderr, "  Flags: verbose = %s\n", cfg->bVerbose ? "On" : "Off");
+}
+
+/* Load these 5 config parameters:
+ * mycall targetcall ax25port timeoutsecs emailaddress
+ */
+static bool
+loadconfig(int argc, char **argv, cfg_t *config)
+{
+  struct conf *fileconf;
+  char *endp;
+  int next_option;
+  int option_index = 0; /* getopt_long stores the option index here. */
+  char *cfgbuf;
+  static int verbose_flag=FALSE;
+  static int displayconfig_flag=FALSE;
+  bool bRequireConfig_pass = TRUE;
+  /* short options */
+  static const char *short_options = "hVvCc:t:e:a:";
+  /* long options */
+  static struct option long_options[] =
+  {
+    /* This option sets a flag. */
+    {"verbose",       no_argument,  &verbose_flag, TRUE},
+    {"config",        no_argument,  &displayconfig_flag, TRUE},
+    /* These options don't set a flag.
+    We distinguish them by their indices. */
+    {"version",       no_argument,       NULL, 'v'},
+    {"help",          no_argument,       NULL, 'h'},
+    {"target-call",   required_argument, NULL, 'c'},
+    {"timeout",       required_argument, NULL, 't'},
+    {"email-address", required_argument, NULL, 'e'},
+    {"ax25port",      required_argument, NULL, 'a'},
+    {NULL, no_argument, NULL, 0} /* array termination */
+  };
+
+  cfgbuf = (char *)malloc(256);
+  if(cfgbuf == NULL) {
+    fprintf(stderr, "%s: loadconfig, out of memory\n", getprogname());
+    return(FALSE);
+  }
+
+  /*
+   * Initialize default config
+   */
+
+  /* use either cuserid(NULL) or  getenv("LOGNAME"),
+   *  - getlogin() does NOT work */
+  sprintf(cfgbuf, "%s@localhost", cuserid(NULL) );
+  config->emailaddr = strdup(cfgbuf);
+  free(cfgbuf);
+
+  config->mycall = NULL;
+  config->targetcall = NULL;
+  config->timeoutsecs = DFLT_TIMEOUTSECS;
+  config->ax25port = NULL;
+  config->bVerbose = FALSE;
+
+  /*
+   * Get config from config file
+   */
+
+  fileconf = conf_read();
+  if ((config->mycall = conf_get(fileconf, "mycall")) == NULL) {
+    fprintf(stderr, "%s: failed to read mycall from configuration file\n", getprogname());
+    exit(EXIT_FAILURE);
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "timeout")) != NULL) {
+    config->timeoutsecs = (int) strtol(cfgbuf, &endp, 10);
+    if (*endp != '\0') {
+      usage();  /* does not return */
+    }
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "email")) != NULL) {
+    config->emailaddr = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "ax25port")) != NULL) {
+    config->ax25port = cfgbuf;
+  }
+
+
+  /*
+   * Get config from command line
+   */
+
+  opterr = 0;
+  option_index = 0;
+  next_option = getopt_long (argc, argv, short_options,
+           long_options, &option_index);
+
+  while( next_option != -1 ) {
+
+    switch (next_option)
+    {
+      case 0:   /* long option without a short arg */
+        /* If this option set a flag, do nothing else now. */
+        if (long_options[option_index].flag != 0)
+          break;
+        fprintf (stderr, "Debug: option %s", long_options[option_index].name);
+        if (optarg)
+          fprintf (stderr," with arg %s", optarg);
+        fprintf (stderr,"\n");
+        break;
+      case 'v':
+        displayversion();
+        exit(0);
+        break;
+      case 'V':   /* set verbose flag */
+        verbose_flag = TRUE;
+        break;
+      case 'c':   /* set callsign to contact */
+        config->targetcall = optarg;
+        break;
+      case 'C':   /* set display config flag */
+        displayconfig_flag = TRUE;
+        break;
+      case 't':   /* set time out in seconds */
+        config->timeoutsecs = (int) strtol(optarg, &endp, 10);
+        if (*endp != '\0') {
+          usage(); /* does not return */
+        }
+        break;
+      case 'e':   /* set email address */
+        config->emailaddr = optarg;
+        break;
+      case 'a':   /* set ax25 port */
+        config->ax25port = optarg;
+        break;
+      case 'h':
+        usage();  /* does not return */
+        break;
+      case '?':
+        if (isprint (optopt)) {
+          fprintf (stderr, "%s: Unknown option `-%c'.\n",
+            getprogname(), optopt);
+        } else {
+          fprintf (stderr,"%s: Unknown option character `\\x%x'.\n",
+            getprogname(), optopt);
+        }
+        /* fall through */
+      default:
+        usage();  /* does not return */
+        break;
+    }
+
+    next_option = getopt_long (argc, argv, short_options,
+             long_options, &option_index);
+  }
+
+  /* set verbose flag here in case long option was used */
+  config->bVerbose = verbose_flag;
+
+  /* test for required parameters */
+  if(config->targetcall == NULL) {
+    fprintf(stderr,  "%s: Need to specify target callsign\n", getprogname() );
+    bRequireConfig_pass = FALSE;
+  }
+  if(config->ax25port == NULL) {
+    fprintf(stderr,  "%s: Need to specify ax25 port\n", getprogname() );
+    bRequireConfig_pass = FALSE;
+  }
+
+  strupper((char *) config->mycall);
+  strupper((char *) config->targetcall);
+
+  /* If display config flag set just dump the configuration & exit */
+  if(displayconfig_flag) {
+    displayversion();
+    displayconfig(config);
+    exit(EXIT_SUCCESS);
+  }
+
+  /* Check configuration requirements */
+  if(!bRequireConfig_pass) {
+    usage();  /* does not return */
+  }
+
+  /* Be verbose */
+  if(config->bVerbose) {
+    displayversion();
+    displayconfig(config);
+  }
+
+  return(TRUE);
 }
