@@ -1,2 +1,45 @@
 # $Id$
+#
+# All values shown commented out are the default values set in the
+#  program.
+# All values described in this file except for mycall can be set using
+#  a command line option.
+
+# Common section
+# ==============
+#
+# use your HAM radio call sign
 mycall=MYCALL
+
+# Timeout in seconds
+#timeout=120
+
+# Use your internet email address
+#email=login-name@localhost
+
+
+# AX25 section
+# ============
+#
+# Use an AX25 port configured in /etc/ax25ports
+#ax25port=
+
+# Telnet section
+# ==============
+#
+# Hostnames can be server, sandiego, perth, halifax, wien
+#  with a .winlink.org suffix.
+#hostname=server.winlink.org
+
+#port=8772
+
+#targetcall=wl2k
+
+#password=CMSTelnet
+
+# Serial section
+# ==============
+# 
+#device=
+
+#baud=
