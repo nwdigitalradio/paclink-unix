@@ -1,5 +1,28 @@
 $Id$
 
+Thu Mar 11 15:12:00 PST 2010 Basil Gunn <basil@pacabunga.com>
+
+    * Add version number to wl2kxxxx programs.
+    * wl2kax25, wl2ktelnet & wl2kserial now pass command line
+      arguments as option args instead of being positional.
+      Files modified:
+        wl2kax25.c    
+        wl2ktelnet.c    
+        wl2kserial.c    
+        wl2k.conf.dist
+      Files added:
+        version.h <- project version # 0.5.0
+
+    * Add reading config file functionality to wlk2kax25, wl2ktelnet,
+      and wl2kserial.
+      File modified:  Makefile.am
+
+    * Add default values for command line options.
+    * Fix parsing problem when '#' is first char in a line. 
+      Files modified:
+        conf.h
+        conf.c
+
 Wed Mar  3 16:34:40 PST 2010  Basil Gunn <basil@pacabunga.com>
 
     * Fix for bug # 2958148, message retrieval latency.
@@ -31,7 +54,7 @@ Fri Jan 22 17:10 PST 2010  Basil Gunn <basil@pacabunga.com>
         mid.c
         mime2wl.c
         mail.wl2k.c
-e
+
 Fri Jan 22 11:28 PST 2010  Basil Gunn <basil@pacabunga.com>
 
     * Add a gmime line terminator filter to encode lone line-feeds
