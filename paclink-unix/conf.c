@@ -73,20 +73,23 @@ conf_read(void)
     while (isspace((unsigned char) *cp)) {
       cp++;
     }
+    if (*cp == '#') {
+            continue;
+    }
     if (((cp = strtok_r(cp, "#", &last)))
       && ((var = strtok_r(cp, "= \n", &last)))
-	&& ((value = strtok_r(NULL, "= \n", &last)))) {
+        && ((value = strtok_r(NULL, "= \n", &last)))) {
       *confnext = (struct conf *) malloc(sizeof(struct conf));
       if (*confnext == NULL) {
-	printf("Out of memory\n");
-	exit(2);
+        printf("Out of memory\n");
+        exit(2);
       }
       (*confnext)->var = strdup(var);
       (*confnext)->value = strdup(value);
       (*confnext)->next = NULL;
       confnext = &((*confnext)->next);
     }
-  }  
+  }
 
   return conflist;
 }
