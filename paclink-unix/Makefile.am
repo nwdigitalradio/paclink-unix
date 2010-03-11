@@ -40,11 +40,11 @@ mime2wl_SOURCES=mime2wl.c mime2wl.h buffer.c buffer.h mid.c mid.h compat.h conf.
 wl2mime_CPPFLAGS=-DWL2MIME_MAIN $(WL2K_CPPFLAGS)
 wl2mime_SOURCES=wl2mime.c wl2mime.h buffer.c buffer.h strutil.c strutil.h compat.h
 
-wl2ktelnet_SOURCES=wl2ktelnet.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h
+wl2ktelnet_SOURCES=wl2ktelnet.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h
 
-wl2kax25_SOURCES=wl2kax25.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h
+wl2kax25_SOURCES=wl2kax25.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h
 
-wl2kserial_SOURCES=wl2kserial.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h
+wl2kserial_SOURCES=wl2kserial.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h
 
 mail_wl2k_SOURCES=mail.wl2k.c buffer.c buffer.h mime2wl.c mime2wl.h mid.c mid.h strutil.c strutil.h timeout.c timeout.h compat.h conf.c conf.h
 
