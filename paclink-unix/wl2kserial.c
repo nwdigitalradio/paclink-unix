@@ -59,7 +59,6 @@ __RCSID("$Id$");
 #include <gmime/gmime.h>
 
 #include "compat.h"
-#include "version.h"
 #include "conf.h"
 #include "timeout.h"
 #include "wl2k.h"
@@ -149,7 +148,7 @@ static void displayconfig(cfg_t *cfg);
  *
  * The calling convention for this function is:
  *
- * wl2kserial -c target call -d device -b baudrate -t timeoutsecs -e emailaddress
+ * wl2kserial -c targetcall -d device -b baudrate -t timeoutsecs -e emailaddress
  *
  * The parameters are:
  * mycall :  my call sign, which MUST be set in wl2k.conf
@@ -323,16 +322,33 @@ usage(void)
 }
 
 /*
- * Display version number of this program
+ * Display package version & repository version of this program.
  */
 static void
 displayversion(void)
 {
-  printf("%s version %d.%02d(%d)\n",
-         getprogname(),
-         PLU_MAJOR_VERSION,
-         PLU_MINOR_VERSION,
-         PLU_BUILD);
+  char *prcsID=NULL;
+  char *verstr;
+
+  printf("%s package ver = %s, ",
+         getprogname(), PACKAGE_VERSION);
+
+  if(strstr(rcsid, "$Id: ")) {  /* Qualify RCSID string */
+    /* Parse the RCSID string */
+    prcsID = strdup((const char *)rcsid); /* get a copy of the string since strtok alters it */
+    verstr = strchr(prcsID, ',');  /* point to the first comma */
+    verstr = strchr(verstr, ' ');  /* get by  ",v "*/
+    verstr = strtok(verstr, " ");  /* version string is surronded by spaces */
+
+    printf("repo ver = %s\n", verstr);
+
+  } else {
+    printf("no RCSID string found\n");
+  }
+
+  if(prcsID) {
+    free(prcsID);
+  }
 }
 
 /*

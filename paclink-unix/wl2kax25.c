@@ -86,7 +86,6 @@ __RCSID("$Id$");
 #include <poll.h>
 
 #include "compat.h"
-#include "version.h"
 #include "conf.h"
 #include "timeout.h"
 #include "wl2k.h"
@@ -359,16 +358,33 @@ usage(void)
 }
 
 /*
- * Display version number of this program
+ * Display package version & repository version of this program.
  */
 static void
 displayversion(void)
 {
-  printf("%s version %d.%02d(%d)\n",
-         getprogname(),
-         PLU_MAJOR_VERSION,
-         PLU_MINOR_VERSION,
-         PLU_BUILD);
+  char *prcsID=NULL;
+  char *verstr;
+
+  printf("%s package ver = %s, ",
+         getprogname(), PACKAGE_VERSION);
+
+  if(strstr(rcsid, "$Id: ")) {  /* Qualify RCSID string */
+    /* Parse the RCSID string */
+    prcsID = strdup((const char *)rcsid); /* get a copy of the string since strtok alters it */
+    verstr = strchr(prcsID, ',');  /* point to the first comma */
+    verstr = strchr(verstr, ' ');  /* get by  ",v "*/
+    verstr = strtok(verstr, " ");  /* version string is surronded by spaces */
+
+    printf("repo ver = %s\n", verstr);
+
+  } else {
+    printf("no RCSID string found\n");
+  }
+
+  if(prcsID) {
+    free(prcsID);
+  }
 }
 
 /*
@@ -380,6 +396,7 @@ displayconfig(cfg_t *cfg)
 {
 
   fprintf(stderr, "Using this config:\n");
+
   if(cfg->emailaddr) {
     fprintf(stderr, "  Email address: %s\n", cfg->emailaddr);
   }
