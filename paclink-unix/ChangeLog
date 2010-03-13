@@ -8,7 +8,9 @@ Sat Mar 13 11:57:20 PST 2010  Basil Gunn <basil@pacabunga.com>
         configure.ac
         wl2kax25.c    
         wl2ktelnet.c    
-        wl2kserial.c    
+        wl2kserial.c
+      File deleted:  
+        version.h
 
 Thu Mar 11 15:12:00 PST 2010  Basil Gunn <basil@pacabunga.com>
 
