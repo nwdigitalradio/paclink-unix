@@ -11,6 +11,12 @@ AC_LANG(C)
 
 AC_USE_SYSTEM_EXTENSIONS
 
+AH_TOP([#ifndef __RCSID
+#define __RCSID(msg) \
+static /**/const char rcsid[] = { "@@(#)" msg }
+#endif
+])
+
 dnl =======================================================================
 dnl Checks for programs.
 dnl =======================================================================
