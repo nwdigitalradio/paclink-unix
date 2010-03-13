@@ -741,7 +741,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
   int proposals = 0;
   int proposalcksum = 0;
   int i;
-  const char *sid = "[PaclinkUNIX-1.0-B2FIHM$]";
+  char sidbuf[32];
   char *inboundsid = NULL;
   char *inboundsidcodes = NULL;
   char *line;
@@ -804,9 +804,10 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 	  exit(EXIT_FAILURE);
 	}
       }
-      printf(">%s\n", sid);
+      sprintf(sidbuf, "[PaclinkUNIX-%s-B2FIHM$]", PACKAGE_VERSION);
+      printf(">%s\n", sidbuf);
       resettimeout();
-      if (fprintf(fp, "%s\r", sid) == -1) {
+      if (fprintf(fp, "%s\r", sidbuf) == -1) {
 	perror("fprintf()");
 	exit(EXIT_FAILURE);
       }
