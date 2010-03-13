@@ -420,7 +420,6 @@ loadconfig(int argc, char **argv, cfg_t *config)
         config->targetcall = optarg;
         break;
       case 'C':   /* set display config flag */
-        printf("Debug: Display config option set with short option\n");
         displayconfig_flag = TRUE;
         break;
       case 't':   /* set time out in seconds */
