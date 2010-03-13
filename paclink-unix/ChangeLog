@@ -1,6 +1,16 @@
 $Id$
 
-Thu Mar 11 15:12:00 PST 2010 Basil Gunn <basil@pacabunga.com>
+Sat Mar 13 11:57:20 PST 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Get rid of version number file.
+    * Version number now pulled from string defined in configure.ac
+      Files modified:
+        configure.ac
+        wl2kax25.c    
+        wl2ktelnet.c    
+        wl2kserial.c    
+
+Thu Mar 11 15:12:00 PST 2010  Basil Gunn <basil@pacabunga.com>
 
     * Add version number to wl2kxxxx programs.
     * wl2kax25, wl2ktelnet & wl2kserial now pass command line
