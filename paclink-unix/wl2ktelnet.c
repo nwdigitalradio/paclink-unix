@@ -75,6 +75,11 @@ __RCSID("$Id$");
 #include "strutil.h"
 
 /*
+ * Globals
+ */
+int gverbose_flag=FALSE;
+
+/*
  * Config parameters struct
  */
 typedef struct _wl2ktelnet_config {
@@ -200,22 +205,21 @@ main(int argc, char *argv[])
 }
 
 /*
- * Prints usage information and exits
+ * Print usage information and exit
  *  - does not return
  */
 static void
 usage(void)
 {
-  fprintf(stderr, "usage:  %s\n", getprogname());
-  fprintf(stderr, "usage:  %s options HOSTNAME PORT\n", getprogname());
-  fprintf(stderr, "  -c  --target-call   Set callsign to call\n");
-  fprintf(stderr, "  -p  --password      Set password for login\n");
-  fprintf(stderr, "  -t  --timeout       Set timeout in seconds\n");
-  fprintf(stderr, "  -e  --email-address Set your e-mail address\n");
-  fprintf(stderr, "  -v  --version       Display program version only\n");
-  fprintf(stderr, "  -V  --verbose       Print verbose messages\n");
-  fprintf(stderr, "  -C  --configuration Display configuration only\n");
-  fprintf(stderr, "  -h  --help          Display this usage info\n");
+  printf("Usage:  %s [options] [HOSTNAME PORT]\n", getprogname());
+  printf("  -c  --target-call   Set callsign to call\n");
+  printf("  -p  --password      Set password for login\n");
+  printf("  -t  --timeout       Set timeout in seconds\n");
+  printf("  -e  --email-address Set your e-mail address\n");
+  printf("  -v  --version       Display program version only\n");
+  printf("  -V  --verbose       Print verbose messages\n");
+  printf("  -C  --configuration Display configuration only\n");
+  printf("  -h  --help          Display this usage info\n");
   exit(EXIT_SUCCESS);
 }
 
@@ -228,8 +232,7 @@ displayversion(void)
   char *prcsID=NULL;
   char *verstr;
 
-  printf("%s package ver = %s, ",
-         getprogname(), PACKAGE_VERSION);
+  printf("%s  %s ", getprogname(), PACKAGE_VERSION);
 
   if(strstr(rcsid, "$Id: ")) {  /* Qualify RCSID string */
     /* Parse the RCSID string */
@@ -238,14 +241,20 @@ displayversion(void)
     verstr = strchr(verstr, ' ');  /* get by  ",v "*/
     verstr = strtok(verstr, " ");  /* version string is surronded by spaces */
 
-    printf("repo ver = %s\n", verstr);
+    printf("(%s)\n", verstr); /* Display repository version number */
 
   } else {
-    printf("no RCSID string found\n");
+    printf("no RCSID found\n");
   }
 
   if(prcsID) {
     free(prcsID);
+  }
+
+  /* Check verbose flag for displaying gmime version */
+  if(gverbose_flag) {
+    printf("Using gmime version %d.%d.%d\n",
+           gmime_major_version, gmime_minor_version, gmime_micro_version);
   }
 }
 
@@ -257,32 +266,32 @@ static void
 displayconfig(cfg_t *cfg)
 {
 
-  fprintf(stderr, "Using this config:\n");
+  printf("Using this config:\n");
 
   if(cfg->mycall) {
-    fprintf(stderr, "  My callsign: %s\n", cfg->mycall);
+    printf("  My callsign: %s\n", cfg->mycall);
   }
 
   if(cfg->targetcall) {
-    fprintf(stderr, "  Target callsign: %s\n", cfg->targetcall);
+    printf("  Target callsign: %s\n", cfg->targetcall);
   }
 
   if(cfg->hostname) {
-    fprintf(stderr, "  Host name: %s\n", cfg->hostname);
+    printf("  Host name: %s\n", cfg->hostname);
   }
 
-  fprintf(stderr, "  Host port: %d\n", cfg->hostport);
-
-  fprintf(stderr, "  Timeout: %d\n", cfg->timeoutsecs);
+  printf("  Host port: %d\n", cfg->hostport);
 
   if(cfg->password) {
-    fprintf(stderr, "  Login password: %s\n", cfg->password);
+    printf("  Login password: %s\n", cfg->password);
   }
 
+  printf("  Timeout: %d\n", cfg->timeoutsecs);
+
   if(cfg->emailaddr) {
-    fprintf(stderr, "  Email address: %s\n", cfg->emailaddr);
+    printf("  Email address: %s\n", cfg->emailaddr);
   }
-  fprintf(stderr, "  Flags: verbose = %s\n", cfg->bVerbose ? "On" : "Off");
+  printf("  Flags: verbose = %s\n", cfg->bVerbose ? "On" : "Off");
 }
 
 /* Load these 7 config parameters:
@@ -296,16 +305,16 @@ loadconfig(int argc, char **argv, cfg_t *config)
   int next_option;
   int option_index = 0; /* getopt_long stores the option index here. */
   char *cfgbuf;
-  static int verbose_flag=FALSE;
   static int displayconfig_flag=FALSE;
+  bool bDisplayVersion_flag = FALSE;
   bool bRequireConfig_pass = TRUE;
   /* short options */
   static const char *short_options = "hVvCc:t:e:p:";
   /* long options */
   static struct option long_options[] =
   {
-    /* This option sets a flag. */
-    {"verbose",       no_argument,  &verbose_flag, TRUE},
+    /* These options set a flag. */
+    {"verbose",       no_argument,  &gverbose_flag, TRUE},
     {"config",        no_argument,  &displayconfig_flag, TRUE},
     /* These options don't set a flag.
     We distinguish them by their indices. */
@@ -401,7 +410,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
     switch (next_option)
     {
       case 0:   /* long option without a short arg */
-        /* If this option set a flag, do nothing else now. */
+        /* If this option sets a flag, do nothing else now. */
         if (long_options[option_index].flag != 0)
           break;
         fprintf (stderr, "Debug: option %s", long_options[option_index].name);
@@ -409,12 +418,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
           fprintf (stderr," with arg %s", optarg);
         fprintf (stderr,"\n");
         break;
-      case 'v':
-        displayversion();
-        exit(0);
+      case 'v':   /* set display version flag */
+        bDisplayVersion_flag = TRUE;
         break;
       case 'V':   /* set verbose flag */
-        verbose_flag = TRUE;
+        gverbose_flag = TRUE;
         break;
       case 'c':   /* set callsign to contact */
         config->targetcall = optarg;
@@ -456,7 +464,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   }
 
   /* set verbose flag here in case long option was used */
-  config->bVerbose = verbose_flag;
+  config->bVerbose = gverbose_flag;
 
   /*
    * Get positional command line args hostname hostport
@@ -471,6 +479,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
     if (*endp != '\0') {
       usage();  /* does not return */
     }
+  }
+
+  if(bDisplayVersion_flag) {
+    displayversion();
+    exit(EXIT_SUCCESS);
   }
 
   /* test for required parameters */

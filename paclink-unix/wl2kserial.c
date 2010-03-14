@@ -72,6 +72,11 @@ __RCSID("$Id$");
 # define B38400 EXTB
 #endif
 
+/*
+ * Globals
+ */
+int gverbose_flag=FALSE;
+
 const struct baudrate {
   const char *asc;
   speed_t num;
@@ -302,22 +307,22 @@ main(int argc, char *argv[])
 }
 
 /*
- * Prints usage information and exits
+ * Print usage information and exit
  *  - does not return
  */
 static void
 usage(void)
 {
-  fprintf(stderr, "usage:  %s -c target-call -d device -b baudrate options\n", getprogname());
-  fprintf(stderr, "  -c  --target-call   Set callsign to call\n");
-  fprintf(stderr, "  -d  --device        Set serial device name\n");
-  fprintf(stderr, "  -b  --baudrate      Set baud rate of serial device\n");
-  fprintf(stderr, "  -t  --timeout       Set timeout in seconds\n");
-  fprintf(stderr, "  -e  --email-address Set your e-mail address\n");
-  fprintf(stderr, "  -v  --version       Display version of this program\n");
-  fprintf(stderr, "  -V  --verbose       Print verbose messages\n");
-  fprintf(stderr, "  -C  --configuration Display configuration only\n");
-  fprintf(stderr, "  -h  --help          Display this usage info\n");
+  printf("Usage:  %s -c target-call -d device -b baudrate options\n", getprogname());
+  printf("  -c  --target-call   Set callsign to call\n");
+  printf("  -d  --device        Set serial device name\n");
+  printf("  -b  --baudrate      Set baud rate of serial device\n");
+  printf("  -t  --timeout       Set timeout in seconds\n");
+  printf("  -e  --email-address Set your e-mail address\n");
+  printf("  -v  --version       Display version of this program\n");
+  printf("  -V  --verbose       Print verbose messages\n");
+  printf("  -C  --configuration Display configuration only\n");
+  printf("  -h  --help          Display this usage info\n");
   exit(EXIT_SUCCESS);
 }
 
@@ -330,8 +335,7 @@ displayversion(void)
   char *prcsID=NULL;
   char *verstr;
 
-  printf("%s package ver = %s, ",
-         getprogname(), PACKAGE_VERSION);
+  printf("%s  %s ", getprogname(), PACKAGE_VERSION);
 
   if(strstr(rcsid, "$Id: ")) {  /* Qualify RCSID string */
     /* Parse the RCSID string */
@@ -340,14 +344,20 @@ displayversion(void)
     verstr = strchr(verstr, ' ');  /* get by  ",v "*/
     verstr = strtok(verstr, " ");  /* version string is surronded by spaces */
 
-    printf("repo ver = %s\n", verstr);
+    printf("(%s)\n", verstr); /* Display repository version number */
 
   } else {
-    printf("no RCSID string found\n");
+    printf("no RCSID found\n");
   }
 
   if(prcsID) {
     free(prcsID);
+  }
+
+  /* Check verbose flag for displaying gmime version */
+  if(gverbose_flag) {
+    printf("Using gmime version %d.%d.%d\n",
+           gmime_major_version, gmime_minor_version, gmime_micro_version);
   }
 }
 
@@ -360,19 +370,19 @@ displayconfig(cfg_t *cfg)
 {
   struct baudrate *bp;
 
-  fprintf(stderr, "Using this config:\n");
+  printf("Using this config:\n");
 
   if(cfg->mycall) {
-    fprintf(stderr, "  My callsign: %s\n", cfg->mycall);
+    printf("  My callsign: %s\n", cfg->mycall);
   }
   if(cfg->targetcall) {
-    fprintf(stderr, "  Target callsign: %s\n", cfg->targetcall);
+    printf("  Target callsign: %s\n", cfg->targetcall);
   }
   if(cfg->serialdevice) {
-    fprintf(stderr, "  Serial device: %s\n", cfg->serialdevice);
+    printf("  Serial device: %s\n", cfg->serialdevice);
   }
 
-  fprintf(stderr, "  Baud rate: ");
+  printf("  Baud rate: ");
   /* Loop through the baud rate table */
   for (bp = baudrates; bp->asc != NULL; bp++) {
     if (bp->num == cfg->baudrate) {
@@ -380,17 +390,17 @@ displayconfig(cfg_t *cfg)
     }
   }
   if(bp->asc != NULL) {
-    fprintf(stderr, " %s\n", bp->asc);
+    printf(" %s\n", bp->asc);
   } else {
-    fprintf(stderr, "Invalid\n");
+    printf("Invalid\n");
   }
 
-  fprintf(stderr, "  Timeout: %d\n", cfg->timeoutsecs);
+  printf("  Timeout: %d\n", cfg->timeoutsecs);
 
   if(cfg->emailaddr) {
-    fprintf(stderr, "  Email address: %s\n", cfg->emailaddr);
+    printf("  Email address: %s\n", cfg->emailaddr);
   }
-  fprintf(stderr, "  Flags: verbose = %s\n", cfg->bVerbose ? "On" : "Off");
+  printf("  Flags: verbose = %s\n", cfg->bVerbose ? "On" : "Off");
 }
 
 /* Load these 6 config parameters:
@@ -406,9 +416,9 @@ loadconfig(int argc, char **argv, cfg_t *config)
   int next_option;
   int option_index = 0; /* getopt_long stores the option index here. */
   char *cfgbuf;
-  static int verbose_flag=FALSE;
   static int displayconfig_flag=FALSE;
   bool bRequireConfig_pass = TRUE;
+  bool bDisplayVersion_flag = FALSE;
   char strDefaultBaudRate[]="9600";  /* String of default baudrate */
   char *pBaudRate = strDefaultBaudRate;
   /* short options */
@@ -416,8 +426,8 @@ loadconfig(int argc, char **argv, cfg_t *config)
   /* long options */
   static struct option long_options[] =
   {
-    /* This option sets a flag. */
-    {"verbose",       no_argument,  &verbose_flag, TRUE},
+    /* These options set a flag. */
+    {"verbose",       no_argument,  &gverbose_flag, TRUE},
     {"config",        no_argument,  &displayconfig_flag, TRUE},
     /* These options don't set a flag.
     We distinguish them by their indices. */
@@ -489,6 +499,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   /*
    * Get config from command line
    */
+
   opterr = 0;
   option_index = 0;
   next_option = getopt_long (argc, argv, short_options,
@@ -499,7 +510,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
     switch (next_option)
     {
       case 0:   /* long option without a short arg */
-        /* If this option set a flag, do nothing else now. */
+        /* If this option sets a flag, do nothing else now. */
         if (long_options[option_index].flag != 0)
           break;
         fprintf (stderr, "Debug: option %s", long_options[option_index].name);
@@ -507,12 +518,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
           fprintf (stderr," with arg %s", optarg);
         fprintf (stderr,"\n");
         break;
-      case 'v':
-        displayversion();
-        exit(0);
+      case 'v': /* set display version flag */
+        bDisplayVersion_flag = TRUE;
         break;
       case 'V':   /* set verbose flag */
-        verbose_flag = TRUE;
+        gverbose_flag = TRUE;
         break;
       case 'c':   /* set callsign to contact */
         config->targetcall = optarg;
@@ -557,7 +567,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   }
 
   /* set verbose flag here in case long option was used */
-  config->bVerbose = verbose_flag;
+  config->bVerbose = gverbose_flag;
 
   if(pBaudRate != NULL) {
     /* Convert ASCII baud rate into some usable bits */
@@ -582,6 +592,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
 
     /* Save the baudrate bits in the config struct */
     config->baudrate = baud;
+  }
+
+  if(bDisplayVersion_flag) {
+    displayversion();
+    exit(EXIT_SUCCESS);
   }
 
   /* test for required parameters */
