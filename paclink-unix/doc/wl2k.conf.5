@@ -1,0 +1,64 @@
+.\" $Id$
+.TH "wl2k.conf" "5" "" "Nicholas S. Castellano N2QZ <n2qz@arrl.net>" ""
+.SH "NAME"
+.LP 
+\fBwl2k.conf\fR \- Configuration file for paclink\-unix programs
+.SH "DESCRIPTION"
+.LP 
+The paclink\-unix program suite uses a configuration file named
+\fBwl2k.conf\fR. This configuration file is searched for
+in the following places:
+.LP 
+/usr/local/etc
+.SH "PARAMETERS"
+.LP 
+All values shown commented out are the default values set in the program. All values described in this file except for mycall can be overridden by using a command line option.  Lines beginning with a # character are comments. Parameters are of the form:
+.IP 
+\fIname = value\fR
+.LP 
+\fBCommon Section\fR
+.TP 
+\fBmycall\fR
+Use your HAM radio call sign.
+.TP 
+\fBtimeout\fR
+Timeout in seconds.
+.TP 
+\fBemail\fR
+Use your internet email address
+.LP  
+\fBAX25 Section\fR
+.TP 
+\fBax25port\fR
+Use an AX25 port configured in /etc/ax25ports
+.LP 
+\fBTelnet Section\fR
+.TP 
+\fBhostname\fR
+Hostnames can be server, sandiego, perth, halifax, wien with a .winlink.org suffix
+.TP 
+\fBport\fR
+TCP port, default 8772
+.TP 
+\fBtargetcall\fR
+Target server, default wl2k
+.TP 
+\fBpassword\fR
+Telnet password, default CMSTelnet
+.LP 
+\fBSerial Section\fR
+.TP 
+\fBdevice\fR
+Serial device
+.TP 
+\fBbaud\fR
+Serial connection speed
+
+.SH "FILES"
+.LP 
+/usr/local/etc/wl2k.conf
+.SH "SEE ALSO"
+.LP 
+wl2kax25(1), wl2ktelnet(1), wl2kserial(1), wl2kmime(1), ax25(4)
+
+Winlink 2000 is an all\-volunteer, non\-profit project of the Amateur Radio Safety Foundation, Inc.
