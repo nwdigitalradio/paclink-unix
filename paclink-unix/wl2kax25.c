@@ -367,27 +367,9 @@ usage(void)
 static void
 displayversion(void)
 {
-  char *prcsID=NULL;
   char *verstr;
 
   printf("%s  %s ", getprogname(), PACKAGE_VERSION);
-
-  if(strstr(rcsid, "$Id: ")) {  /* Qualify RCSID string */
-    /* Parse the RCSID string */
-    prcsID = strdup((const char *)rcsid); /* get a copy of the string since strtok alters it */
-    verstr = strchr(prcsID, ',');  /* point to the first comma */
-    verstr = strchr(verstr, ' ');  /* get by  ",v "*/
-    verstr = strtok(verstr, " ");  /* version string is surronded by spaces */
-
-    printf("(%s)\n", verstr); /* Display repository version number */
-
-  } else {
-    printf("no RCSID found\n");
-  }
-
-  if(prcsID) {
-    free(prcsID);
-  }
 
   /* Check verbose flag for displaying gmime version */
   if(gverbose_flag) {

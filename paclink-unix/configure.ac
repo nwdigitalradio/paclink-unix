@@ -40,6 +40,7 @@ AC_SEARCH_LIBS(socket, socket)
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(herror, resolv)
 AC_SEARCH_LIBS(ax25_aton, ax25)
+AC_SEARCH_LIBS(cuserid, compat)
 
 AC_CHECK_FILE(/usr/pkg/include/db4/db.h,
 [
