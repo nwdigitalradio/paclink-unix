@@ -57,23 +57,23 @@ sigalrm(int sig ATTRIBUTE_UNUSED)
 }
 
 void
-settimeout(int secs)
+settimeout(unsigned int secs)
 {
   timeoutsecs = secs;
+  signal(SIGALRM, sigalrm);
   resettimeout();
 }
 
 void
 resettimeout(void)
 {
-  alarm(0);
-  signal(SIGALRM, sigalrm);
   alarm(timeoutsecs);
 }
 
 void
 unsettimeout(void)
 {
+  /* turn off and restore previous signal handler (if any) */
   alarm(0);
   signal(SIGALRM, SIG_DFL);
 }
