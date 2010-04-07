@@ -1,5 +1,11 @@
 $Id$
 
+Wed Apr  7 14:41:55 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Fix for bug # 2983467 Protocol not working properly for FS NNN
+    * Add a check for prop->delete before calling putcompressed().
+      File modified: wl2k.c 2983467
+
 Sun Mar 14 09:45:46 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Change help & version option output to be stdout to enable
