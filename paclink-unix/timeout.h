@@ -27,7 +27,7 @@
 #define TIMEOUT_H
 
 void sigalrm(int sig ATTRIBUTE_UNUSED);
-void settimeout(int secs);
+void settimeout(unsigned int secs);
 void resettimeout(void);
 void unsettimeout(void);
 
