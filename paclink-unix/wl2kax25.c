@@ -112,7 +112,7 @@ typedef struct _wl2kax25_config {
   char *targetcall;
   char *ax25port;
   char *emailaddr;
-  int  timeoutsecs;
+  unsigned int timeoutsecs;
   int  bVerbose;
 }cfg_t;
 
@@ -168,70 +168,70 @@ main(int argc, char *argv[])
     perror("socketpair");
     exit(EXIT_FAILURE);
   }
-  // Fork a process
-  if ((procID = fork())) {
-    // Parent processing
-    if (-1 == procID) {
-      fprintf(stderr, "fork\n");
-      exit(EXIT_FAILURE);
+
+  // Begin AX25 socket code
+  if (ax25_config_load_ports() == 0)
+    fprintf(stderr, "wl2kax25: no AX.25 port data configured\n");
+
+  if (cfg.ax25port != NULL) {
+    if ((dev = ax25_config_get_dev(cfg.ax25port)) == NULL) {
+      fprintf(stderr, "wl2kax25: invalid port name - %s\n",
+              cfg.ax25port);
+      return(EXIT_FAILURE);
     }
+  }
 
-    close(sv[1]);
+  if ((s = socket(AF_AX25, SOCK_SEQPACKET, 0)) == -1) {
+    perror("socket");
+    printf("%d\n", __LINE__);
+    exit(EXIT_FAILURE);
+  }
+  ax25_aton(ax25_config_get_addr(cfg.ax25port), &sockaddr.ax25);
+  ax25_aton(cfg.mycall, &sockaddr.ax25);
+  if (sockaddr.ax25.fsa_ax25.sax25_ndigis == 0) {
+    ax25_aton_entry(ax25_config_get_addr(cfg.ax25port),
+                    sockaddr.ax25.fsa_digipeater[0].
+                    ax25_call);
+    sockaddr.ax25.fsa_ax25.sax25_ndigis = 1;
+  }
+  sockaddr.ax25.fsa_ax25.sax25_family = AF_AX25;
+  addrlen = sizeof(struct full_sockaddr_ax25);
 
-    // Begin AX25 socket code
-    if (ax25_config_load_ports() == 0)
-      fprintf(stderr, "wl2kax25: no AX.25 port data configured\n");
-
-    if (cfg.ax25port != NULL) {
-      if ((dev = ax25_config_get_dev(cfg.ax25port)) == NULL) {
-        fprintf(stderr, "wl2kax25: invalid port name - %s\n",
-            cfg.ax25port);
-        return(EXIT_FAILURE);
-      }
-    }
-
-    if ((s = socket(AF_AX25, SOCK_SEQPACKET, 0)) == -1) {
-      perror("socket");
-      printf("%d\n", __LINE__);
-      exit(EXIT_FAILURE);
-    }
-    ax25_aton(ax25_config_get_addr(cfg.ax25port), &sockaddr.ax25);
-    ax25_aton(cfg.mycall, &sockaddr.ax25);
-    if (sockaddr.ax25.fsa_ax25.sax25_ndigis == 0) {
-      ax25_aton_entry(ax25_config_get_addr(cfg.ax25port),
-          sockaddr.ax25.fsa_digipeater[0].
-          ax25_call);
-      sockaddr.ax25.fsa_ax25.sax25_ndigis = 1;
-    }
-    sockaddr.ax25.fsa_ax25.sax25_family = AF_AX25;
-    addrlen = sizeof(struct full_sockaddr_ax25);
-
-    if (bind(s, (struct sockaddr *) &sockaddr, addrlen) == -1) {
-      perror("bind");
-      close(s);
-      exit(EXIT_FAILURE);
-    }
+  if (bind(s, (struct sockaddr *) &sockaddr, addrlen) == -1) {
+    perror("bind");
+    close(s);
+    exit(EXIT_FAILURE);
+  }
 
 
-    if (ax25_aton(cfg.targetcall, &sockaddr.ax25) < 0) {
-      close(s);
-      perror("ax25_aton()");
-      exit(EXIT_FAILURE);
-    }
-    sockaddr.rose.srose_family = AF_AX25;
-    addrlen = sizeof(struct full_sockaddr_ax25);
+  if (ax25_aton(cfg.targetcall, &sockaddr.ax25) < 0) {
+    close(s);
+    perror("ax25_aton()");
+    exit(EXIT_FAILURE);
+  }
+  sockaddr.rose.srose_family = AF_AX25;
+  addrlen = sizeof(struct full_sockaddr_ax25);
 
-    settimeout(cfg.timeoutsecs);
-    if (connect(s, (struct sockaddr *) &sockaddr, addrlen) != 0) {
-      close(s);
-      perror("connect()");
-      exit(EXIT_FAILURE);
-    }
-    // End AX25 socket code
+  settimeout(cfg.timeoutsecs);
+  if (connect(s, (struct sockaddr *) &sockaddr, addrlen) != 0) {
+    close(s);
+    perror("connect()");
+    exit(EXIT_FAILURE);
+  }
+  unsettimeout();
 
-    resettimeout();
+  printf("Connected to AX.25 stack\n");
+  // End AX25 socket code
 
-    printf("Connected.\n");
+	// Fork a process
+		if ((procID = fork())) {
+		// Parent processing
+			if (-1 == procID) {
+				fprintf(stderr, "fork\n");
+				exit(EXIT_FAILURE);
+			}
+
+			close(sv[1]);
 
     fds[0].fd = s;
     fds[0].events = POLLIN;
@@ -245,7 +245,8 @@ main(int argc, char *argv[])
 
       if (-1 == ready) {
         if (EINTR == errno)
-          break;
+					break;
+				close(s);
         perror("poll");
         exit(EXIT_FAILURE);
       }
@@ -270,7 +271,8 @@ main(int argc, char *argv[])
             len -=    byteswritten;
           }
 
-        } else if (len == 0) {
+				} else if (len == 0) {
+					close(s);
           printf("EOF on ax25 socket, exiting...\n");
           exit(EXIT_FAILURE);
         }
@@ -335,7 +337,8 @@ main(int argc, char *argv[])
      */
 
     printf("Child process calling wl2kexchange()\n");
-    wl2kexchange(cfg.mycall, cfg.targetcall, fp, cfg.emailaddr);
+		settimeout(cfg.timeoutsecs);
+		wl2kexchange(cfg.mycall, cfg.targetcall, fp, cfg.emailaddr);
     fclose(fp);
     printf("Child process exiting\n");
     _exit(EXIT_SUCCESS);
@@ -473,7 +476,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   }
 
   if ((cfgbuf = conf_get(fileconf, "timeout")) != NULL) {
-    config->timeoutsecs = (int) strtol(cfgbuf, &endp, 10);
+    config->timeoutsecs = (unsigned int) strtol(cfgbuf, &endp, 10);
     if (*endp != '\0') {
       usage();  /* does not return */
     }
@@ -486,7 +489,6 @@ loadconfig(int argc, char **argv, cfg_t *config)
   if ((cfgbuf = conf_get(fileconf, "ax25port")) != NULL) {
     config->ax25port = cfgbuf;
   }
-
 
   /*
    * Get config from command line
@@ -523,7 +525,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
         displayconfig_flag = TRUE;
         break;
       case 't':   /* set time out in seconds */
-        config->timeoutsecs = (int) strtol(optarg, &endp, 10);
+        config->timeoutsecs = (unsigned int) strtol(optarg, &endp, 10);
         if (*endp != '\0') {
           usage(); /* does not return */
         }
