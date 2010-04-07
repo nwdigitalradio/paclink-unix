@@ -664,10 +664,12 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 
     prop = *oproplist;
     for (i = 0; i < PROPLIMIT; i++) {
-      putcompressed(prop, fp);
-      prop->delete = 1;
+      if(prop->delete == 0) {
+        putcompressed(prop, fp);
+        prop->delete = 1;
+      }
       if ((prop = prop->next) == NULL) {
-	break;
+  break;
       }
     }
     *oproplist = prop;
