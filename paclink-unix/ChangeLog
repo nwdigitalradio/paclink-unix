@@ -1,5 +1,19 @@
 $Id$
 
+Wed Apr  7 15:55:01 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Change config->timeoutsecs to unsigned int to match alarm(arg).
+    * Call settimeout() from child process in wl2kax25.c
+    * Remove running timeout alarm signal from parent process.
+    * SIGALRM handler is set once in settimeout instead of every call
+      to resettimeout()
+      Files modified:
+        wl2kax25.c    
+        wl2ktelnet.c    
+        wl2kserial.c
+        timeout.c
+        timeout.h
+
 Wed Apr  7 14:41:55 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Fix for bug # 2983467 Protocol not working properly for FS NNN
