@@ -139,7 +139,7 @@ typedef struct _wl2ktelnet_config {
   char    *serialdevice;
   char    *emailaddr;
   speed_t baudrate;
-  int     timeoutsecs;
+  unsigned int timeoutsecs;
   int     bVerbose;
 }cfg_t;
 
@@ -459,7 +459,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   }
 
   if ((cfgbuf = conf_get(fileconf, "timeout")) != NULL) {
-    config->timeoutsecs = (int) strtol(cfgbuf, &endp, 10);
+    config->timeoutsecs = (unsigned int) strtol(cfgbuf, &endp, 10);
     if (*endp != '\0') {
       usage();  /* does not return */
     }
@@ -513,7 +513,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
         displayconfig_flag = TRUE;
         break;
       case 't':   /* set time out in seconds */
-        config->timeoutsecs = (int) strtol(optarg, &endp, 10);
+        config->timeoutsecs = (unsigned int) strtol(optarg, &endp, 10);
         if (*endp != '\0') {
           usage(); /* does not return */
         }
