@@ -3,6 +3,10 @@ $Id$
 Nicholas S. Castellano N2QZ <n2qz@arrl.net>
 Started this crazy thing
 
+Basil Gunn KE7KRO <basil@pacabunga.com>
+Parametrized the command line commands and expanded
+the configuration file
+
 Dana Borgman KA1WPM <ka1wpm@arrl.net>
 Contributed the Linux AX25 packet driver module
 
