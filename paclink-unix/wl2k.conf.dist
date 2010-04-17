@@ -43,3 +43,12 @@ mycall=MYCALL
 #device=
 
 #baud=
+
+# wl2kax25d specific section
+# ==========================
+#
+# Gridsquare locator
+#gridsquare=XXyyzz
+
+# Welcome message
+#welcomemsg="Welcome to MYCALL's paclink-unix mailbox\r"
