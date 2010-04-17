@@ -95,7 +95,6 @@ __RCSID("$Id$");
 /*
  * Globals
  */
-#define DEBUG_BUILD_VERSION 4
 
 int gverbose_flag=FALSE;
 
@@ -146,8 +145,6 @@ main(int argc, char *argv[])
   static cfg_t cfg;
   char *pStr;
 
-  displayversion();
-
   loadconfig(argc, argv, &cfg);
 
   print_log(LOG_DEBUG,"*** Incoming call from %s", cfg.targetcall);
@@ -186,8 +183,8 @@ main(int argc, char *argv[])
     pStr = cfg.gridsquare;
   } else {
     pStr ="XXyyzz";
-	}
-	/* Wonder what this all is for/means?? */
+  }
+  /* Wonder what this all is for/means?? */
   print_log(LOG_INFO, "(am|em:h1,g:%s)", pStr);
   fprintf(stdout, "(am|em:h1,g:%s)\r", pStr);
 
@@ -199,7 +196,7 @@ main(int argc, char *argv[])
   print_log(LOG_INFO, "Banner: %s", pStr);
   fprintf(stdout,"%s\r", pStr);
 
-	/* Call modified wl2kexchange() */
+  /* Call modified wl2kexchange() */
   wl2kexchange(cfg.mycall, cfg.targetcall, stdin, stdout, cfg.emailaddr);
 
   print_log(LOG_DEBUG, "Exiting\n");
@@ -233,7 +230,7 @@ static void
 displayversion(void)
 {
 
-  printf("%s  %s ", getprogname(), PACKAGE_VERSION);
+  printf("%s  %s \n", getprogname(), PACKAGE_VERSION);
 
   /* Check verbose flag for displaying gmime version */
   if(gverbose_flag) {
@@ -267,6 +264,13 @@ displayconfig(cfg_t *cfg)
   if(cfg->emailaddr) {
     printf("  Email address: %s\n", cfg->emailaddr);
   }
+  if(cfg->gridsquare) {
+    printf("  Grid square: %s\n", cfg->gridsquare);
+  }
+  if(cfg->welcomemsg) {
+    printf("  Welcome msg: %s\n", cfg->welcomemsg);
+  }
+
   printf("  Flags: verbose = %s\n", cfg->bVerbose ? "On" : "Off");
 }
 
@@ -473,4 +477,3 @@ loadconfig(int argc, char **argv, cfg_t *config)
 
   return(TRUE);
 }
-
