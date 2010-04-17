@@ -77,6 +77,9 @@ __RCSID("$Id$");
 #  include <ndir.h>
 # endif
 #endif
+# if HAVE_SYSLOG_H
+#include <syslog.h>
+#endif
 
 #include "compat.h"
 #include "strutil.h"
@@ -108,7 +111,7 @@ struct proposal {
 static int getrawchar(FILE *fp);
 static struct buffer *getcompressed(FILE *fp);
 static struct proposal *parse_proposal(char *propline);
-static int b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist);
+static int b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **oproplist);
 static void printprop(struct proposal *prop);
 static void putcompressed(struct proposal *prop, FILE *fp);
 static char *tgetline(FILE *fp, int terminator, int ignore);
@@ -122,7 +125,7 @@ getrawchar(FILE *fp)
   resettimeout();
   c = fgetc(fp);
   if (c == EOF) {
-    fprintf(stderr, "%s: lost connection in getrawchar()\n", getprogname());
+    print_log(LOG_ERR, "lost connection in getrawchar()");
     exit(EXIT_FAILURE);
   }
   return c;
@@ -170,7 +173,7 @@ getcompressed(FILE *fp)
     buffer_free(buf);
     return NULL;
   }
-  fprintf(stderr, "%s: title: %s\n", getprogname(), title);
+  print_log(LOG_DEBUG, "title: %s", title);
   offset[6] = '\0';
   for (i = 0; i < 6; i++) {
     c = getrawchar(fp);
@@ -188,7 +191,7 @@ getcompressed(FILE *fp)
     buffer_free(buf);
     return NULL;
   }
-  fprintf(stderr, "%s: offset: %s\n", getprogname(), offset);
+  print_log(LOG_DEBUG,"offset: %s",  offset);
   if (len != 0) {
     buffer_free(buf);
     return NULL;
@@ -202,12 +205,12 @@ getcompressed(FILE *fp)
     c = getrawchar(fp);
     switch (c) {
     case CHRSTX:
-      fprintf(stderr, "%s: STX\n", getprogname());
+      print_log(LOG_DEBUG,"STX");
       len = getrawchar(fp);
       if (len == 0) {
 	len = 256;
       }
-      fprintf(stderr, "%s: len %d\n", getprogname(), len);
+      print_log(LOG_DEBUG,"len %d", len);
       while (len--) {
 	c = getrawchar(fp);
 	if (buffer_addchar(buf, c) == EOF) {
@@ -218,18 +221,18 @@ getcompressed(FILE *fp)
       }
       break;
     case CHREOT:
-      fprintf(stderr, "%s: EOT\n", getprogname());
+      print_log(LOG_DEBUG,"EOT");
       c = getrawchar(fp);
       cksum = (cksum + c) % 256;
       if (cksum != 0) {
-	fprintf(stderr, "%s: bad cksum\n", getprogname());
+        print_log(LOG_ERR, "bad cksum");
 	buffer_free(buf);
 	return NULL;
       }
       return buf;
       break;
     default:
-      fprintf(stderr, "%s: unexpected character in compressed stream\n", getprogname());
+      print_log(LOG_ERR,"unexpected character in compressed stream");
       buffer_free(buf);
       return NULL;
       break;
@@ -253,14 +256,14 @@ putcompressed(struct proposal *prop, FILE *fp)
   strlcpy((char *) title, prop->title, sizeof(title));
   snprintf((char *) offset, sizeof(offset), "%lu", prop->offset);
 
-  fprintf(stderr, "%s: transmitting [%s] [offset %s]\n", getprogname(), title, offset);
+  print_log(LOG_DEBUG,"transmitting [%s] [offset %s]",  title, offset);
 
   len = strlen((const char *) title) + strlen((const char *) offset) + 2;
 
   /* ** Send hearder */
   resettimeout();
   if (fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL) == -1) {
-    perror("fprintf()");
+    print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
     exit(EXIT_FAILURE);
   }
   fflush(fp);
@@ -269,49 +272,28 @@ putcompressed(struct proposal *prop, FILE *fp)
   cp = prop->cbuf->data;
 
   if (rem < 6) {
-    fprintf(stderr, "%s: invalid compressed data\n", getprogname());
+    print_log(LOG_ERR,"invalid compressed data");
     exit(EXIT_FAILURE);
   }
-
-#if 0 /* why??? */
-  {
-    int i;
-
-    resettimeout();
-    if (fprintf(fp, "%c%c", CHRSTX, 6) == -1) {
-      perror("fprintf()");
-      exit(EXIT_FAILURE);
-    }
-    for (i = 0; i < 6; i++) {
-      resettimeout();
-      cksum += *cp;
-      if (fputc(*cp++, fp) == EOF) {
-        perror("fputc()");
-        exit(EXIT_FAILURE);
-      }
-    }
-    rem -= 6;
-  }
-#endif /* why */
 
   cp += prop->offset;
   rem -= (long)prop->offset;
 
   if (rem < 0) {
-    fprintf(stderr, "%s: invalid offset\n", getprogname());
+    print_log(LOG_ERR,"invalid offset");
     exit(EXIT_FAILURE);
   }
 
   /* ** Send message */
   while (rem > 0) {
-    fprintf(stderr, "%s: ... %ld\n", getprogname(), rem);
+    print_log(LOG_DEBUG,"... %ld", rem);
     if (rem > 250) {
       msglen = 250;
     } else {
       msglen = (unsigned char)rem;
     }
     if (fprintf(fp, "%c%c", CHRSTX, msglen) == -1) {
-      perror("fprintf()");
+      print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
       exit(EXIT_FAILURE);
     }
 
@@ -320,7 +302,7 @@ putcompressed(struct proposal *prop, FILE *fp)
       resettimeout();
       cksum += *cp;
       if (fputc(*cp++, fp) == EOF) {
-        perror("fputc()");
+        print_log(LOG_ERR, "fputc - %s", strerror(errno));
         exit(EXIT_FAILURE);
       }
       rem--;
@@ -332,7 +314,7 @@ putcompressed(struct proposal *prop, FILE *fp)
   cksum = -cksum & 0xff;
   resettimeout();
   if (fprintf(fp, "%c%c", CHREOT, cksum) == -1) {
-    perror("fprintf()");
+    print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
     exit(EXIT_FAILURE);
   }
   fflush(fp);
@@ -357,20 +339,20 @@ parse_proposal(char *propline)
   switch (prop.code) {
   case 'C':
     if (*cp++ != ' ') {
-      fprintf(stderr, "%s: malformed proposal 1\n", getprogname());
+      print_log(LOG_ERR,"malformed proposal 1");
       return NULL;
     }
     prop.type = *cp++;
     if ((prop.type != 'C') && (prop.type != 'E')) {
-      fprintf(stderr, "%s: malformed proposal 2\n", getprogname());
+      print_log(LOG_ERR,"malformed proposal 2");
       return NULL;
     }
     if (*cp++ != 'M') {
-      fprintf(stderr, "%s: malformed proposal 3\n", getprogname());
+      print_log(LOG_ERR," malformed proposal 3");
       return NULL;
     }
     if (*cp++ != ' ') {
-      fprintf(stderr, "%s: malformed proposal 4\n", getprogname());
+      print_log(LOG_ERR,"malformed proposal 4");
       return NULL;
     }
     for (i = 0; i < MID_MAXLEN; i++) {
@@ -381,26 +363,26 @@ parse_proposal(char *propline)
 	break;
       } else {
 	if (prop.mid[i] == '\0') {
-	  fprintf(stderr, "%s: malformed proposal 5\n", getprogname());
+          print_log(LOG_ERR,"malformed proposal 5");
 	  return NULL;
 	}
       }
     }
     prop.mid[MID_MAXLEN] = '\0';
     if (*cp++ != ' ') {
-      fprintf(stderr, "%s: malformed proposal 6\n", getprogname());
+      print_log(LOG_ERR,"malformed proposal 6");
       return NULL;
     }
     prop.usize = strtoul(cp, &endp, 10);
     cp = endp;
     if (*cp++ != ' ') {
-      fprintf(stderr, "%s: malformed proposal 7\n", getprogname());
+      print_log(LOG_ERR,"malformed proposal 7");
       return NULL;
     }
     prop.csize = (unsigned int) strtoul(cp, &endp, 10);
     cp = endp;
     if (*cp != ' ') {
-      fprintf(stderr, "%s: malformed proposal 8\n", getprogname());
+      print_log(LOG_ERR,"malformed proposal 8");
       return NULL;
     }
     break;
@@ -412,7 +394,7 @@ parse_proposal(char *propline)
     prop.usize = 0;
     prop.csize = 0;
     break;
-    fprintf(stderr, "%s: unsupported proposal type %c\n", getprogname(), prop.code);
+    print_log(LOG_ERR,"unsupported proposal type %c", prop.code);
     break;
   }
   prop.next = NULL;
@@ -427,9 +409,8 @@ parse_proposal(char *propline)
 static void
 printprop(struct proposal *prop)
 {
-  fprintf(stderr,
-	  "%s: proposal code %c type %c mid %s usize %lu csize %lu next %p path %s ubuf %p cbuf %p\n",
-	  getprogname(),
+  print_log(LOG_DEBUG,
+	  "proposal code %c type %c mid %s usize %lu csize %lu next %p path %s ubuf %p cbuf %p",
 	  prop->code,
 	  prop->type,
 	  prop->mid,
@@ -445,17 +426,17 @@ static void
 dodelete(struct proposal **oproplist, struct proposal **nproplist)
 {
   if ((oproplist == NULL) || (nproplist == NULL)) {
-    fprintf(stderr, "%s: bad call to dodelete()\n", getprogname());
+    print_log(LOG_ERR,"bad call to dodelete()");
     exit(EXIT_FAILURE);
   }
   while (*oproplist != *nproplist) {
     if (((*oproplist)->delete) && ((*oproplist)->path)) {
-      fprintf(stderr, "%s: DELETING PROPOSAL: ", getprogname());
+      print_log(LOG_ERR,"DELETING PROPOSAL: ");
       printprop(*oproplist);
 #if 1
       if(unlink((*oproplist)->path) < 0) {
-        fprintf(stderr, "%s: Can't delete file: %s: %s\n",
-                getprogname(), (*oproplist)->path, strerror(errno));
+        print_log(LOG_ERR,"Can't delete file: %s: %s",
+                (*oproplist)->path, strerror(errno));
       }
 #endif
       (*oproplist)->delete = 0;
@@ -479,18 +460,18 @@ prepare_outbound_proposals(void)
 
   opropnext = &oproplist;
   if (chdir(WL2K_OUTBOX) != 0) {
-    fprintf(stderr, "%s: chdir(%s): %s\n", getprogname(), WL2K_OUTBOX, strerror(errno));
+    print_log(LOG_ERR,"chdir(%s): %s", WL2K_OUTBOX, strerror(errno));
     exit(EXIT_FAILURE);
   }
   if ((dirp = opendir(".")) == NULL) {
-    perror("opendir()");
+    print_log(LOG_ERR,"opendir() -%s", strerror(errno));
     exit(EXIT_FAILURE);
   }
   while ((dp = readdir(dirp)) != NULL) {
     if (NAMLEN(dp) > MID_MAXLEN) {
-      fprintf(stderr,
-	      "%s: warning: skipping bad filename %s in outbox directory %s\n",
-	      getprogname(), dp->d_name, WL2K_OUTBOX);
+      print_log(LOG_ERR,
+                "warning: skipping bad filename %s in outbox directory %s",
+                dp->d_name, WL2K_OUTBOX);
       continue;
     }
     strlcpy(name, dp->d_name, MID_MAXLEN + 1);
@@ -502,7 +483,7 @@ prepare_outbound_proposals(void)
       continue;
     }
     if ((prop = malloc(sizeof(struct proposal))) == NULL) {
-      perror("malloc()");
+      print_log(LOG_ERR,"malloc() - %s",strerror(errno));
       exit(EXIT_FAILURE);
     }
     prop->code = 'C';
@@ -511,13 +492,13 @@ prepare_outbound_proposals(void)
     prop->path = strdup(name);
 
     if ((prop->ubuf = buffer_readfile(prop->path)) == NULL) {
-      perror(prop->path);
+      print_log(LOG_ERR,"%s - %s", prop->path, strerror(errno));
       exit(EXIT_FAILURE);
     }
     prop->usize = prop->ubuf->dlen;
 
     if ((prop->cbuf = version_1_Encode(prop->ubuf)) == NULL) {
-      perror("version_1_Encode()");
+      print_log(LOG_ERR,"version_1_Encode() %s", strerror(errno));
       exit(EXIT_FAILURE);
     }
 
@@ -555,8 +536,7 @@ prepare_outbound_proposals(void)
   }
   closedir(dirp);
 
-  printf("---");
-  printf("%s\n", oproplist ? " outbound proposal list" : "");
+  print_log(LOG_DEBUG,"---\n%s", oproplist ? " outbound proposal list" : "");
 
   for (prop = oproplist; prop != NULL; prop = prop->next) {
     printprop(prop);
@@ -565,8 +545,17 @@ prepare_outbound_proposals(void)
   return oproplist;
 }
 
+/*
+ * returns 0
+ *   - after putting compressed
+ *   - outputting FF
+ *
+ * returns -1
+ *   - after outputting FQ
+ *
+ */
 static int
-b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
+b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **oproplist)
 {
   int i;
   char *sp;
@@ -575,6 +564,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
   char *line;
   struct proposal *prop;
   char *endp;
+
 
   if (*oproplist) {
     prop = *oproplist;
@@ -585,13 +575,13 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 		  prop->mid,
 		  prop->usize,
 		  prop->csize) == -1) {
-	perror("asprintf()");
+        print_log(LOG_ERR, "asprintf() - %s", strerror(errno));
 	exit(EXIT_FAILURE);
       }
-      printf(">%s\n", sp);
+      print_log(LOG_DEBUG, ">%s", sp);
       resettimeout();
-      if (fprintf(fp, "%s", sp) == -1) {
-	perror("fprintf()");
+      if (fprintf(ofp, "%s", sp) == -1) {
+        print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
 	exit(EXIT_FAILURE);
       }
       for (cp = (unsigned char *) sp; *cp; cp++) {
@@ -603,20 +593,22 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
       }
     }
     cksum = -cksum & 0xff;
-    printf(">F> %2X\n", cksum);
+    print_log(LOG_DEBUG, ">F> %2X", cksum);
     resettimeout();
-    if (fprintf(fp, "F> %2X\r", cksum) == -1) {
-      perror("fprintf()");
+    if (fprintf(ofp, "F> %2X\r", cksum) == -1) {
+      print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
       exit(EXIT_FAILURE);
     }
-    if ((line = wl2kgetline(fp)) == NULL) {
-      fprintf(stderr, "%s: connection closed\n", getprogname());
+    fflush(ofp);
+
+    if ((line = wl2kgetline(ifp)) == NULL) {
+      print_log(LOG_ERR, "connection closed");
       exit(EXIT_FAILURE);
     }
-    printf("<%s\n", line);
+    print_log(LOG_DEBUG, "<%s", line);
 
     if (!strbegins(line, "FS ")) {
-      fprintf(stderr, "%s: b2 protocol error 1\n", getprogname());
+      print_log(LOG_ERR, "B2 protocol error 1");
       exit(EXIT_FAILURE);
     }
     prop = *oproplist;
@@ -627,7 +619,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     }
     while (*cp && prop) {
       if (i == PROPLIMIT) {
-	fprintf(stderr, "%s: B2 protocol error 2\n", getprogname());
+        print_log(LOG_ERR, "B2 protocol error 2");
 	exit(EXIT_FAILURE);
       }
       prop->accepted = 0;
@@ -654,7 +646,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
 	cp = ((unsigned char *) endp) - 1;
 	break;
       default:
-	fprintf(stderr, "%s: B2 protocol error 3\n", getprogname());
+        print_log(LOG_ERR, "B2 protocol error 3");
 	exit(EXIT_FAILURE);
 	break;
       }
@@ -665,7 +657,7 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     prop = *oproplist;
     for (i = 0; i < PROPLIMIT; i++) {
       if(prop->delete == 0) {
-        putcompressed(prop, fp);
+        putcompressed(prop, ofp);
         prop->delete = 1;
       }
       if ((prop = prop->next) == NULL) {
@@ -675,20 +667,22 @@ b2outboundproposal(FILE *fp, char *lastcommand, struct proposal **oproplist)
     *oproplist = prop;
     return 0;
   } else if (strbegins(lastcommand, "FF")) {
-    printf(">FQ\n");
+    print_log(LOG_DEBUG, ">FQ");
     resettimeout();
-    if (fprintf(fp, "FQ\r") == -1) {
-      perror("fprintf()");
+    if (fprintf(ofp, "FQ\r") == -1) {
+      print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
       exit(EXIT_FAILURE);
     }
+    fflush(ofp);
     return -1;
   } else {
-    printf(">FF\n");
+    print_log(LOG_DEBUG, ">FF");
     resettimeout();
-    if (fprintf(fp, "FF\r") == -1) {
-      perror("fprintf()");
+    if (fprintf(ofp, "FF\r") == -1) {
+      print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
       exit(EXIT_FAILURE);
     }
+    fflush(ofp);
     return 0;
   }
 }
@@ -701,7 +695,7 @@ tgetline(FILE *fp, int terminator, int ignore)
 
   if (buf == NULL) {
     if ((buf = buffer_new()) == NULL) {
-      perror("buffer_new()");
+      print_log(LOG_ERR, "buffer_new() - %s", strerror(errno));
       exit(EXIT_FAILURE);
     }
   } else {
@@ -714,13 +708,13 @@ tgetline(FILE *fp, int terminator, int ignore)
     }
     if (c == terminator) {
       if (buffer_addchar(buf, '\0') == -1) {
-	perror("buffer_addchar()");
+        print_log(LOG_ERR, "buffer_addchar()- %s",  strerror(errno));
 	exit(EXIT_FAILURE);
       }
       return (char *) buf->data;
     }
     if ((c != ignore) && buffer_addchar(buf, c) == -1) {
-      perror("buffer_addchar()");
+      print_log(LOG_ERR, "buffer_addchar() - %s",  strerror(errno));
       exit(EXIT_FAILURE);
     }
   }
@@ -737,12 +731,12 @@ wl2kgetline(FILE *fp)
 }
 
 void
-wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
+wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress)
 {
   char *cp;
   int proposals = 0;
   int proposalcksum = 0;
-  int i;
+  int i,j;
   char sidbuf[32];
   char *inboundsid = NULL;
   char *inboundsidcodes = NULL;
@@ -754,15 +748,18 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
   unsigned long sentcksum;
   char *endp;
   int opropcount = 0;
+  long unsigned int oprop_msgsize = 0;
   char responsechar;
   FILE *smfp;
   struct buffer *mimebuf;
   int c;
   int r;
   char *command;
+  char pbuf[16];
+
 
   if (expire_mids() == -1) {
-    fprintf(stderr, "%s: expire_mids() failed\n", getprogname());
+    print_log(LOG_ERR, "expire_mids() failed");
     exit(EXIT_FAILURE);
   }
 
@@ -770,64 +767,106 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
 
   for (prop = oproplist; prop; prop = prop->next) {
     opropcount++;
+    oprop_msgsize += prop->usize;
   }
 
-  while ((line = wl2kgetline(fp)) != NULL) {
-    printf("<%s\n", line);
+#ifdef WL2KAX25_DAEMON
+  {
+    char *sp;
+    resettimeout();
+
+    if(opropcount) {
+      /* Not sure how to calc this total message size??? */
+      if(asprintf(&sp,"%s de %s QTC %d msg %lu char>\r",
+                  yourcall, mycall, opropcount, oprop_msgsize+18) == -1) {
+        print_log(LOG_ERR, "asprintf() - %s", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+    } else {
+      if (fputs("No Traffic\r",ofp) == -1) {
+        print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+
+      if(asprintf(&sp,"%s de %s>\r",  yourcall, mycall) == -1) {
+        print_log(LOG_ERR, "asprintf() - %s", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+    }
+    print_log(LOG_DEBUG,"%s", sp);
+
+    if (fprintf(ofp, "%s", sp) == -1) {
+      print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    fflush(ofp);
+    free(sp);
+  }
+#endif /* WL2KAX25_DAEMON */
+
+  while ((line = wl2kgetline(ifp)) != NULL) {
+    print_log(LOG_DEBUG, "<%s", line);
     if (strchr(line, '[')) {
       inboundsid = strdup(line);
       if ((cp = strrchr(inboundsid, '-')) == NULL) {
-	fprintf(stderr, "%s: bad sid %s\n", getprogname(), inboundsid);
-	exit(EXIT_FAILURE);
+        print_log(LOG_ERR, "bad sid %s", inboundsid);
+        exit(EXIT_FAILURE);
       }
       inboundsidcodes = strdup(cp);
       if ((cp = strrchr(inboundsidcodes, ']')) == NULL) {
-	fprintf(stderr, "%s: bad sid %s\n", getprogname(), inboundsid);
-	exit(EXIT_FAILURE);
+        print_log(LOG_ERR, "bad sid %s", inboundsid);
+        exit(EXIT_FAILURE);
       }
       *cp = '\0';
       strupper(inboundsidcodes);
       if (strstr(inboundsidcodes, "B2F") == NULL) {
-	fprintf(stderr, "%s: sid %s does not support B2F protocol\n", getprogname(), inboundsid);
-	exit(EXIT_FAILURE);
+        print_log(LOG_ERR,  "sid %s does not support B2F protocol", inboundsid);
+        exit(EXIT_FAILURE);
       }
-      fprintf(stderr, "%s: sid %s inboundsidcodes %s\n", getprogname(), inboundsid, inboundsidcodes);
-
+      print_log(LOG_DEBUG, "sid %s inboundsidcodes %s", inboundsid, inboundsidcodes);
+#ifdef WL2KAX25_DAEMON
+    } else if (strbegins(line, ";")) {
+      break;
+#endif /* WL2KAX25_DAEMON */
     } else if (line[strlen(line) - 1] == '>') {
       if (inboundsidcodes == NULL) {
-	fprintf(stderr, "%s: inboundsidcodes not set\n", getprogname());
-	exit(EXIT_FAILURE);
+        print_log(LOG_ERR, "inboundsidcodes not set");
+        exit(EXIT_FAILURE);
       }
       if (strchr(inboundsidcodes, 'I')) {
-	printf(">; %s DE %s QTC %d\n", yourcall, mycall, opropcount);
-	resettimeout();
-	if (fprintf(fp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount) == -1) {
-	  perror("fprintf()");
-	  exit(EXIT_FAILURE);
-	}
+        print_log(LOG_DEBUG, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
+        resettimeout();
+        if (fprintf(ofp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount) == -1) {
+          print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+          exit(EXIT_FAILURE);
+        }
       }
       sprintf(sidbuf, "[PaclinkUNIX-%s-B2FIHM$]", PACKAGE_VERSION);
-      printf(">%s\n", sidbuf);
+      print_log(LOG_DEBUG, ">%s", sidbuf);
       resettimeout();
-      if (fprintf(fp, "%s\r", sidbuf) == -1) {
-	perror("fprintf()");
-	exit(EXIT_FAILURE);
+      if (fprintf(ofp, "%s\r", sidbuf) == -1) {
+        print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+        exit(EXIT_FAILURE);
       }
       break;
     }
   }
   if (line == NULL) {
-    fprintf(stderr, "%s: Lost connection. 1\n", getprogname());
+    print_log(LOG_ERR, "Lost connection. 1");
     exit(EXIT_FAILURE);
   }
 
   nproplist = oproplist;
-  if (b2outboundproposal(fp, line, &nproplist) != 0) {
+#ifndef  WL2KAX25_DAEMON
+  if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
     return;
   }
+#endif  /* NOT WL2KAX25_DAEMON */
 
-  while ((line = wl2kgetline(fp)) != NULL) {
-    printf("<%s\n", line);
+  fflush(ofp);
+
+  while ((line = wl2kgetline(ifp)) != NULL) {
+    print_log(LOG_DEBUG, "<%s", line);
     if (strbegins(line, ";")) {
       /* do nothing */
     } else if (strlen(line) == 0) {
@@ -835,24 +874,34 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
     } else if (strbegins(line, "FC")) {
       dodelete(&oproplist, &nproplist);
       for (cp = line; *cp; cp++) {
-	proposalcksum += (unsigned char) *cp;
+        proposalcksum += (unsigned char) *cp;
       }
       proposalcksum += '\r'; /* bletch */
       if (proposals == PROPLIMIT) {
-	fprintf(stderr, "%s: too many proposals\n", getprogname());
-	exit(EXIT_FAILURE);
+        print_log(LOG_ERR, "too many proposals");
+        exit(EXIT_FAILURE);
       }
       if ((prop = parse_proposal(line)) == NULL) {
-	fprintf(stderr, "%s: failed to parse proposal\n", getprogname());
-	exit(EXIT_FAILURE);
+        print_log(LOG_ERR, "wl2kexchange() failed to parse proposal");
+        exit(EXIT_FAILURE);
       }
       memcpy(&ipropary[proposals], prop, sizeof(struct proposal));
       printprop(&ipropary[proposals]);
       proposals++;
     } else if (strbegins(line, "FF")) {
       dodelete(&oproplist, &nproplist);
-      if (b2outboundproposal(fp, line, &nproplist) != 0) {
-	return;
+      if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+#ifdef  WL2KAX25_DAEMON
+        print_log(LOG_DEBUG, ">; %s de %s SK", yourcall, mycall);
+
+        resettimeout();
+        if (fprintf(ofp, "; %s de %s SK\r", yourcall, mycall) == -1) {
+          print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
+          exit(EXIT_FAILURE);
+        }
+        fflush(ofp);
+#endif  /* NOT WL2KAX25_DAEMON */
+        return;
       }
     } else if (strbegins(line, "B")) {
       return;
@@ -863,127 +912,156 @@ wl2kexchange(char *mycall, char *yourcall, FILE *fp, char *emailaddress)
       proposalcksum = (-proposalcksum) & 0xff;
       sentcksum = strtoul(line + 2, &endp, 16);
 
-      fprintf(stderr, "%s: sentcksum=%lX proposalcksum=%lX\n", getprogname(), sentcksum, (unsigned long) proposalcksum);
+      print_log(LOG_DEBUG, "sentcksum=%lX proposalcksum=%lX", sentcksum, (unsigned long) proposalcksum);
       if (sentcksum != (unsigned long) proposalcksum) {
-	fprintf(stderr, "%s: proposal cksum mismatch\n", getprogname());
-	exit(EXIT_FAILURE);
+        print_log(LOG_ERR, "proposal cksum mismatch");
+        exit(EXIT_FAILURE);
       }
 
-      fprintf(stderr, "%s: %d proposal%s received\n", getprogname(), proposals, ((proposals == 1) ? "" : "s"));
+      print_log(LOG_DEBUG, "%d proposal%s received", proposals, ((proposals == 1) ? "" : "s"));
 
       if (proposals != 0) {
-	printf(">FS ");
-	resettimeout();
-	if (fprintf(fp, "FS ") == -1) {
-	  perror("fprintf()");
-	  exit(EXIT_FAILURE);
-	}
-	for (i = 0; i < proposals; i++) {
-	  ipropary[i].accepted = 0;
-	  if (ipropary[i].code == 'C') {
-	    if (check_mid(ipropary[i].mid)) {
-	      responsechar = 'N';
-	    } else {
-	      responsechar = 'Y';
-	      ipropary[i].accepted = 1;
-	    }
-	  } else {
-	    responsechar = 'L';
-	  }
-	  putchar(responsechar);
-	  resettimeout();
-	  if (fputc(responsechar, fp) == EOF) {
-	    perror("fputc()");
-	    exit(EXIT_FAILURE);
-	  }
-	}
-	printf("\n");
-	resettimeout();
-	if (fprintf(fp, "\r") == -1) {
-	  perror("fprintf()");
-	  exit(EXIT_FAILURE);
-	}
+        strcpy(pbuf, "FS ");
+        j = (int)strlen(pbuf); /* used to build up proposal response */
 
-	for (i = 0; i < proposals; i++) {
-	  if (ipropary[i].accepted != 1) {
-	    continue;
-	  }
+        for (i = 0; i < proposals; i++) {
+          ipropary[i].accepted = 0;
+          if (ipropary[i].code == 'C') {
+            if (check_mid(ipropary[i].mid)) {
+              responsechar = 'N';
+            } else {
+              responsechar = 'Y';
+              ipropary[i].accepted = 1;
+            }
+          } else {
+            responsechar = 'L';
+          }
+          pbuf[j++] = responsechar;
+        }
+        pbuf[j] = '\0';
+        print_log(LOG_DEBUG, ">%s", pbuf);
 
-	  if ((ipropary[i].cbuf = getcompressed(fp)) == NULL) {
-	    fprintf(stderr, "%s: error receiving compressed data\n", getprogname());
-	    exit(EXIT_FAILURE);
-	  }
+        resettimeout();
+        if (fprintf(ofp, "%s\r", pbuf) == -1) {
+          print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
+          exit(EXIT_FAILURE);
+        }
+        fflush(ofp);
 
-	  fprintf(stderr, "%s: extracting...\n", getprogname());
-	  if ((ipropary[i].ubuf = version_1_Decode(ipropary[i].cbuf)) == NULL) {
-	    perror("version_1_Decode()");
-	    exit(EXIT_FAILURE);
-	  }
+        for (i = 0; i < proposals; i++) {
+          if (ipropary[i].accepted != 1) {
+            continue;
+          }
+
+          if ((ipropary[i].cbuf = getcompressed(ifp)) == NULL) {
+            print_log(LOG_ERR, "error receiving compressed data\n");
+            exit(EXIT_FAILURE);
+          }
+
+          print_log(LOG_ERR, "extracting...");
+          if ((ipropary[i].ubuf = version_1_Decode(ipropary[i].cbuf)) == NULL) {
+            print_log(LOG_ERR, "version_1_Decode() - %s",strerror(errno));
+            exit(EXIT_FAILURE);
+          }
 
 #if 0
-	  if (buffer_writefile(ipropary[i].mid, ipropary[i].ubuf) != 0) {
-	    perror("buffer_writefile()");
-	    exit(EXIT_FAILURE);
-	  }
+          if (buffer_writefile(ipropary[i].mid, ipropary[i].ubuf) != 0) {
+            print_log(LOG_ERR, "buffer_writefile - %s",strerror(errno));
+            exit(EXIT_FAILURE);
+          }
 #endif
 
-	  buffer_rewind(ipropary[i].ubuf);
-	  if ((mimebuf = wl2mime(ipropary[i].ubuf)) == NULL) {
-	    fprintf(stderr, "%s: wm2mime() failed\n", getprogname());
-	    exit(EXIT_FAILURE);
-	  }
-	  fflush(NULL);
+          buffer_rewind(ipropary[i].ubuf);
+          if ((mimebuf = wl2mime(ipropary[i].ubuf)) == NULL) {
+            print_log(LOG_ERR, "wm2mime() failed");
+            exit(EXIT_FAILURE);
+          }
+          /* Flush all open output streams */
+          fflush(NULL);
 
-	  fprintf(stderr, "%s: calling sendmail for delivery\n", getprogname());
-	  if (asprintf(&command, "%s %s %s", SENDMAIL, SENDMAIL_FLAGS, emailaddress) == -1) {
-	    perror("asprintf()");
-	    exit(EXIT_FAILURE);
-	  }
-	  if ((smfp = popen(command, "w")) == NULL) {
-	    perror("popen()");
-	    exit(EXIT_FAILURE);
-	  }
-	  free(command);
-	  buffer_rewind(mimebuf);
-	  while ((c = buffer_iterchar(mimebuf)) != EOF) {
-	    if (putc(c, smfp) == EOF) {
-	      exit(EXIT_FAILURE);
-	    }
-	  }
-	  if ((r = pclose(smfp)) != 0) {
-	    if (r < 0) {
-	      perror("pclose()");
-	    } else {
-	      fprintf(stderr, "%s: sendmail failed\n", getprogname());
-	    }
-	    exit(EXIT_FAILURE);
-	  }
-	  fprintf(stderr, "%s: delivery completed\n", getprogname());
-	  record_mid(ipropary[i].mid);
-	  buffer_free(ipropary[i].ubuf);
-	  ipropary[i].ubuf = NULL;
-	  buffer_free(ipropary[i].cbuf);
-	  ipropary[i].cbuf = NULL;
-	  fprintf(stderr, "%s: Finished!\n", getprogname());
-	}
+          if (asprintf(&command, "%s %s %s", SENDMAIL, SENDMAIL_FLAGS, emailaddress) == -1) {
+            print_log(LOG_ERR, "asprintf() - %s",strerror(errno));
+            exit(EXIT_FAILURE);
+          }
+          print_log(LOG_DEBUG, "calling sendmail for delivery: %s", command);
+
+          if ((smfp = popen(command, "w")) == NULL) {
+            print_log(LOG_ERR, "popen() - %s",strerror(errno));
+            exit(EXIT_FAILURE);
+          }
+          free(command);
+          buffer_rewind(mimebuf);
+          while ((c = buffer_iterchar(mimebuf)) != EOF) {
+            if (putc(c, smfp) == EOF) {
+              exit(EXIT_FAILURE);
+            }
+          }
+          if ((r = pclose(smfp)) != 0) {
+            if (r < 0) {
+              print_log(LOG_ERR, "pclose() - %s", strerror(errno));
+#ifdef  WL2KAX25_DAEMON
+              /* exception for "no child process" */
+              if(errno != ECHILD)
+#endif /*   WL2KAX25_DAEMON */
+                { exit(EXIT_FAILURE); }
+            } else {
+              print_log(LOG_ERR, "sendmail failed - %s", strerror(errno));
+              exit(EXIT_FAILURE);
+            }
+          }
+          print_log(LOG_DEBUG, "delivery completed");
+          record_mid(ipropary[i].mid);
+          buffer_free(ipropary[i].ubuf);
+          ipropary[i].ubuf = NULL;
+          buffer_free(ipropary[i].cbuf);
+          ipropary[i].cbuf = NULL;
+          print_log(LOG_DEBUG, "Finished!");
+        }
       }
       proposals = 0;
       proposalcksum = 0;
-      if (b2outboundproposal(fp, line, &nproplist) != 0) {
-	return;
+      if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+        return;
       }
     } else if (line[strlen(line - 1)] == '>') {
       dodelete(&oproplist, &nproplist);
-      if (b2outboundproposal(fp, line, &nproplist) != 0) {
-	return;
+      if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+        return;
       }
     } else {
-      fprintf(stderr, "%s: unrecognized command (len %lu): /%s/\n", getprogname(), (unsigned long) strlen(line), line);
+      print_log(LOG_ERR, "unrecognized command (len %lu): /%s/",
+                (unsigned long) strlen(line), line);
       exit(EXIT_FAILURE);
     }
   }
   if (line == NULL) {
-    fprintf(stderr, "%s: Lost connection. 4\n", getprogname());
+    print_log(LOG_ERR, "wl2kexchange(), Lost connection. 4");
     exit(EXIT_FAILURE);
   }
+}
+
+/*
+ * Print an error message to either stderr or syslog
+ */
+void
+print_log(int priority, const char *fmt, ...)
+{
+  va_list args;
+  char *sp;
+
+  va_start(args, fmt);
+
+  if (vasprintf(&sp, fmt, args) < 0) {
+    syslog(LOG_ERR, "vasprintf() - %s", strerror(errno));
+    va_end(args);
+    return;
+  }
+
+#ifdef  WL2KAX25_DAEMON
+  syslog(priority, "%s", sp);
+#else
+  fprintf(stderr, "%s: %s\n",  getprogname(), sp);
+#endif /*   WL2KAX25_DAEMON */
+
+  va_end(args);
 }
