@@ -42,6 +42,9 @@ __RCSID("$Id$");
 #ifdef HAVE_SIGNAL_H
 # include <signal.h>
 #endif
+#ifdef HAVE_SYSLOG_H
+#include <syslog.h>
+#endif
 
 #include "compat.h"
 #include "timeout.h"
@@ -53,6 +56,7 @@ sigalrm(int sig ATTRIBUTE_UNUSED)
 {
   const char msg[] = "Timed out, exiting!\n";
   write(STDERR_FILENO, msg, sizeof(msg));
+  syslog(LOG_ERR, "Timed out, exiting!");
   _exit(EXIT_FAILURE);
 }
 
