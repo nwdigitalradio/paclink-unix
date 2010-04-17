@@ -1,5 +1,11 @@
 $Id$
 
+Sat Apr 17 08:46:32 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Fixed version display (-v) & config display (-C) when wl2kax25d
+      is run from a console. Normally wl2kax25d is run from ax25 daemon.
+      File modified: wl2kax25d.c
+
 Fri Apr 16 19:01:52 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Add daemon function to answer Airmail requests by radio.
@@ -44,7 +50,7 @@ Wed Apr  7 14:41:55 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Fix for bug # 2983467 Protocol not working properly for FS NNN
     * Add a check for prop->delete before calling putcompressed().
-      File modified: wl2k.c 2983467
+      File modified: wl2k.c
 
 Sun Mar 14 09:45:46 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
