@@ -1,5 +1,31 @@
 $Id$
 
+Fri Apr 16 19:01:52 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Add daemon function to answer Airmail requests by radio.
+    * Change wl2kexchange() call to include input & output stream pointers.
+    * Change all stderr output to syslog output
+    * Added wl2kax25d to compile targets.
+    * Added WL2KAX25_DAEMON conditional flag.
+    * Added syslog.h to AC_CHECK_HEADERS.
+      Files modified:
+        configure.ac
+        Makefile.am
+        wl2kax25.c
+        timeout.c
+        mime2wl.c
+        wl2k.c
+        wl2k.h
+        wl2kserial.c
+        wl2ktelnet.c
+      File added: wl2kax25d.c
+
+    * Add ability to parse quoted strings with spaces, for welcome message.
+    * Add grid square locator & welcome message config variables.
+      Files modified:    
+        conf.c
+        wl2k.conf.dist
+
 Wed Apr  7 15:55:01 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Change config->timeoutsecs to unsigned int to match alarm(arg).
