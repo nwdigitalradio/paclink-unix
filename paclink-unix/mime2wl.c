@@ -63,8 +63,10 @@ __RCSID("$Id$");
 #if HAVE_FCNTL_H
 # include <fcntl.h>
 #endif
-
+#if HAVE_SYSLOG_H
 #include <syslog.h>
+#endif
+
 #include <unistd.h>
 #include <gmime/gmime.h>
 
@@ -190,12 +192,12 @@ address_cleanup(const char *addr)
   if (((a = strchr(p, '<')) != NULL)
       && ((b = strchr(a, '>')) != NULL)) {
     *b = '\0';
-    buffer_addstring(buf, a + 1);
+    buffer_addstring(buf, (unsigned char *)(a + 1));
   } else {
     if ((a = strchr(p, ' ')) != NULL) {
       *a = '\0';
     }
-    buffer_addstring(buf, p);
+    buffer_addstring(buf, (unsigned char *)p);
   }
   buffer_addchar(buf, '\0');
   clean = buffer_getstring(buf);
@@ -341,15 +343,15 @@ mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data
 	  fn = "attachment.bin";
 	}
       }
-      buffer_addstring(wl2k->fbuf, "File: ");
-      buffer_addstring(wl2k->fbuf, slen);
-      buffer_addstring(wl2k->fbuf, " ");
-      buffer_addstring(wl2k->fbuf, fn);
-      buffer_addstring(wl2k->fbuf, "\r\n");
+      buffer_addstring(wl2k->fbuf, (const unsigned char *)"File: ");
+      buffer_addstring(wl2k->fbuf, (const unsigned char *)slen);
+      buffer_addstring(wl2k->fbuf, (const unsigned char *)" ");
+      buffer_addstring(wl2k->fbuf, (const unsigned char *)fn);
+      buffer_addstring(wl2k->fbuf, (const unsigned char *)"\r\n");
     } else {
-      buffer_addstring(wl2k->hbuf, "Body: ");
-      buffer_addstring(wl2k->hbuf, slen);
-      buffer_addstring(wl2k->hbuf, "\r\n");
+      buffer_addstring(wl2k->hbuf, (const unsigned char *)"Body: ");
+      buffer_addstring(wl2k->hbuf, (const unsigned char *)slen);
+      buffer_addstring(wl2k->hbuf, (const unsigned char *)"\r\n");
     }
     free(slen);
 
