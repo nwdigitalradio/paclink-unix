@@ -15,7 +15,7 @@ clean-local:
 bin_PROGRAMS=lzhuf_1 wl2ktelnet wl2kserial
 
 if HAVE_AX25
-  bin_PROGRAMS+=wl2kax25
+  bin_PROGRAMS+=wl2kax25 wl2kax25d
 endif
 
 libexec_PROGRAMS=mail.wl2k
@@ -47,6 +47,9 @@ wl2ktelnet_SOURCES=wl2ktelnet.c strutil.c strutil.h timeout.c timeout.h wl2k.c w
 wl2kax25_SOURCES=wl2kax25.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h
 
 wl2kserial_SOURCES=wl2kserial.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h
+
+wl2kax25d_CPPFLAGS=-DWL2KAX25_DAEMON $(WL2K_CPPFLAGS)
+wl2kax25d_SOURCES=wl2kax25d.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h
 
 mail_wl2k_SOURCES=mail.wl2k.c buffer.c buffer.h mime2wl.c mime2wl.h mid.c mid.h strutil.c strutil.h timeout.c timeout.h compat.h conf.c conf.h
 
