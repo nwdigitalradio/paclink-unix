@@ -72,9 +72,11 @@ __RCSID("$Id$");
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif
-
 #if HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#if HAVE_SYSLOG_H
+#include <syslog.h>
 #endif
 
 #ifndef bool
@@ -220,7 +222,7 @@ main(int argc, char *argv[])
   }
   unsettimeout();
 
-  printf("Connected to AX.25 stack\n");
+  printf("Connected to AX.25 stack\n"); fflush(stdout);
   // End AX25 socket code
 
 	// Fork a process
@@ -336,9 +338,11 @@ main(int argc, char *argv[])
      *       user in case the SSID has been changed in the network.
      */
 
-    printf("Child process calling wl2kexchange()\n");
-		settimeout(cfg.timeoutsecs);
-		wl2kexchange(cfg.mycall, cfg.targetcall, fp, cfg.emailaddr);
+    if(cfg.bVerbose) {
+            printf("Child process calling wl2kexchange()\n");
+    }
+    settimeout(cfg.timeoutsecs);
+    wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr);
     fclose(fp);
     printf("Child process exiting\n");
     _exit(EXIT_SUCCESS);
@@ -370,7 +374,6 @@ usage(void)
 static void
 displayversion(void)
 {
-  char *verstr;
 
   printf("%s  %s ", getprogname(), PACKAGE_VERSION);
 
