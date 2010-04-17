@@ -74,11 +74,17 @@ conf_read(void)
       cp++;
     }
     if (*cp == '#') {
-            continue;
+      continue;
     }
     if (((cp = strtok_r(cp, "#", &last)))
-      && ((var = strtok_r(cp, "= \n", &last)))
-        && ((value = strtok_r(NULL, "= \n", &last)))) {
+        && ((var = strtok_r(cp, "= \n", &last)))
+        && ((value = strtok_r(NULL, "=\"\n", &last)))) {
+      if(isspace((unsigned char) *value)) {
+        value = strtok_r(NULL, "=\"\n", &last);
+        if(value == NULL) {
+          continue;
+        }
+      }
       *confnext = (struct conf *) malloc(sizeof(struct conf));
       if (*confnext == NULL) {
         printf("Out of memory\n");
