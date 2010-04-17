@@ -75,7 +75,7 @@ dnl =======================================================================
 dnl Checks for header files.
 dnl =======================================================================
 
-AC_CHECK_HEADERS([sys/errno.h sys/time.h sys/stat.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h errno.h stdio.h string.h stdlib.h string.h paths.h netdb.h unistd.h signal.h strings.h stdarg.h assert.h fcntl.h ctype.h time.h netax25/ax25.h])
+AC_CHECK_HEADERS([sys/errno.h sys/time.h sys/stat.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h errno.h stdio.h string.h stdlib.h string.h paths.h netdb.h unistd.h signal.h strings.h stdarg.h assert.h fcntl.h ctype.h time.h netax25/ax25.h syslog.h])
 AC_CHECK_HEADERS([netax25/axlib.h], [have_ax25=yes])
 
 AC_HEADER_STDC
