@@ -196,7 +196,7 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  wl2kexchange(cfg.mycall, cfg.targetcall, fp, cfg.emailaddr);
+  wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr);
 
   fclose(fp);
   g_mime_shutdown();
@@ -229,7 +229,6 @@ usage(void)
 static void
 displayversion(void)
 {
-  char *verstr;
 
   printf("%s  %s ", getprogname(), PACKAGE_VERSION);
 
