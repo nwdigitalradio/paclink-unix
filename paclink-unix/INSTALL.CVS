@@ -1,0 +1,69 @@
+               Building paclink-unix from CVS                                    
+
+The CVS archive is maintained on Source Forge.  See
+http://sourceforge.net/projects/paclink-unix/develop
+for the latest information on connecting to the CVS server.  
+
+  cvs -d:pserver:anonymous@paclink-unix.cvs.sourceforge.net:/cvsroot/paclink-unix login
+
+  just hit enter for when a password is requested.
+
+  cvs -z3 -d:pserver:anonymous@paclink-unix.cvs.sourceforge.net:/cvsroot/paclink-unix co -P paclink-unix
+
+  Down load the CVS tree then follow these steps:
+
+ 1) satisfy build dependencies, ensure that the following packages are
+    installed:                                                        
+
+    automake       GNU Automake, generates Makefile.in from Makefile.am, verion 1.9.6 or newer
+    autoconf       GNU Autoconf, generates configure from configure.ac, verion 2.60 or newer
+    libtool        GNU Libtool, library creation support scripts
+    make           GNU Make
+    gcc            GNU Compiler Collection, for C code compilation
+    pkg-config     pkg-config version 0.14 or greater must be installed. 
+
+    glib           glib library version 2.10.3 or greater must be installed.
+    gmime          gmime library version 2.4.3 or greater must be installed.
+    Berkeley DB    Berkeley DB library version 3 or greater must be installed.
+    sendmail       sendmail from sendmail, postfix or exim4
+    ax25           Besides the Linux native AX.25 stack it is recommended to
+                   install the libax25, libax25-dev, ax25-apps & ax25 tools packages.
+
+
+    Autotool versions that work:
+    $ (autoconf --version; automake --version; libtool --version) | grep GNU
+    autoconf (GNU Autoconf) 2.64
+    automake (GNU automake) 1.11
+    ltmain.sh (GNU libtool) 2.2.6
+
+
+
+ 2) `cd' to the directory containing the packages source code and
+     execute autogen.sh to run distclean, autoreconf and configure
+
+        ./autogen.sh
+
+    Any switches provided to autogen.sh will be passed to the configure script.
+    The confgiure script can take the following switches:
+
+        --enable-postfix
+
+    See configure.ac for the latest switches that can be used.
+
+ 3) compile the source using make,
+
+        make
+
+ 5) switch to a user that can write to the target installation
+    directory, usually root, or use sudo
+
+        su root
+
+ 4) install the package,
+
+        make install
+
+
+ --
+
+ $Id$
