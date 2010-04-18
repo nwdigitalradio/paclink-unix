@@ -113,7 +113,6 @@ typedef struct _rmsax25_config {
   char *welcomemsg;
   unsigned int timeoutsecs;
   int  bVerbose;
-  int  bP2P_flag;
 }cfg_t;
 
 static bool loadconfig(int argc, char **argv, cfg_t *cfg);
@@ -289,7 +288,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   bool bDisplayVersion_flag = FALSE;
   bool bRequireConfig_pass = TRUE;
   /* short options */
-  static const char *short_options = "phVvCc:t:e:a:";
+  static const char *short_options = "hVvCc:t:e:a:";
   /* long options */
   static struct option long_options[] =
   {
@@ -330,7 +329,6 @@ loadconfig(int argc, char **argv, cfg_t *config)
   config->timeoutsecs = DFLT_TIMEOUTSECS;
   config->ax25port = NULL;
   config->bVerbose = FALSE;
-  config->bP2P_flag = TRUE;
 
   /*
    * Get config from config file
@@ -411,9 +409,6 @@ loadconfig(int argc, char **argv, cfg_t *config)
       case 'a':   /* set ax25 port */
         config->ax25port = optarg;
         break;
-      case 'p':   /* set p2p flag */
-        config->bP2P_flag = TRUE;
-        break;
       case 'h':
         usage();  /* does not return */
         break;
@@ -441,14 +436,6 @@ loadconfig(int argc, char **argv, cfg_t *config)
     exit(EXIT_SUCCESS);
   }
 
-  /* only need to specify a target callsign when sending airmail */
-  if(!config->bP2P_flag) {
-    /* test for required parameters */
-    if(config->targetcall == NULL) {
-      print_log(LOG_ERR, "Need to specify target callsign");
-      bRequireConfig_pass = FALSE;
-    }
-  }
   if(config->ax25port == NULL) {
     print_log(LOG_ERR, "Need to specify ax25 port");
     bRequireConfig_pass = FALSE;
