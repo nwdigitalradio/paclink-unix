@@ -1,5 +1,11 @@
 $Id$
 
+Sun Apr 18 12:36:56 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Added notes on how to get & build paclink-unix from
+      SourceForge CVS repository.
+      File added: INTALL.CVS
+
 Sat Apr 17 08:46:32 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Fixed version display (-v) & config display (-C) when wl2kax25d
