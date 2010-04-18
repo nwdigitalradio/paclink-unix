@@ -1,5 +1,13 @@
 $Id$
 
+Sun Apr 18 12:53:42 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Fix for bug # 2988770.
+      Got rid of -p point-to-point run time option.  This is
+      handled by WL2KAX25_DAEMON conditional compile flag.
+
+      File modified: wl2kax25d.c
+
 Sun Apr 18 12:36:56 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Added notes on how to get & build paclink-unix from
