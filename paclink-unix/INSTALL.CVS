@@ -6,7 +6,7 @@ for the latest information on connecting to the CVS server.
 
   cvs -d:pserver:anonymous@paclink-unix.cvs.sourceforge.net:/cvsroot/paclink-unix login
 
-  just hit enter for when a password is requested.
+  just hit enter when a password is requested.
 
   cvs -z3 -d:pserver:anonymous@paclink-unix.cvs.sourceforge.net:/cvsroot/paclink-unix co -P paclink-unix
 
@@ -38,7 +38,7 @@ for the latest information on connecting to the CVS server.
 
 
 
- 2) `cd' to the directory containing the packages source code and
+ 2) `cd' to the directory containing paclink-unix source code and
      execute autogen.sh to run distclean, autoreconf and configure
 
         ./autogen.sh
