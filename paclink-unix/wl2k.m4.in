@@ -28,6 +28,7 @@ Mwl2k,		P=@EXPAND_LIBEXECDIR@/mail.wl2k,
 		E=\r\n,
 		M=100000,
 		T=X-WL2K/X-WL2K/X-WL2K,
+		U=@OWNER@:@GROUP@,
 		A=mail.wl2k $g $h $u
 
 LOCAL_NET_CONFIG

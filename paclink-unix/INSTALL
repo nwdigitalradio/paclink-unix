@@ -371,3 +371,20 @@ Then rebuild your sendmail.cf and restart sendmail.  You can then send
 email to "callsign@wl2k" or "someone@somewhere.com.wl2k" to route via
 the paclink-unix mail.wl2k mailer.
 
+Permissions
+-----------
+
+The directories ${prefix}/var/wl2k and ${prefix}/var/wl2k/outbox
+should be mode 0775.  The file ${prefix}/var/wl2k/mid.db should be
+mode 0660.
+
+All of the above can be owned by any user, preferably the primary
+non-root userid who will be running the paclink-unix driver programs,
+or by root.  The owner for these files can be set using the
+--with-user=user configure option.
+
+The same files should be owned by a group ID such as `mail'.  The
+primary paclink-unix user should be a member of this group.  The
+mailer system should also be set up to execute the local mailer
+`mail.wl2k' running with this group ID.  The group can be set using
+the --with-group=group configure option.

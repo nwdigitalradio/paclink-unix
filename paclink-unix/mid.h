@@ -32,7 +32,7 @@
 
 #define MID_MAXLEN 12
 
-#define MID_DB_MODE 0600
+#define MID_DB_MODE 0660
 
 #define MID_EXPIREDAYS 30
 

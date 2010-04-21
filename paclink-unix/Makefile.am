@@ -64,6 +64,6 @@ install-exec-hook:
 	[ -f $(DESTDIR)$(sysconfdir)/wl2k.conf ] || cp $(DESTDIR)$(sysconfdir)/wl2k.conf.dist $(DESTDIR)$(sysconfdir)/wl2k.conf
 
 install-data-hook:
-	$(INSTALL) -d -m 0755 -o $(OWNER) -g $(GROUP) $(DESTDIR)$(WL2K_STATEDIR)
-	$(INSTALL) -d -m 0755 -o $(OWNER) -g $(GROUP) $(DESTDIR)$(WL2K_OUTBOX)
+	$(INSTALL) -d -m 0775 -o $(OWNER) -g $(GROUP) $(DESTDIR)$(WL2K_STATEDIR)
+	$(INSTALL) -d -m 0775 -o $(OWNER) -g $(GROUP) $(DESTDIR)$(WL2K_OUTBOX)
 
