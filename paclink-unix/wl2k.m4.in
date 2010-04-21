@@ -1,4 +1,4 @@
-divert(-1)
+PUSHDIVERT(-1)
 #
 #  paclink-unix client for the Winlink 2000 ham radio email system.
 #
@@ -21,7 +21,7 @@ divert(-1)
 #
 
 MAILER_DEFINITIONS
-Mwl2k,		P=/usr/local/libexec/mail.wl2k,
+Mwl2k,		P=@EXPAND_LIBEXECDIR@/mail.wl2k,
 		F=cDFhmnSu,
 		S=EnvFromSMTP/HdrFromSMTP,
 		R=0/HdrToWL2K,

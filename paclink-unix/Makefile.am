@@ -7,7 +7,7 @@ ACLOCAL_AMFLAGS=-I m4
 SUBDIRS=lib
 LDADD=lib/libcompat.a
 
-EXTRA_DIST=ascmail binmail.uue test_lzhuf_1 lzhuf_1.zip.uue wl2k.m4
+EXTRA_DIST=ascmail binmail.uue test_lzhuf_1 lzhuf_1.zip.uue
 
 clean-local:
 	rm -f *~ .*~ *.orig *.rej core *.core TAGS .depend foo bar baz binmail *.test
@@ -23,8 +23,9 @@ noinst_PROGRAMS=mime2wl wl2mime
 
 dist_man_MANS=doc/wl2kax25.1 doc/wl2ktelnet.1 doc/wl2k.conf.5 doc/wl2kserial.1
 
-WL2K_OUTBOX=$(localstatedir)/wl2k/outbox
-WL2K_MID_DB=$(localstatedir)/wl2k/mid.db
+WL2K_STATEDIR=$(localstatedir)/wl2k
+WL2K_OUTBOX=$(WL2K_STATEDIR)/outbox
+WL2K_MID_DB=$(WL2K_STATEDIR)/mid.db
 WL2K_CPPFLAGS=-DWL2K_OUTBOX=\"$(WL2K_OUTBOX)\" -DWL2K_MID_DB=\"$(WL2K_MID_DB)\" -DSYSCONFDIR=\"$(sysconfdir)\"
 if ENABLE_POSTFIX
   WL2K_CPPFLAGS+= -DSENDMAIL_FLAGS=\"-bm\"
@@ -63,4 +64,6 @@ install-exec-hook:
 	[ -f $(DESTDIR)$(sysconfdir)/wl2k.conf ] || cp $(DESTDIR)$(sysconfdir)/wl2k.conf.dist $(DESTDIR)$(sysconfdir)/wl2k.conf
 
 install-data-hook:
-	$(mkdir_p) $(DESTDIR)$(WL2K_OUTBOX)
+	$(INSTALL) -d -m 0755 -o $(OWNER) -g $(GROUP) $(DESTDIR)$(WL2K_STATEDIR)
+	$(INSTALL) -d -m 0755 -o $(OWNER) -g $(GROUP) $(DESTDIR)$(WL2K_OUTBOX)
+

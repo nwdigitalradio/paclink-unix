@@ -24,6 +24,7 @@ dnl =======================================================================
 AC_PROG_CC
 AC_PROG_RANLIB
 AM_PROG_MKDIR_P
+AM_PROG_INSTALL
 AM_PROG_CC_C_O
 
 AC_PATH_PROG([SENDMAIL], [sendmail], , [$PATH:/usr/libexec:/usr/sbin:/usr/lib:/usr/lib/sendmail:/usr/pkg/libexec/sendmail])
@@ -174,11 +175,26 @@ AC_ARG_ENABLE([postfix],
             [enable_postfix=no])
 AM_CONDITIONAL([ENABLE_POSTFIX], [test x$enable_postfix = xyes])
 
+AC_ARG_WITH([owner],
+            [AS_HELP_STRING([--with-owner=owner],
+               [define owner (default is root)])],
+            [with_owner=$withval],
+            [with_owner=root])
+AC_SUBST([OWNER], [$with_owner])
+
+AC_ARG_WITH([group],
+            [AS_HELP_STRING([--with-group=group],
+               [define group (default is mail)])],
+            [with_group=$withval],
+            [with_group=mail])
+AC_SUBST([GROUP], [$with_group])
+
 dnl =======================================================================
 dnl Output our results.
 dnl =======================================================================
 
+AS_AC_EXPAND(EXPAND_LIBEXECDIR, $libexecdir)
 AC_MSG_RESULT(done)
 
-AC_CONFIG_FILES([Makefile lib/Makefile])
+AC_CONFIG_FILES([Makefile lib/Makefile wl2k.m4])
 AC_OUTPUT
