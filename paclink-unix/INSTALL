@@ -364,9 +364,9 @@ sendmail customization
 ----------------------
 
 You will need to customize sendmail to allow routing of outgoing mail
-via Winlink 2000.  Copy wl2k.m4 into the sendmail m4 directory, add
+via Winlink 2000.  Copy wl2k.m4 into the sendmail mailer directory, add
 this line to your sendmail.mc file:
-	include(`../m4/wl2k.m4')
+	MAILER(wl2k)dnl
 Then rebuild your sendmail.cf and restart sendmail.  You can then send
 email to "callsign@wl2k" or "someone@somewhere.com.wl2k" to route via
 the paclink-unix mail.wl2k mailer.
