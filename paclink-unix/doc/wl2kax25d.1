@@ -1,0 +1,41 @@
+.\" $Id$
+.TH WL2KAX25D "1" "April 2010" "wl2kax25d 0.4" "User Commands"
+.SH NAME
+wl2kax25d \- manual page for wl2kax25d 0.4
+.SH SYNOPSIS
+.B wl2kax25d
+\fI-c target-call \fR[\fIoptions\fR]
+.SH DESCRIPTION
+.LP
+wl2kax25 offers a packlink\-unix AX.25 listener interface.  It is used to transfer data directly between two paclink\-unix clients without a Winlink 2000 gateway RMS.
+
+wl2kax25d establishes an AX.25 connection between the local client node acting as a server and a calling peer. All Winlink 2000 traffic that is received from the peer is forwarded to the local email address, \fIemailaddress\fR, while all outbound mail is transfered to the calling peer.
+.TP
+\fB\-c\fR  \fB\-\-target\-call\fR
+Set callsign to call
+.TP
+\fB\-a\fR  \fB\-\-ax25port\fR
+Set AX25 port to use
+.TP
+\fB\-t\fR  \fB\-\-timeout\fR
+Set timeout in seconds
+.HP
+\fB\-e\fR  \fB\-\-email\-address\fR Set your e\-mail address
+.TP
+\fB\-v\fR  \fB\-\-version\fR
+Display program version only
+.TP
+\fB\-V\fR  \fB\-\-verbose\fR
+Print verbose messages
+.HP
+\fB\-C\fR  \fB\-\-configuration\fR Display configuration only
+.TP
+\fB\-h\fR  \fB\-\-help\fR
+Display this usage info
+.SH AUTHORS
+.LP 
+Basil Gunn KE7KRO <basil@pacabunga.com>
+.SH "SEE ALSO"
+wl2ktelnet(1), wl2kserial(1), ax25(4), ax25d.conf(5), wl2k.conf(5)
+
+Winlink 2000 is an all\-volunteer, non\-profit project of the Amateur Radio Safety Foundation, Inc.
