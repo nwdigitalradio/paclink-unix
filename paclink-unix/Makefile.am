@@ -21,7 +21,7 @@ endif
 libexec_PROGRAMS=mail.wl2k
 noinst_PROGRAMS=mime2wl wl2mime
 
-dist_man_MANS=doc/wl2kax25.1 doc/wl2ktelnet.1 doc/wl2k.conf.5 doc/wl2kserial.1
+dist_man_MANS=doc/wl2kax25.1 doc/wl2ktelnet.1 doc/wl2k.conf.5 doc/wl2kserial.1 doc/wl2kax25d.1
 
 WL2K_STATEDIR=$(localstatedir)/wl2k
 WL2K_OUTBOX=$(WL2K_STATEDIR)/outbox
