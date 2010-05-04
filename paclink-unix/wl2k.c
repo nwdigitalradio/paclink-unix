@@ -77,9 +77,6 @@ __RCSID("$Id$");
 #  include <ndir.h>
 # endif
 #endif
-# if HAVE_SYSLOG_H
-#include <syslog.h>
-#endif
 
 #include "compat.h"
 #include "strutil.h"
@@ -89,6 +86,7 @@ __RCSID("$Id$");
 #include "buffer.h"
 #include "lzhuf_1.h"
 #include "wl2mime.h"
+#include "printlog.h"
 
 #define PROPLIMIT 5
 
@@ -116,6 +114,7 @@ static void printprop(struct proposal *prop);
 static void putcompressed(struct proposal *prop, FILE *fp);
 static char *tgetline(FILE *fp, int terminator, int ignore);
 static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
+
 
 static int
 getrawchar(FILE *fp)
@@ -665,6 +664,7 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       }
     }
     *oproplist = prop;
+    print_log(LOG_DEBUG_VERBOSE, "Finished proplist %d putcompressed", i);
     return 0;
   } else if (strbegins(lastcommand, "FF")) {
     print_log(LOG_DEBUG, ">FQ");
@@ -748,7 +748,8 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
   unsigned long sentcksum;
   char *endp;
   int opropcount = 0;
-  long unsigned int oprop_msgsize = 0;
+  long unsigned int oprop_usize = 0;
+  long unsigned int oprop_csize = 0;
   char responsechar;
   FILE *smfp;
   struct buffer *mimebuf;
@@ -767,7 +768,8 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
 
   for (prop = oproplist; prop; prop = prop->next) {
     opropcount++;
-    oprop_msgsize += prop->usize;
+    oprop_usize += prop->usize;
+    oprop_csize += prop->csize;
   }
 
 #ifdef WL2KAX25_DAEMON
@@ -778,7 +780,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
     if(opropcount) {
       /* Not sure how to calc this total message size??? */
       if(asprintf(&sp,"%s de %s QTC %d msg %lu char>\r",
-                  yourcall, mycall, opropcount, oprop_msgsize+18) == -1) {
+                  yourcall, mycall, opropcount, oprop_usize+18) == -1) {
         print_log(LOG_ERR, "asprintf() - %s", strerror(errno));
         exit(EXIT_FAILURE);
       }
@@ -787,6 +789,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
         print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
         exit(EXIT_FAILURE);
       }
+      print_log(LOG_DEBUG,"No Traffic");
 
       if(asprintf(&sp,"%s de %s>\r",  yourcall, mycall) == -1) {
         print_log(LOG_ERR, "asprintf() - %s", strerror(errno));
@@ -825,8 +828,15 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
       }
       print_log(LOG_DEBUG, "sid %s inboundsidcodes %s", inboundsid, inboundsidcodes);
 #ifdef WL2KAX25_DAEMON
-    } else if (strbegins(line, ";")) {
       break;
+    } else if (strbegins(line, ";")) {
+      /* parse (am|em:h1 ... line here */
+      if (strstr(line, "QTC")) {
+        /* parse ; MYCALL DE YOURCALL QTC 0 line here */
+        continue;
+      } else {
+        break;
+      }
 #endif /* WL2KAX25_DAEMON */
     } else if (line[strlen(line) - 1] == '>') {
       if (inboundsidcodes == NULL) {
@@ -900,7 +910,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
           exit(EXIT_FAILURE);
         }
         fflush(ofp);
-#endif  /* NOT WL2KAX25_DAEMON */
+#endif  /* WL2KAX25_DAEMON */
         return;
       }
     } else if (strbegins(line, "B")) {
@@ -1040,28 +1050,3 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
   }
 }
 
-/*
- * Print an error message to either stderr or syslog
- */
-void
-print_log(int priority, const char *fmt, ...)
-{
-  va_list args;
-  char *sp;
-
-  va_start(args, fmt);
-
-  if (vasprintf(&sp, fmt, args) < 0) {
-    syslog(LOG_ERR, "vasprintf() - %s", strerror(errno));
-    va_end(args);
-    return;
-  }
-
-#ifdef  WL2KAX25_DAEMON
-  syslog(priority, "%s", sp);
-#else
-  fprintf(stderr, "%s: %s\n",  getprogname(), sp);
-#endif /*   WL2KAX25_DAEMON */
-
-  va_end(args);
-}
