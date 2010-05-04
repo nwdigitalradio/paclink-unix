@@ -1,11 +1,32 @@
 $Id$
 
+Tue May  4 12:41:48 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Cleanup print_log() calls.
+      Fixes a bug where error/debug messages in mid.c where still
+       being sent to stderr for wl2kax25d daemon.
+      Files modified:
+        Makefile.am
+        mail.wl2k.c
+        mid.c
+        mime2wl.c
+        wl2k.c
+        wl2k.h
+
+    * Fix bug in daemon when using verbose switch causes display of
+      version to stdout.
+      File modified:  wl2kax25d.c
+
+    * Factored out print_log() function into a separate file.
+      Files added:
+        printlog.c
+        printlog.h
+
 Sun Apr 18 12:53:42 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Fix for bug # 2988770.
       Got rid of -p point-to-point run time option.  This is
       handled by WL2KAX25_DAEMON conditional compile flag.
-
       File modified: wl2kax25d.c
 
 Sun Apr 18 12:36:56 PDT 2010  Basil Gunn <basil@pacabunga.com>
