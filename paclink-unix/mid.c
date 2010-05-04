@@ -56,6 +56,7 @@ __RCSID("$Id$");
 
 #include "compat.h"
 #include "mid.h"
+#include "printlog.h"
 
 /* returns 0 for success, non-zero for error */
 int
@@ -68,7 +69,7 @@ record_mid(char *mid)
   int r;
 
   if (db_create(&dbp, NULL, 0) != 0) {
-    fprintf(stderr, "%s: record_mid(): db_create() failed\n", getprogname());
+    print_log(LOG_ERR, "record_mid(): db_create() failed");
     return -1;
   }
   if ((r = dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE) != 0)) {
@@ -109,12 +110,13 @@ check_mid(char *mid)
   int r;
 
   if (db_create(&dbp, NULL, 0) != 0) {
-    fprintf(stderr, "%s: check_mid(): db_create() failed\n", getprogname());
+    print_log(LOG_ERR, "check_mid(): db_create() failed");
     return -1;
   }
   if ((r = dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE)) != 0) {
     dbp->err(dbp, r, "%s: %s", getprogname(), WL2K_MID_DB);
     dbp->close(dbp, 0);
+    print_log(LOG_ERR, "check_mid() - fail at db open");
     return -1;
   }
   memset(&key, 0, sizeof(DBT));
@@ -123,22 +125,24 @@ check_mid(char *mid)
   key.data = mid;
   key.size = strlen(mid) + 1;
 
+  print_log(LOG_DEBUG_VERBOSE, "check_mid() - checking mid %s in db ...", mid);
   if (dbp->get(dbp, NULL, &key, &data, 0) == 0) {
     ret = FOUND;
     if (data.size == sizeof(stored)) {
       memcpy(&stored, data.data, sizeof(stored));
       now = time(NULL);
       if (difftime(now, stored) > (MID_EXPIREDAYS * 24 * 60 * 60)) {
-	fprintf(stderr, "Deleting expired mid entry %s\n", (char *) key.data);
+	print_log(LOG_DEBUG, "Deleting expired mid entry %s", (char *) key.data);
 	dbp->del(dbp, NULL, &key, 0);
 	ret = NOTFOUND;
       }
     } else {
-      fprintf(stderr, "MID database %s is corrupt\n", WL2K_MID_DB);
+      print_log(LOG_ERR, "MID database %s is corrupt", WL2K_MID_DB);
       exit(EXIT_FAILURE);
     }
   } else {
     ret = NOTFOUND;
+    print_log(LOG_DEBUG_VERBOSE, "Mid entry: %s not found", mid);
   }
   dbp->close(dbp, 0);
   return ret;
@@ -156,7 +160,7 @@ expire_mids(void)
   int r;
 
   if (db_create(&dbp, NULL, 0) != 0) {
-    fprintf(stderr, "%s: expire_mids(): db_create() failed\n", getprogname());
+    print_log(LOG_ERR, "expire_mids(): db_create() failed");
     return -1;
   }
   if ((r = dbp->open(dbp, NULL, WL2K_MID_DB, NULL, DB_HASH, DB_CREATE, MID_DB_MODE)) != 0) {
@@ -171,22 +175,22 @@ expire_mids(void)
 
   while ((ret = cursorp->c_get(cursorp, &key, &data, DB_NEXT)) == 0) {
 #if 0
-    printf("checking mid %s\n", (char *) key.data);
+    print_log(LOG_DEBUG,"checking mid %s", (char *) key.data);
 #endif
     if (data.size == sizeof(stored)) {
       memcpy(&stored, data.data, sizeof(stored));
       now = time(NULL);
       if (difftime(now, stored) > (MID_EXPIREDAYS * 24 * 60 * 60)) {
-	fprintf(stderr, "Deleting expired mid entry %s\n", (char *) key.data);
+	print_log(LOG_ERR, "Deleting expired mid entry %s", (char *) key.data);
 	dbp->del(dbp, NULL, &key, 0);
       }
     } else {
-      fprintf(stderr, "MID database %s is corrupt\n", WL2K_MID_DB);
+      print_log(LOG_ERR, "MID database %s is corrupt", WL2K_MID_DB);
       exit(EXIT_FAILURE);
     }
   }
   if (ret != DB_NOTFOUND) {
-    fprintf(stderr, "MID database %s is corrupt\n", WL2K_MID_DB);
+    print_log(LOG_ERR, "MID database %s is corrupt", WL2K_MID_DB);
     exit(EXIT_FAILURE);
   }
   if (cursorp != NULL) {
@@ -212,12 +216,12 @@ generate_mid(const char *callsign, bool bRecordMid)
 
   clen = strlen(callsign);
   if (clen > CALLSIGN_MAXLEN) {
-    fprintf(stderr, "bad callsign %s\n", callsign);
+    print_log(LOG_ERR, "bad callsign %s", callsign);
     return NULL;
   }
   rlen = MID_MAXLEN - 1 - clen;
   if (rlen < 1) {
-    fprintf(stderr, "No room to generate mid!?\n");
+    print_log(LOG_ERR, "No room to generate mid!?");
     return NULL;
   }
   strlcpy(mid + rlen + 1, callsign, CALLSIGN_MAXLEN + 1);
@@ -229,11 +233,11 @@ generate_mid(const char *callsign, bool bRecordMid)
   }
   do {
     for (i = 0; i < rlen; i++) {
-      mid[i] = midchars[random() % (sizeof(midchars) - 1)];
+      mid[i] = midchars[(long unsigned int)random() % (sizeof(midchars) - 1)];
     }
   } while ((r = check_mid(mid)) > 0);
   if (r < 0) {
-    fprintf(stderr, "failure in check_mid()\n");
+    print_log(LOG_ERR, "failure in check_mid()");
     return NULL;
   }
 
