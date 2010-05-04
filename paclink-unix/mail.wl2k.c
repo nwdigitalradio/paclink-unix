@@ -63,6 +63,9 @@ __RCSID("$Id$");
 #include "strutil.h"
 #include "timeout.h"
 #include "conf.h"
+#include "printlog.h"
+
+int gverbose_flag=FALSE;
 
 /* prototypes */
 void usage(void);
@@ -79,7 +82,7 @@ main(int argc, char *argv[])
   struct conf *conf;
   char *mycall;
   bool bRecordMid = TRUE;   /* default is record mid on mail send */
-  
+
   g_mime_init(0);
 
   opterr = 0;

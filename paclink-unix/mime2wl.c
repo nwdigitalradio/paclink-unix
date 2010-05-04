@@ -75,6 +75,7 @@ __RCSID("$Id$");
 #include "mid.h"
 #include "mime2wl.h"
 #include "conf.h"
+#include "printlog.h"
 
 struct wl2kmessage {
   struct buffer *hbuf; /* headers */
@@ -515,6 +516,7 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
 }
 
 #ifdef MIME2WL_MAIN
+int gverbose_flag=FALSE;
 void usage(void);
 
 void usage(void)
