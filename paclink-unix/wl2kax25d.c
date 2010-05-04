@@ -74,9 +74,6 @@ __RCSID("$Id$");
 #if HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#if HAVE_SYSLOG_H
-#include <syslog.h>
-#endif
 
 #ifndef bool
 #include <stdbool.h>
@@ -91,6 +88,7 @@ __RCSID("$Id$");
 #include "timeout.h"
 #include "wl2k.h"
 #include "strutil.h"
+#include "printlog.h"
 
 /*
  * Globals
@@ -150,10 +148,20 @@ main(int argc, char *argv[])
 
   g_mime_init(0);
 
-#if 0
-  if (fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK) < 0) {
-    print_log(LOG_ERR, "can not open ax25 stack");
-    exit(EXIT_FAILURE);
+#if 1
+  {
+    int opts;
+
+    opts = fcntl(STDIN_FILENO, F_GETFL);
+    if (opts < 0) {
+      print_log(LOG_ERR, "can not open ax25 stack fcntl(F_GETFL)");
+      exit(EXIT_FAILURE);
+    }
+    if (opts | O_NONBLOCK) {
+      print_log(LOG_DEBUG, "Input already set to NON block");
+    } else {
+      print_log(LOG_DEBUG, "Input set to BLOCK");
+    }
   }
 #endif
 
@@ -195,9 +203,9 @@ main(int argc, char *argv[])
   print_log(LOG_INFO, "Banner: %s", pStr);
   fprintf(stdout,"%s\r", pStr);
 
-  /* Call modified wl2kexchange() */
   wl2kexchange(cfg.mycall, cfg.targetcall, stdin, stdout, cfg.emailaddr);
 
+  unsettimeout();
   print_log(LOG_DEBUG, "Exiting\n");
 
   exit(EXIT_SUCCESS);
@@ -216,7 +224,7 @@ usage(void)
   printf("  -t  --timeout       Set timeout in seconds\n");
   printf("  -e  --email-address Set your e-mail address\n");
   printf("  -v  --version       Display program version only\n");
-  printf("  -V  --verbose       Print verbose messages\n");
+  printf("  -V  --verbose       Print verbose messages to log file\n");
   printf("  -C  --configuration Display configuration only\n");
   printf("  -h  --help          Display this usage info\n");
   exit(EXIT_SUCCESS);
@@ -454,12 +462,6 @@ loadconfig(int argc, char **argv, cfg_t *config)
   /* Check configuration requirements */
   if(!bRequireConfig_pass) {
     usage();  /* does not return */
-  }
-
-  /* Be verbose */
-  if(config->bVerbose) {
-    displayversion();
-    displayconfig(config);
   }
 
   return(TRUE);
