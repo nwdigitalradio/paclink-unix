@@ -28,6 +28,5 @@
 
 char *wl2kgetline(FILE *fp);
 void wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress);
-void print_log(int priority, const char *fmt, ...);
 
 #endif
