@@ -122,6 +122,7 @@ static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
 static void displayversion(void);
 static void displayconfig(cfg_t *cfg);
+static bool isax25connected(int s);
 
 /**
  * Function: main
@@ -307,6 +308,29 @@ main(int argc, char *argv[])
     }
 
     printf("Closing ax25 connection\n");
+#if 1
+    {
+      time_t start_time, current_time;
+      bool bax25conn;
+
+      start_time = time(NULL); /* get current time in seconds */
+
+      if ((bax25conn=isax25connected(s)) == TRUE) {
+        printf("Waiting for AX25 peer ... ");
+        while(isax25connected(s)){
+          current_time = time(NULL);
+          if (difftime(current_time, start_time) > 5) {
+            break;
+          }
+        }
+        if (isax25connected(s)) {
+          printf("timeout\n");
+        }else {
+          printf("disconnected\n");
+        }
+      }
+    }
+#endif
 
     g_mime_shutdown();
     close(sv[0]);
@@ -600,4 +624,22 @@ loadconfig(int argc, char **argv, cfg_t *config)
   }
 
   return(TRUE);
+}
+
+/*
+ * Check if an AX25 socket is connected
+ */
+static bool isax25connected(int s)
+{
+  struct sockaddr_in peer;
+  size_t peer_len;
+
+  /* Must put the length in a variable */
+  peer_len = sizeof(peer);
+  /* Ask getpeername to fill in peer's socket address */
+  if (getpeername(s, &peer, &peer_len) == -1) {
+    return FALSE;
+  }
+
+  return TRUE;
 }
