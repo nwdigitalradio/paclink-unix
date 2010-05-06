@@ -1,9 +1,15 @@
 $Id$
 
+Thu May  6 12:21:21 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Add a check for an AX25 socket connection upon exiting
+       wlax25 client and wait for disconnect.
+      File modified:  wl2kax25d.c
+
 Tue May  4 12:41:48 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Cleanup print_log() calls.
-      Fixes a bug where error/debug messages in mid.c where still
+      Fixes a bug where error/debug messages in mid.c were still
        being sent to stderr for wl2kax25d daemon.
       Files modified:
         Makefile.am
