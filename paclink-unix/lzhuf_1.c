@@ -530,6 +530,10 @@ EncodeChar(unsigned c, struct buffer *outbuf)
     if (k & 1) i += 0x8000;
 
     j++;
+    if( ((k == prnt[k]) && (k != R)) || (j > 16) ) {
+      fprintf(stderr, "Lzhuf: Error in EncodeChar(), input file too big\n");
+      return(-1);
+    }
   } while ((k = prnt[k]) != R);
   if (Putcode(j, i, outbuf) == -1) {
     return -1;
@@ -861,7 +865,7 @@ version_1_Decode(struct buffer *inbuf)
 #endif
 
   outbuf = Decode(inbuf);
-  
+
 #ifdef LZHUF_1_MAIN
   fprintf(stderr, "Computed CRC = %04x\n", crc);
 #endif
