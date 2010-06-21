@@ -1,5 +1,12 @@
 $Id$
 
+Sun Jun 20 18:38:15 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Detect when EncodeChar() parameters are beyond reasonable and
+       exit with an input file too big message.  This fixes a hang
+       when lzhuf trys to compress png files greater than 32K.
+      File modified:  lzhuf_1.c
+
 Thu May  6 12:21:21 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Add a check for an AX25 socket connection upon exiting
