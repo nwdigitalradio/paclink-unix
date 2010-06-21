@@ -53,6 +53,8 @@ static int EncodePosition(unsigned c, struct buffer *outbuf);
 static int EncodeEnd(struct buffer *outbuf);
 static int DecodeChar(struct buffer *inbuf);
 static int DecodePosition(struct buffer *inbuf);
+static void link (int n, int p, int q);
+static void linknode (int p, int q, int r);
 
 /* crctab calculated by Mark G. Mendel, Network Systems Corporation */
 static unsigned short crctab[256] = {
@@ -99,20 +101,23 @@ static unsigned char putlen;
 
 /********** LZSS compression **********/
 
-#define N               2048    /* buffer size */
+#define N               4096    /* buffer size */
 #define F               60      /* lookahead buffer size */
 #define THRESHOLD       2
 #define NIL             N       /* leaf of tree */
+#define RSONSZE (N+N)
 
 unsigned char text_buf[N + F - 1];
 unsigned int match_position;
 int match_length;
-int lson[N + 1], rson[N + 257], dad[N + 1];
+int lson[N + 1], rson[RSONSZE+1], dad[N + 1];
+
+unsigned char    same[N + 1];
 
 static int
 crc_fputc(int c, struct buffer *crcoutbuf)
 {
-  crc = updcrc(c, crc);
+  crc = (unsigned short)updcrc(c, crc);
   return(buffer_addchar(crcoutbuf, c));
 }
 
@@ -122,7 +127,7 @@ crc_fgetc(struct buffer *crcinbuf)
   int retour;
 
   if ((retour = buffer_iterchar(crcinbuf)) != EOF) {
-    crc = updcrc(retour, crc);
+    crc = (unsigned short)updcrc(retour, crc);
   }
   return(retour);
 }
@@ -133,7 +138,7 @@ InitTree(void)
 {
   int i;
 
-  for (i = N + 1; i <= N + 256; i++)
+  for (i = N + 1; i <= RSONSZE; i++)
     rson[i] = NIL;                  /* root */
   for (i = 0; i < N; i++)
     dad[i] = NIL;                   /* node */
@@ -143,49 +148,66 @@ InitTree(void)
 static void
 InsertNode(int r)
 {
-  int i, p, cmp;
-  unsigned char *key;
-  unsigned c;
+  int p, cmp;
+  unsigned char	*key;
+  unsigned int	c;
+  unsigned int	i, j;
 
   cmp = 1;
   key = &text_buf[r];
-  p = N + 1 + key[0];
+  i = key[1] ^ key[2];
+  i ^= i >> 4;
+  p = (int)(N + 1 + key[0] + (int)((i & 0x0f) << 8));
   rson[r] = lson[r] = NIL;
   match_length = 0;
+  i = j = 1;
   for ( ; ; ) {
     if (cmp >= 0) {
-      if (rson[p] != NIL)
-	p = rson[p];
-      else {
-	rson[p] = r;
-	dad[r] = p;
-	return;
+      if (rson[p] != NIL) {
+        p = rson[p];
+        j = same[p];
+      } else {
+        rson[p] = r;
+        dad[r] = p;
+        same[r] = (unsigned char)i;
+        return;
       }
     } else {
-      if (lson[p] != NIL)
-	p = lson[p];
-      else {
-	lson[p] = r;
-	dad[r] = p;
-	return;
+      if (lson[p] != NIL) {
+        p = lson[p];
+        j = same[p];
+      } else {
+        lson[p] = r;
+        dad[r] = p;
+        same[r] = (unsigned char)i;
+        return;
       }
     }
-    for (i = 1; i < F; i++)
-      if ((cmp = key[i] - text_buf[p + i]) != 0)
-	break;
+
+    if (i > j) {
+      i = j;
+      cmp = key[i] - text_buf[(unsigned int)p + i];
+    } else
+      if (i == j) {
+        for (; i < F; i++)
+          if ((cmp = key[i] - text_buf[(unsigned int)p + i]) != 0)
+            break;
+      }
+
     if (i > THRESHOLD) {
-      if (i > match_length) {
-	match_position = ((r - p) & (N - 1)) - 1;
-	if ((match_length = i) >= F)
-	  break;
-      }
-      if (i == match_length) {
-	if ((c = ((r - p) & (N - 1)) - 1) < match_position) {
-	  match_position = c;
-	}
-      }
+      if (i > (unsigned int)match_length) {
+        match_position = (unsigned int)(((r - p) & (N - 1)) - 1);
+        if ((match_length = (int)i) >= F)
+          break;
+      } else
+        if (i == (unsigned int)match_length) {
+          if ((c = (unsigned int)((r - p) & (N - 1)) - 1) < match_position) {
+            match_position = c;
+          }
+        }
     }
   }
+  same[r] = same[p];
   dad[r] = dad[p];
   lson[r] = lson[p];
   rson[r] = rson[p];
@@ -198,30 +220,69 @@ InsertNode(int r)
   dad[p] = NIL;  /* remove p */
 }
 
+static void
+link (int n, int p, int q)
+{
+  register unsigned char *s1, *s2, *s3;
+  if (p >= NIL) {
+    same[q] = 1;
+    return;
+  }
+  s1 = text_buf + p + n;
+  s2 = text_buf + q + n;
+  s3 = text_buf + p + F;
+  while (s1 < s3) {
+    if (*s1++ != *s2++) {
+      same[q] = (unsigned char)(s1 - 1 - text_buf - p);
+      return;
+    }
+  }
+  same[q] = F;
+}
+
+static void
+linknode (int p, int q, int r)
+{
+  int cmp;
+
+  if ((cmp = same[q] - same[r]) == 0) {
+    link(same[q], p, r);
+  } else if (cmp < 0) {
+    same[r] = same[q];
+  }
+}
+
 /* remove from tree */
 static void
-DeleteNode(int p)
+DeleteNode (int p)
 {
   int q;
 
   if (dad[p] == NIL)
     return;                 /* not registered */
-  if (rson[p] == NIL)
-    q = lson[p];
-  else
-    if (lson[p] == NIL)
+  if (rson[p] == NIL) {
+    if ((q = lson[p]) != NIL)
+      linknode(dad[p], p, q);
+  } else
+    if (lson[p] == NIL) {
       q = rson[p];
-    else {
+      linknode(dad[p], p, q);
+    } else {
       q = lson[p];
       if (rson[q] != NIL) {
-	do {
-	  q = rson[q];
-	} while (rson[q] != NIL);
-	rson[dad[q]] = lson[q];
-	dad[lson[q]] = dad[q];
-	lson[q] = lson[p];
-	dad[lson[p]] = q;
+        do {
+          q = rson[q];
+        } while (rson[q] != NIL);
+        if (lson[q] != NIL)
+          linknode(dad[q], q, lson[q]);
+        link(1, q, lson[p]);
+        rson[dad[q]] = lson[q];
+        dad[lson[q]] = dad[q];
+        lson[q] = lson[p];
+        dad[lson[p]] = q;
       }
+      link(1, dad[p], q);
+      link(1, q, rson[p]);
       rson[q] = rson[p];
       dad[rson[p]] = q;
     }
@@ -356,10 +417,10 @@ GetBit(struct buffer *inbuf)
   unsigned int i;
 
   while (getlen <= 8) {
-    if ((int) (i = crc_fgetc(inbuf)) == EOF)
+    if ((int) (i = (unsigned int)crc_fgetc(inbuf)) == EOF)
       i = 0;
     getbuf |= i << (8 - getlen);
-    getlen += 8;
+    getlen += (unsigned char)8;
   }
   i = getbuf;
   getbuf <<= 1;
@@ -374,14 +435,14 @@ GetByte(struct buffer *inbuf)
   unsigned i;
 
   while (getlen <= 8) {
-    if ((int) (i = crc_fgetc(inbuf)) == EOF)
+    if ((int) (i = (unsigned int)crc_fgetc(inbuf)) == EOF)
       i = 0;
     getbuf |= i << (8 - getlen);
-    getlen += 8;
+    getlen += (unsigned char)8;
   }
   i = getbuf;
   getbuf <<= 8;
-  getlen -= 8;
+  getlen -= (unsigned char)8;
   return (i >> 8) & 0xff;
 }
 
@@ -390,16 +451,16 @@ static int
 Putcode(int l, unsigned c, struct buffer *outbuf)
 {
   putbuf |= c >> putlen;
-  if ((putlen += l) >= 8) {
+  if ((int)(putlen += l) >= 8) {
     if (crc_fputc((int) (putbuf >> 8), outbuf) == EOF) {
       return -1;
     }
-    if ((putlen -= 8) >= 8) {
+    if ((putlen -= (unsigned char)8) >= 8) {
       if (crc_fputc((int)putbuf, outbuf) == EOF) {
 	return -1;
       }
       codesize += 2;
-      putlen -= 8;
+      putlen -= (unsigned char)8;
       putbuf = c << (l - putlen);
     } else {
       putbuf <<= 8;
@@ -438,7 +499,8 @@ static void
 reconst(void)
 {
   int i, j, k;
-  unsigned f, l;
+  unsigned f;
+  unsigned *p, *e;
 
   /* collect leaf nodes in the first half of the table */
   /* and replace the freq by (freq + 1) / 2. */
@@ -456,12 +518,18 @@ reconst(void)
     f = freq[j] = freq[i] + freq[k];
     for (k = j - 1; f < freq[k]; k--);
     k++;
-    l = (j - k) * 2;
-    memmove(&freq[k + 1], &freq[k], l);
+
+    for (p = &freq[j], e = &freq[k]; p > e; p--) {
+      p[0] = p[-1];
+    }
     freq[k] = f;
-    memmove(&son[k + 1], &son[k], l);
+
+    for (p = (unsigned *)&son[j], e = (unsigned *)&son[k]; p > e; p--) {
+      p[0] = p[-1];
+    }
     son[k] = i;
   }
+
   /* connect prnt */
   for (i = 0; i < T; i++) {
     if ((k = son[i]) >= T) {
@@ -479,6 +547,7 @@ update(int c)
   int i, j;
   unsigned k;
   int l;
+  unsigned *p;
 
   if (freq[R] == MAX_FREQ) {
     reconst();
@@ -489,10 +558,10 @@ update(int c)
 
     /* if the order is disturbed, exchange nodes */
     if (k > freq[l = c + 1]) {
-      while (k > freq[++l]);
-      l--;
-      freq[c] = freq[l];
-      freq[l] = k;
+      for (p = freq+l+1; k > *p++; ) ;
+      l = p - freq - 2;
+      freq[c] = p[-2];
+      p[-2] = k;
 
       i = son[c];
       prnt[i] = l;
@@ -530,14 +599,25 @@ EncodeChar(unsigned c, struct buffer *outbuf)
     if (k & 1) i += 0x8000;
 
     j++;
-    if( ((k == prnt[k]) && (k != R)) || (j > 16) ) {
+    if ( (k == prnt[k]) && (k != R) ) {
       fprintf(stderr, "Lzhuf: Error in EncodeChar(), input file too big\n");
       return(-1);
     }
   } while ((k = prnt[k]) != R);
-  if (Putcode(j, i, outbuf) == -1) {
-    return -1;
+
+  if (j > 16) {
+    if(Putcode(16, i, outbuf) == -1) {
+      return -1;
+    }
+    if(Putcode(j - 16, i, outbuf) == -1) {
+      return -1;
+    }
+  } else {
+    if(Putcode(j, i, outbuf) == -1) {
+      return -1;
+    }
   }
+
   update((int) c);
   return 0;
 }
@@ -577,18 +657,18 @@ DecodeChar(struct buffer *inbuf)
 {
   unsigned c;
 
-  c = son[R];
+  c = (unsigned)son[R];
 
   /* travel from root to leaf, */
   /* choosing the smaller child node (son[]) if the read bit is 0, */
   /* the bigger (son[]+1} if 1 */
   while (c < T) {
-    c += GetBit(inbuf);
-    c = son[c];
+    c += (unsigned)GetBit(inbuf);
+    c = (unsigned)son[c];
   }
   c -= T;
   update((int) c);
-  return c;
+  return (int)c;
 }
 
 int
@@ -597,16 +677,16 @@ DecodePosition(struct buffer *inbuf)
   unsigned i, j, c;
 
   /* recover upper 6 bits from table */
-  i = GetByte(inbuf);
+  i = (unsigned)GetByte(inbuf);
   c = (unsigned) d_code[i] << 6;
   j = d_len[i];
 
   /* read lower 6 bits verbatim */
   j -= 2;
   while (j--) {
-    i = (i << 1) + GetBit(inbuf);
+    i = (i << 1) + (unsigned)GetBit(inbuf);
   }
-  return c | (i & 0x3f);
+  return ( (int)(c | (i & 0x3f)) );
 }
 
 /* compression */
@@ -659,8 +739,8 @@ Encode(struct buffer *inbuf)
   for (i = s; i < r; i++)
     text_buf[i] = ' ';
   for (len = 0; len < F && (c = buffer_iterchar(inbuf)) != EOF; len++)
-    text_buf[r + len] = c;
-  textsize = len;
+    text_buf[r + len] = (unsigned char)c;
+  textsize = (long unsigned int)len;
   for (i = 1; i <= F; i++)
     InsertNode(r - i);
   InsertNode(r);
@@ -687,15 +767,15 @@ Encode(struct buffer *inbuf)
     for (i = 0; i < last_match_length &&
 	   (c = buffer_iterchar(inbuf)) != EOF; i++) {
       DeleteNode(s);
-      text_buf[s] = c;
+      text_buf[s] = (unsigned char)c;
       if (s < F - 1)
-	text_buf[s + N] = c;
+	text_buf[s + N] = (unsigned char)c;
       s = (s + 1) & (N - 1);
       r = (r + 1) & (N - 1);
       InsertNode(r);
     }
 #ifdef LZHUF_1_MAIN
-    if ((textsize += i) > printcount) {
+    if ((textsize += (unsigned long int)i) > printcount) {
       fprintf(stderr, "%12ld\r", textsize);
       printcount += 1024;
     }
@@ -704,8 +784,9 @@ Encode(struct buffer *inbuf)
       DeleteNode(s);
       s = (s + 1) & (N - 1);
       r = (r + 1) & (N - 1);
-      if (--len)
-	InsertNode(r);
+      if (--len) {
+        InsertNode(r);
+      }
     }
   } while (len > 0);
   if (EncodeEnd(outbuf) == -1) {
@@ -779,19 +860,19 @@ Decode(struct buffer *inbuf)
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  textsize = x;
+  textsize = (long unsigned int)x;
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  textsize |= (x << 8);
+  textsize |= (long unsigned int)(x << 8);
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  textsize |= (x << 16);
+  textsize |= (long unsigned int)(x << 16);
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  textsize |= (x << 24);
+  textsize |= (long unsigned int)(x << 24);
 
 #ifdef LZHUF_1_MAIN
   fprintf(stderr, "File Size = %lu\n", textsize);
@@ -815,7 +896,7 @@ Decode(struct buffer *inbuf)
 	buffer_free(outbuf);
 	return NULL;
       }
-      text_buf[r++] = c;
+      text_buf[r++] = (unsigned char)c;
       r &= (N - 1);
       count++;
     } else {
@@ -827,7 +908,7 @@ Decode(struct buffer *inbuf)
 	  buffer_free(outbuf);
 	  return NULL;
 	}
-	text_buf[r++] = c;
+	text_buf[r++] = (unsigned char)c;
 	r &= (N - 1);
 	count++;
       }
@@ -855,11 +936,11 @@ version_1_Decode(struct buffer *inbuf)
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  crc_read = x;
+  crc_read = (unsigned short)x;
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  crc_read |= (x << 8);
+  crc_read |= (unsigned short)(x << 8);
 #ifdef LZHUF_1_MAIN
   fprintf(stderr, "File CRC  = %04x\n", crc_read);
 #endif
