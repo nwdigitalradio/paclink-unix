@@ -1,5 +1,13 @@
 $Id$
 
+Mon Jun 21 22:45:51 PDT 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Took Encode routines from this link by Haruyasu Yoshizaki & T. Tagawa 
+       http://sunsite.bilkent.edu.tr/pub/tex/ctan/tools/xlharc/lzhuf.c
+       and integrated to fix problem of hang when encoding files larger
+       than 32K bytes.
+      File modified:  lzhuf_1.c
+
 Sun Jun 20 18:38:15 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Detect when EncodeChar() parameters are beyond reasonable and
