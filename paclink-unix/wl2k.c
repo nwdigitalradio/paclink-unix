@@ -592,9 +592,9 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       }
     }
     cksum = -cksum & 0xff;
-    print_log(LOG_DEBUG, ">F> %2X", cksum);
+    print_log(LOG_DEBUG, ">F> %02X", cksum);
     resettimeout();
-    if (fprintf(ofp, "F> %2X\r", cksum) == -1) {
+    if (fprintf(ofp, "F> %02X\r", cksum) == -1) {
       print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
       exit(EXIT_FAILURE);
     }
