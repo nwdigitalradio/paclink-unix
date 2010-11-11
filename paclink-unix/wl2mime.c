@@ -156,6 +156,20 @@ wl2mime(struct buffer *ibuf)
 	g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_CC, "", smtp);
 	free(smtp);
       }
+    } else if (strcasebegins(line, "Bcc:")) {
+      if (strcasebegins(linedata, "SMTP:")) {
+        linedata += 5;
+        g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_BCC, "", linedata);
+      } else {
+        if (asprintf(&smtp, "%s@winlink.org", linedata) == -1) {
+          perror("asprintf()");
+          exit(EXIT_FAILURE);
+        }
+        g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_BCC, "", smtp);
+        free(smtp);
+      }
+    } else if (strcasebegins(line, "Reply-To:")) {
+      g_mime_message_set_reply_to(message, linedata);
     } else if (strcasebegins(line, "Subject:")) {
       g_mime_message_set_subject(message, linedata);
     } else if (strcasebegins(line, "Body:")) {

@@ -378,6 +378,7 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
   char *clean;
   char *mheader_from;
   char *mheader_mbo;
+  char *mheader_replyto;
   char *mid;
   struct wl2kmessage wl2k;
   struct buffer *buf;
@@ -472,9 +473,29 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
     idx++;
   }
 
+  ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_BCC);
+  idx = 0;
+  while ((ia = internet_address_list_get_address(ial, idx)) != NULL) {
+    header = internet_address_to_string(ia, 0);
+    clean = address_cleanup(header);
+    buffer_addstring(wl2k.hbuf, "Bcc: ");
+    if (strchr(clean, '@')) {
+      buffer_addstring(wl2k.hbuf, "SMTP:");
+    }
+    buffer_addstring(wl2k.hbuf, clean);
+    buffer_addstring(wl2k.hbuf, "\r\n");
+    free(clean);
+    idx++;
+  }
+
   header = g_mime_message_get_subject(message);
   buffer_addstring(wl2k.hbuf, "Subject: ");
   buffer_addstring(wl2k.hbuf, header);
+  buffer_addstring(wl2k.hbuf, "\r\n");
+
+  mheader_replyto = g_mime_message_get_reply_to(message);
+  buffer_addstring(wl2k.hbuf, "Reply-To: ");
+  buffer_addstring(wl2k.hbuf, mheader_replyto);
   buffer_addstring(wl2k.hbuf, "\r\n");
 
   mheader_mbo = mbo_header(mheader_from, callsign);
