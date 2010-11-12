@@ -378,7 +378,6 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
   char *clean;
   char *mheader_from;
   char *mheader_mbo;
-  char *mheader_replyto;
   char *mid;
   struct wl2kmessage wl2k;
   struct buffer *buf;
@@ -493,10 +492,12 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
   buffer_addstring(wl2k.hbuf, header);
   buffer_addstring(wl2k.hbuf, "\r\n");
 
-  mheader_replyto = g_mime_message_get_reply_to(message);
-  buffer_addstring(wl2k.hbuf, "Reply-To: ");
-  buffer_addstring(wl2k.hbuf, mheader_replyto);
-  buffer_addstring(wl2k.hbuf, "\r\n");
+  header = g_mime_message_get_reply_to(message);
+  if(header != NULL) {
+    buffer_addstring(wl2k.hbuf, "Reply-To: ");
+    buffer_addstring(wl2k.hbuf, header);
+    buffer_addstring(wl2k.hbuf, "\r\n");
+  }
 
   mheader_mbo = mbo_header(mheader_from, callsign);
   buffer_addstring(wl2k.hbuf, "Mbo: ");
