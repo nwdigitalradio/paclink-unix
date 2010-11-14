@@ -105,6 +105,7 @@ unsigned char axwrite[BUFMAXOUT];
 #define DFLTPACLEN   255   /* default packet length */
 size_t paclen = DFLTPACLEN;
 int gverbose_flag=FALSE;
+int gsendmsgonly_flag=FALSE;
 
 /*
  * Config parameters struct
@@ -116,6 +117,7 @@ typedef struct _wl2kax25_config {
   char *emailaddr;
   unsigned int timeoutsecs;
   int  bVerbose;
+  int  bSendonly;
 }cfg_t;
 
 static bool loadconfig(int argc, char **argv, cfg_t *cfg);
@@ -385,8 +387,9 @@ usage(void)
   printf("  -a  --ax25port      Set AX25 port to use\n");
   printf("  -t  --timeout       Set timeout in seconds\n");
   printf("  -e  --email-address Set your e-mail address\n");
-  printf("  -v  --version       Display program version only\n");
+  printf("  -s  --send-only     Send messages only\n");
   printf("  -V  --verbose       Print verbose messages\n");
+  printf("  -v  --version       Display program version only\n");
   printf("  -C  --configuration Display configuration only\n");
   printf("  -h  --help          Display this usage info\n");
   exit(EXIT_SUCCESS);
@@ -433,7 +436,9 @@ displayconfig(cfg_t *cfg)
   if(cfg->emailaddr) {
     printf("  Email address: %s\n", cfg->emailaddr);
   }
-  printf("  Flags: verbose = %s\n", cfg->bVerbose ? "On" : "Off");
+  printf("  Flags: verbose = %s, send-only = %s\n",
+         cfg->bVerbose  ? "On" : "Off",
+         cfg->bSendonly ? "On" : "Off");
 }
 
 /* Load these 5 config parameters:
@@ -451,13 +456,14 @@ loadconfig(int argc, char **argv, cfg_t *config)
   bool bDisplayVersion_flag = FALSE;
   bool bRequireConfig_pass = TRUE;
   /* short options */
-  static const char *short_options = "hVvCc:t:e:a:";
+  static const char *short_options = "hVvsCc:t:e:a:";
   /* long options */
   static struct option long_options[] =
   {
     /* These options set a flag. */
     {"verbose",       no_argument,  &gverbose_flag, TRUE},
     {"config",        no_argument,  &displayconfig_flag, TRUE},
+    {"send-only",     no_argument,  &gsendmsgonly_flag, TRUE},
     /* These options don't set a flag.
     We distinguish them by their indices. */
     {"version",       no_argument,       NULL, 'v'},
@@ -491,6 +497,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   config->timeoutsecs = DFLT_TIMEOUTSECS;
   config->ax25port = NULL;
   config->bVerbose = FALSE;
+  config->bSendonly = FALSE;
 
   /*
    * Get config from config file
@@ -551,6 +558,9 @@ loadconfig(int argc, char **argv, cfg_t *config)
       case 'C':   /* set display config flag */
         displayconfig_flag = TRUE;
         break;
+      case 's':   /* set send message only flag */
+        gsendmsgonly_flag = TRUE;
+        break;
       case 't':   /* set time out in seconds */
         config->timeoutsecs = (unsigned int) strtol(optarg, &endp, 10);
         if (*endp != '\0') {
@@ -584,6 +594,8 @@ loadconfig(int argc, char **argv, cfg_t *config)
              long_options, &option_index);
   }
 
+  /* set send only flag here in case long option was used */
+  config->bSendonly = gsendmsgonly_flag;
   /* set verbose flag here in case long option was used */
   config->bVerbose = gverbose_flag;
 
