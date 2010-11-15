@@ -1,5 +1,15 @@
 $Id$
 
+Sun Nov 14 16:05:52 PST 2010  Basil Gunn <basil@pacabunga.com>
+
+    * Add -s argument for send only mode
+      Files modified:
+        wl2k.c
+        wl2kax25.c
+        wl2ktelnet.c
+        wl2kserial.c
+        wl2kax25d.c
+
 Thu Nov 11 17:58:43 PST 2010  Basil Gunn <basil@pacabunga.com>
 
     * Test result from g_mime_message_get_reply_to() to avoid a segfault.
