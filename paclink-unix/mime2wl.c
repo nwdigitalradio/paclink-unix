@@ -135,7 +135,7 @@ mbo_header(char *mh_from, const char *callsign)
   /* Get the memory & initialize it */
   pmh_mbo = (char *)calloc(memsize, 1);
 
-	/* Did we get the memory? */
+  /* Did we get the memory? */
   if(pmh_mbo == NULL) {
     syslog(LOG_ERR, "mbo_header: memory alloc error\n");
     return NULL;
@@ -504,9 +504,9 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
   buffer_addstring(wl2k.hbuf, mheader_mbo);
   buffer_addstring(wl2k.hbuf, "\r\n");
   if(mheader_from)
-	  free(mheader_from);
+    free(mheader_from);
   if(mheader_mbo)
-	  free(mheader_mbo);
+    free(mheader_mbo);
 
   g_mime_message_foreach(message, mime_foreach_callback, &wl2k);
 
