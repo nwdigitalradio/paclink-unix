@@ -90,6 +90,9 @@ __RCSID("$Id$");
 
 #define PROPLIMIT 5
 
+/* Send messages only flag */
+extern int gsendmsgonly_flag;
+
 struct proposal {
   char code;
   char type;
@@ -903,7 +906,6 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
       if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
 #ifdef  WL2KAX25_DAEMON
         print_log(LOG_DEBUG, ">; %s de %s SK", yourcall, mycall);
-
         resettimeout();
         if (fprintf(ofp, "; %s de %s SK\r", yourcall, mycall) == -1) {
           print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
@@ -919,6 +921,19 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
       dodelete(&oproplist, &nproplist);
       return;
     } else if (strbegins(line, "F>")) {
+      /* Send message only option -
+       *  -bail out from a session after receive proposal */
+      if(gsendmsgonly_flag) {
+        /* create an acceptance error */
+        print_log(LOG_DEBUG, ">FF");
+        resettimeout();
+        if (fprintf(ofp, "FF\r") == -1) {
+          print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
+          exit(EXIT_FAILURE);
+        }
+        fflush(ofp);
+        continue;
+      }
       proposalcksum = (-proposalcksum) & 0xff;
       sentcksum = strtoul(line + 2, &endp, 16);
 
@@ -934,6 +949,18 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
         strcpy(pbuf, "FS ");
         j = (int)strlen(pbuf); /* used to build up proposal response */
 
+        /* Definiton of characters used for answers in an FS line :
+         *   + or Y : Yes, message accepted
+         *   - or N : No, message already received
+         *   = or L : Later, already receiving this message
+         *   H : Message is accepted but will be held
+         *   R : Message is rejected
+         *   E : There is an error in the line
+         *   !offset or Aoffset : Yes, message accepted from (Offset)
+         *
+         * Note: If the later or Reject answer is given in successive
+         * sessions the message will be dropped by the CSM
+         */
         for (i = 0; i < proposals; i++) {
           ipropary[i].accepted = 0;
           if (ipropary[i].code == 'C') {
