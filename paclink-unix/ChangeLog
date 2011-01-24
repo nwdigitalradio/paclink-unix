@@ -1,5 +1,11 @@
 $Id$
 
+Mon Jan 24 11:25:29 PST 2011  Basil Gunn <basil@pacabunga.com>
+
+    * Parse banner message for escape char '\'. Fixes bug of banner
+      message displaying escape sequence rather than executing it.
+      File modified: wl2kax25d.conf
+
 Sun Nov 14 16:05:52 PST 2010  Basil Gunn <basil@pacabunga.com>
 
     * Add -s argument for send only mode
