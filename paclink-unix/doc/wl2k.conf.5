@@ -15,8 +15,7 @@ in the following places:
 All values shown commented out are the default values set in the program. All values described in this file except for mycall can be overridden by using a command line option.  Lines beginning with a # character are comments. Parameters are of the form:
 .IP 
 \fIname = value\fR
-.LP 
-\fBCommon Section\fR
+.SS "Common Section"
 .TP 
 \fBmycall\fR
 Use your HAM radio call sign.
@@ -26,13 +25,11 @@ Timeout in seconds.
 .TP 
 \fBemail\fR
 Use your internet email address
-.LP  
-\fBAX25 Section\fR
+.SS "AX25 Section"
 .TP 
 \fBax25port\fR
 Use an AX25 port configured in /etc/ax25ports
-.LP 
-\fBTelnet Section\fR
+.SS "Telnet Section"
 .TP 
 \fBhostname\fR
 Hostnames can be server, sandiego, perth, halifax, wien with a .winlink.org suffix
@@ -45,16 +42,14 @@ Target server, default wl2k
 .TP 
 \fBpassword\fR
 Telnet password, default CMSTelnet
-.LP 
-\fBSerial Section\fR
+.SS "Serial Section"
 .TP 
 \fBdevice\fR
 Serial device
 .TP 
 \fBbaud\fR
 Serial connection speed
-.LP
-\fBWl2kax25d Section\fR
+.SS "Wl2kax25d Section"
 .TP
 \fBgridsquare\fR
 Maidenhead gridsquare, default XXyyzz
