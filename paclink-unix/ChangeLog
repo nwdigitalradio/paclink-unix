@@ -1,5 +1,17 @@
 $Id$
 
+Mon Jan 24 15:27:25 PST 2011  Basil Gunn <basil@pacabunga.com>
+
+    * Updated man files with -s --send-only option definition.
+      Files modified:
+        wl2kax25.1
+        wl2kax25d.1
+        wl2kserial.1
+        wl2ktelnet.1
+
+    * Indented section headings.
+      File modified: wl2k.conf.5
+
 Mon Jan 24 11:25:29 PST 2011  Basil Gunn <basil@pacabunga.com>
 
     * Parse banner message for escape char '\'. Fixes bug of banner
