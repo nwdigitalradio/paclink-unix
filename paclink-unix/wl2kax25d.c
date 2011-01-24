@@ -118,6 +118,8 @@ static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
 static void displayversion(void);
 static void displayconfig(cfg_t *cfg);
+static void print_esc_string (const char *str, bool bXlate);
+static int print_esc_char (char c, bool bXlate);
 
 /**
  * Function: main
@@ -199,10 +201,11 @@ main(int argc, char *argv[])
   if(cfg.welcomemsg) {
     pStr = cfg.welcomemsg;
   } else {
-    pStr="Welcome";
+    pStr="Welcome\r";
   }
   print_log(LOG_INFO, "Banner: %s", pStr);
-  fprintf(stdout,"%s\r", pStr);
+  /* Output the banner msg to stdout parsing any escape '\' chars */
+  print_esc_string(pStr, FALSE);
 
   wl2kexchange(cfg.mycall, cfg.targetcall, stdin, stdout, cfg.emailaddr);
 
@@ -277,12 +280,14 @@ displayconfig(cfg_t *cfg)
     printf("  Grid square: %s\n", cfg->gridsquare);
   }
   if(cfg->welcomemsg) {
-    printf("  Welcome msg: %s\n", cfg->welcomemsg);
+    printf("  Welcome msg: ");
+    /* Output the banner msg to stdout parsing any escape '\' chars */
+    print_esc_string(cfg->welcomemsg, TRUE);
   }
 
   printf("  Flags: verbose = %s, send-only = %s\n",
-         cfg->bVerbose ? "On" : "Off",
-         cfg->bSendonly ? "On" : "Off");
+    cfg->bVerbose ? "On" : "Off",
+    cfg->bSendonly ? "On" : "Off");
 }
 
 /* Load these 5 config parameters:
@@ -476,4 +481,59 @@ loadconfig(int argc, char **argv, cfg_t *config)
   }
 
   return(TRUE);
+}
+
+/*
+ * Parse the char c that follows the escape char '\'
+ * If bXlate is TRUE translate a '\r' to '\r\n' pair.
+ */
+static int
+print_esc_char (char c, bool bXlate)
+{
+
+  switch (c) {
+    case 'a':			/* Alert. */
+      putchar ('\a');
+      break;
+    case 'b':			/* Backspace. */
+      putchar ('\b');
+      break;
+    case 'c':			/* Cancel the rest of the output. */
+      exit (EXIT_SUCCESS);
+      break;
+    case 'f':			/* Form feed. */
+      putchar ('\f');
+      break;
+    case 'n':			/* New line. */
+      putchar ('\n');
+      break;
+    case 'r':			/* Carriage return. */
+      putchar ('\r');
+      if(bXlate) {
+        putchar('\n');
+      }
+      break;
+    case 't':			/* Horizontal tab. */
+      putchar ('\t');
+      break;
+    default:
+      putchar (c);
+      break;
+  }
+  return 1;
+}
+
+/*
+ * Parse a string looking for the escape char '\'
+ */
+static void
+print_esc_string (const char *str, bool bXlate)
+{
+
+  for (; *str; str++)
+    if (*str == '\\') {
+      str += print_esc_char (*(str+1), bXlate);
+    }  else {
+      putchar (*str);
+    }
 }
