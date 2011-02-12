@@ -1,5 +1,18 @@
 $Id$
 
+Sat Feb 12 07:54:12 PST 2011  Basil Gunn <basil@pacabunga.com>
+
+    * Change SID from PaclinkUNIX to UnixLINK per Victor Poor.
+      Due to a new release of CMS software PaclinkUNIX was not allowed as a
+      valid SID at the CMS. This occurred on Feb 02, 2011.  Because
+      paclink-unix is not following the exact feature set of Paclink in
+      particular multi-user functionality, paclink-unix was disallowed as a
+      valid SID by the CMS.  On Feb 03, 2011 Victor changed the CMS software
+      to allow any SID but strongly urged not using paclink in the SID
+      unless paclink-unix really emulate the feature set of Paclink.
+
+      File modified wl2k.c
+
 Mon Jan 24 15:27:25 PST 2011  Basil Gunn <basil@pacabunga.com>
 
     * Updated man files with -s --send-only option definition.
