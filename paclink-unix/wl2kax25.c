@@ -92,6 +92,7 @@ __RCSID("$Id$");
 #include "timeout.h"
 #include "wl2k.h"
 #include "strutil.h"
+#include "buffer.h"
 
 #define BUFMAXIN  (256)
 #define BUFMAXOUT (512)
@@ -113,6 +114,7 @@ int gsendmsgonly_flag=FALSE;
 typedef struct _wl2kax25_config {
   char *mycall;
   char *targetcall;
+  struct buffer *pathbuf;
   char *ax25port;
   char *emailaddr;
   unsigned int timeoutsecs;
@@ -124,6 +126,7 @@ static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
 static void displayversion(void);
 static void displayconfig(cfg_t *cfg);
+static void exitcleanup(cfg_t *cfg);
 static bool isax25connected(int s);
 
 /**
@@ -171,6 +174,7 @@ main(int argc, char *argv[])
   if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv))
   {
     perror("socketpair");
+    exitcleanup(&cfg);
     exit(EXIT_FAILURE);
   }
 
@@ -182,6 +186,7 @@ main(int argc, char *argv[])
     if ((dev = ax25_config_get_dev(cfg.ax25port)) == NULL) {
       fprintf(stderr, "wl2kax25: invalid port name - %s\n",
               cfg.ax25port);
+      exitcleanup(&cfg);
       return(EXIT_FAILURE);
     }
   }
@@ -189,6 +194,7 @@ main(int argc, char *argv[])
   if ((s = socket(AF_AX25, SOCK_SEQPACKET, 0)) == -1) {
     perror("socket");
     printf("%d\n", __LINE__);
+    exitcleanup(&cfg);
     exit(EXIT_FAILURE);
   }
   ax25_aton(ax25_config_get_addr(cfg.ax25port), &sockaddr.ax25);
@@ -205,6 +211,7 @@ main(int argc, char *argv[])
   if (bind(s, (struct sockaddr *) &sockaddr, addrlen) == -1) {
     perror("bind");
     close(s);
+    exitcleanup(&cfg);
     exit(EXIT_FAILURE);
   }
 
@@ -212,6 +219,7 @@ main(int argc, char *argv[])
   if (ax25_aton(cfg.targetcall, &sockaddr.ax25) < 0) {
     close(s);
     perror("ax25_aton()");
+    exitcleanup(&cfg);
     exit(EXIT_FAILURE);
   }
   sockaddr.rose.srose_family = AF_AX25;
@@ -221,6 +229,7 @@ main(int argc, char *argv[])
   if (connect(s, (struct sockaddr *) &sockaddr, addrlen) != 0) {
     close(s);
     perror("connect()");
+    exitcleanup(&cfg);
     exit(EXIT_FAILURE);
   }
   unsettimeout();
@@ -228,15 +237,16 @@ main(int argc, char *argv[])
   printf("Connected to AX.25 stack\n"); fflush(stdout);
   // End AX25 socket code
 
-	// Fork a process
-		if ((procID = fork())) {
-		// Parent processing
-			if (-1 == procID) {
-				fprintf(stderr, "fork\n");
-				exit(EXIT_FAILURE);
-			}
+  // Fork a process
+  if ((procID = fork())) {
+    // Parent processing
+    if (-1 == procID) {
+	fprintf(stderr, "fork\n");
+        exitcleanup(&cfg);
+        exit(EXIT_FAILURE);
+    }
 
-			close(sv[1]);
+    close(sv[1]);
 
     fds[0].fd = s;
     fds[0].events = POLLIN;
@@ -250,9 +260,10 @@ main(int argc, char *argv[])
 
       if (-1 == ready) {
         if (EINTR == errno)
-					break;
-				close(s);
+          break;
+	close(s);
         perror("poll");
+        exitcleanup(&cfg);
         exit(EXIT_FAILURE);
       }
 
@@ -279,6 +290,7 @@ main(int argc, char *argv[])
 				} else if (len == 0) {
 					close(s);
           printf("EOF on ax25 socket, exiting...\n");
+          exitcleanup(&cfg);
           exit(EXIT_FAILURE);
         }
       }
@@ -337,6 +349,7 @@ main(int argc, char *argv[])
     g_mime_shutdown();
     close(sv[0]);
     close(s);
+    exitcleanup(&cfg);
     exit(EXIT_SUCCESS);
     return 1;
   }
@@ -349,6 +362,7 @@ main(int argc, char *argv[])
     if ((fp = fdopen(sv[1], "r+b")) == NULL) {
       close(sv[1]);
       perror("fdopen()");
+      exitcleanup(&cfg);
       _exit(EXIT_FAILURE);
     }
 
@@ -371,6 +385,7 @@ main(int argc, char *argv[])
     wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr);
     fclose(fp);
     printf("Child process exiting\n");
+    exitcleanup(&cfg);
     _exit(EXIT_SUCCESS);
   }
 }
@@ -419,7 +434,7 @@ static void
 displayconfig(cfg_t *cfg)
 {
 
-  printf("Using this config:\n");
+  printf("%s: Using this config:\n", getprogname());
 
   if(cfg->mycall) {
     printf("  My callsign: %s\n", cfg->mycall);
@@ -479,7 +494,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   cfgbuf = (char *)malloc(256);
   if(cfgbuf == NULL) {
     fprintf(stderr, "%s: loadconfig, out of memory\n", getprogname());
-    return(FALSE);
+    exit(EXIT_FAILURE);
   }
 
   /*
@@ -494,6 +509,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
 
   config->mycall = NULL;
   config->targetcall = NULL;
+  config->pathbuf = NULL;
   config->timeoutsecs = DFLT_TIMEOUTSECS;
   config->ax25port = NULL;
   config->bVerbose = FALSE;
@@ -599,8 +615,34 @@ loadconfig(int argc, char **argv, cfg_t *config)
   /* set verbose flag here in case long option was used */
   config->bVerbose = gverbose_flag;
 
+  /* If there are more args left on command line parse them as radio path */
+  if (optind < argc) {
+    struct buffer *pathBuf;
+
+    if( (pathBuf=buffer_new()) == NULL ) {
+      fprintf(stderr, "%s: Failure getting new buffer\n", getprogname());
+      exit(EXIT_FAILURE);
+    }
+
+    if (config->targetcall != NULL) {
+      buffer_setstring(pathBuf, (unsigned char *)config->targetcall);
+    }
+
+    while(optind < argc) {
+      buffer_addstring(pathBuf, (unsigned char *) " ");
+      buffer_addstring(pathBuf, (unsigned char *)argv[optind]);
+      optind++;
+    }
+    if(gverbose_flag) {
+      printf("%s: Call Path: %s\n", getprogname(), pathBuf->data);
+    }
+    config->targetcall = (char *)pathBuf->data;
+    config->pathbuf = pathBuf;
+  }
+
   if(bDisplayVersion_flag) {
     displayversion();
+    exitcleanup(config);
     exit(EXIT_SUCCESS);
   }
 
@@ -621,11 +663,13 @@ loadconfig(int argc, char **argv, cfg_t *config)
   if(displayconfig_flag) {
     displayversion();
     displayconfig(config);
+    exitcleanup(config);
     exit(EXIT_SUCCESS);
   }
 
   /* Check configuration requirements */
   if(!bRequireConfig_pass) {
+    exitcleanup(config);
     usage();  /* does not return */
   }
 
@@ -654,4 +698,15 @@ static bool isax25connected(int s)
   }
 
   return TRUE;
+}
+
+/*
+ * Clean up all the dead chickens before we bail
+ */
+static void exitcleanup(cfg_t *config)
+{
+  if(config->pathbuf != NULL) {
+    buffer_free(config->pathbuf);
+    config->pathbuf = NULL;
+  }
 }
