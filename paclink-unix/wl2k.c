@@ -854,7 +854,7 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
           exit(EXIT_FAILURE);
         }
       }
-      sprintf(sidbuf, "[PaclinkUNIX-%s-B2FIHM$]", PACKAGE_VERSION);
+      sprintf(sidbuf, "[UnixLINK-%s-B2FIHM$]", PACKAGE_VERSION);
       print_log(LOG_DEBUG, ">%s", sidbuf);
       resettimeout();
       if (fprintf(ofp, "%s\r", sidbuf) == -1) {
