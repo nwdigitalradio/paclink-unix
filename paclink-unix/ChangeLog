@@ -1,5 +1,14 @@
 $Id$
 
+Sat Feb 12 08:12:38 PST 2011  Basil Gunn <basil@pacabunga.com>
+
+    * Parse radio path so that quotes are not needed.
+      Also in default usage the only argument required is '-c', if this
+      argument is omitted so that the only arguments on the wl2kax25
+      command line are the radio path, wl2kax25 works as expected.
+
+      File modified: wl2kax25.c
+
 Sat Feb 12 07:54:12 PST 2011  Basil Gunn <basil@pacabunga.com>
 
     * Change SID from PaclinkUNIX to UnixLINK per Victor Poor.
@@ -11,7 +20,7 @@ Sat Feb 12 07:54:12 PST 2011  Basil Gunn <basil@pacabunga.com>
       to allow any SID but strongly urged not using paclink in the SID
       unless paclink-unix really emulate the feature set of Paclink.
 
-      File modified wl2k.c
+      File modified: wl2k.c
 
 Mon Jan 24 15:27:25 PST 2011  Basil Gunn <basil@pacabunga.com>
 
