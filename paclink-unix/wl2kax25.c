@@ -633,6 +633,9 @@ loadconfig(int argc, char **argv, cfg_t *config)
       buffer_addstring(pathBuf, (unsigned char *)argv[optind]);
       optind++;
     }
+    /* terminate the radio call path buffer */
+    buffer_addchar(pathBuf, '\0');
+
     if(gverbose_flag) {
       printf("%s: Call Path: %s\n", getprogname(), pathBuf->data);
     }
