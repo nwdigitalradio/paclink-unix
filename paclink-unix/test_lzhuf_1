@@ -18,9 +18,9 @@ cmp binmail binmail.test
 ./lzhuf_1 e1 ${srcdir}/ascmail binmail1.test
 ./lzhuf_1 d1 binmail1.test ascmail1.test
 cmp ${srcdir}/ascmail ascmail1.test
-./lzhuf_1 e1 ${srcdir}/ascmail binmail1.test 2>&1 | grep f708 || exit 1
+./lzhuf_1 e1 ${srcdir}/ascmail binmail1.test 2>&1 | grep b203 || exit 1
 ./lzhuf_1 e1 ${srcdir}/ascmail binmail1.test 2>&1 | grep 20216 || exit 1
-./lzhuf_1 d1 binmail1.test ascmail1.test 2>&1 | grep f708 || exit 1
+./lzhuf_1 d1 binmail1.test ascmail1.test 2>&1 | grep b203 || exit 1
 ./lzhuf_1 d1 binmail1.test ascmail1.test 2>&1 | grep 20216 || exit 1
 
 trap '' 0

@@ -1,5 +1,15 @@
 $Id$
 
+Fri Sep 16 11:07:27 PDT 2011  Basil Gunn <basil@pacabunga.com>
+
+  * Fix 'make check' for lzhuf_1
+    Needed to build a new binmail.uue file:
+    uuencode binmail.test binmail > binmail.uue
+    Also needed to change the CRC check in script test_lzhuf_1
+    Files modified:
+      binimail.uue
+      test_lzhuf_1
+
 Thu Feb 24 11:06:20 PST 2011  Basil Gunn <basil@pacabunga.com>
 
     * Fix unterminated radio call path buffer.
