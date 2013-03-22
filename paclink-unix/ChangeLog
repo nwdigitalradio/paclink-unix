@@ -1,5 +1,13 @@
 $Id$
 
+Thu Mar 21 21:40:49 PDT 2013  Basil Gunn <basil@pacabunga.com>
+
+  * Added news files for websockets app
+    Files Added:
+      webapp/plu-frontend.js
+      webapp/plu-server.js
+      webapp/plu.html
+
 Fri Sep 16 11:07:27 PDT 2011  Basil Gunn <basil@pacabunga.com>
 
   * Fix 'make check' for lzhuf_1
@@ -80,7 +88,7 @@ Thu Nov 11 12:02:38 PST 2010  Basil Gunn <basil@pacabunga.com>
 
 Mon Jun 21 22:45:51 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
-    * Took Encode routines from this link by Haruyasu Yoshizaki & T. Tagawa 
+    * Took Encode routines from this link by Haruyasu Yoshizaki & T. Tagawa
        http://sunsite.bilkent.edu.tr/pub/tex/ctan/tools/xlharc/lzhuf.c
        and integrated to fix problem of hang when encoding files larger
        than 32K bytes.
@@ -162,7 +170,7 @@ Fri Apr 16 19:01:52 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Add ability to parse quoted strings with spaces, for welcome message.
     * Add grid square locator & welcome message config variables.
-      Files modified:    
+      Files modified:
         conf.c
         wl2k.conf.dist
 
@@ -174,8 +182,8 @@ Wed Apr  7 15:55:01 PDT 2010  Basil Gunn <basil@pacabunga.com>
     * SIGALRM handler is set once in settimeout instead of every call
       to resettimeout()
       Files modified:
-        wl2kax25.c    
-        wl2ktelnet.c    
+        wl2kax25.c
+        wl2ktelnet.c
         wl2kserial.c
         timeout.c
         timeout.h
@@ -189,14 +197,14 @@ Wed Apr  7 14:41:55 PDT 2010  Basil Gunn <basil@pacabunga.com>
 Sun Mar 14 09:45:46 PDT 2010  Basil Gunn <basil@pacabunga.com>
 
     * Change help & version option output to be stdout to enable
-      using help2man program. 
+      using help2man program.
     * Shorten version string to work better with help2man program.
     * Add display of gmime lib version conditional on verbose flag.
     * Make display of parameters more consistent amongst programs.
     * Make verbose flag a global.
       Files modified:
-        wl2kax25.c    
-        wl2ktelnet.c    
+        wl2kax25.c
+        wl2ktelnet.c
         wl2kserial.c
 
 Sat Mar 13 12:29:53 PST 2010  Basil Gunn <basil@pacabunga.com>
@@ -210,10 +218,10 @@ Sat Mar 13 11:57:20 PST 2010  Basil Gunn <basil@pacabunga.com>
     * Version number now pulled from string defined in configure.ac
       Files modified:
         configure.ac
-        wl2kax25.c    
-        wl2ktelnet.c    
+        wl2kax25.c
+        wl2ktelnet.c
         wl2kserial.c
-      File deleted:  
+      File deleted:
         version.h
 
 Thu Mar 11 15:12:00 PST 2010  Basil Gunn <basil@pacabunga.com>
@@ -222,9 +230,9 @@ Thu Mar 11 15:12:00 PST 2010  Basil Gunn <basil@pacabunga.com>
     * wl2kax25, wl2ktelnet & wl2kserial now pass command line
       arguments as option args instead of being positional.
       Files modified:
-        wl2kax25.c    
-        wl2ktelnet.c    
-        wl2kserial.c    
+        wl2kax25.c
+        wl2ktelnet.c
+        wl2kserial.c
         wl2k.conf.dist
       Files added:
         version.h <- project version # 0.5(0)
@@ -234,7 +242,7 @@ Thu Mar 11 15:12:00 PST 2010  Basil Gunn <basil@pacabunga.com>
       File modified:  Makefile.am
 
     * Add default values for command line options.
-    * Fix parsing problem when '#' is first char in a line. 
+    * Fix parsing problem when '#' is first char in a line.
       Files modified:
         conf.h
         conf.c
