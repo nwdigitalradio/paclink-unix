@@ -48,6 +48,9 @@ __RCSID("$Id$");
 #if HAVE_STRING_H
 # include <string.h>
 #endif
+#if HAVE_STRING_H
+# include <time.h>
+#endif
 
 #include <gmime/gmime.h>
 
@@ -56,6 +59,28 @@ __RCSID("$Id$");
 #include "strutil.h"
 #include "wl2mime.h"
 #include "mime2wl.h"
+
+/*
+ * Convert local time to UTC in a portable way
+ * From timegm man page
+ */
+time_t
+wl_timegm(struct tm *tm)
+{
+  time_t ret;
+  char *tz;
+
+  tz = getenv("TZ");
+  setenv("TZ", "UTC", 1);
+  tzset();
+  ret = mktime(tm);
+  if (tz)
+    setenv("TZ", tz, 1);
+  else
+    unsetenv("TZ");
+  tzset();
+  return ret;
+}
 
 struct buffer *
 wl2mime(struct buffer *ibuf)
@@ -117,7 +142,9 @@ wl2mime(struct buffer *ibuf)
     } else if (strcasebegins(line, "Date:")) {
       memset(&tm, 0, sizeof(struct tm));
       if (strptime(linedata, "%Y/%m/%d %R", &tm) != NULL) {
-	date = mktime(&tm);
+	/* Get date as UTC */
+	date = wl_timegm(&tm);
+	/* set date as UTC */
 	g_mime_message_set_date(message, date, 0);
       }
     } else if (strcasebegins(line, "From:")) {

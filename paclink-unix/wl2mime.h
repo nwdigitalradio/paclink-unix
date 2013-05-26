@@ -27,5 +27,6 @@
 #define WL2MIME_H
 
 struct buffer *wl2mime(struct buffer *ibuf);
+time_t wl_timegm(struct tm *tm);
 
 #endif
