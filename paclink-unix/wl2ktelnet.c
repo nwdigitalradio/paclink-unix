@@ -90,6 +90,7 @@ typedef struct _wl2ktelnet_config {
   unsigned short  hostport;
   char *password;
   char *emailaddr;
+  char *wl2k_password;
   unsigned int timeoutsecs;
   int  bVerbose;
   int  bSendonly;
@@ -198,7 +199,7 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr);
+  wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
 
   fclose(fp);
   g_mime_shutdown();
@@ -215,7 +216,8 @@ usage(void)
 {
   printf("Usage:  %s [options] [HOSTNAME PORT]\n", getprogname());
   printf("  -c  --target-call   Set callsign to call\n");
-  printf("  -p  --password      Set password for login\n");
+  printf("  -p  --password      Set password for telnet login\n");
+  printf("  -P  --wl2k-passwd   Set password for WL2K secure login\n");
   printf("  -t  --timeout       Set timeout in seconds\n");
   printf("  -e  --email-address Set your e-mail address\n");
   printf("  -s  --send-only     Send messages only\n");
@@ -270,6 +272,10 @@ displayconfig(cfg_t *cfg)
     printf("  Login password: %s\n", cfg->password);
   }
 
+  if (cfg->wl2k_password) {
+    printf("  WL2K secure login password: %s\n", cfg->wl2k_password);
+  }
+
   printf("  Timeout: %d\n", cfg->timeoutsecs);
 
   if(cfg->emailaddr) {
@@ -295,7 +301,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   bool bDisplayVersion_flag = FALSE;
   bool bRequireConfig_pass = TRUE;
   /* short options */
-  static const char *short_options = "hVvsCc:t:e:p:";
+  static const char *short_options = "hVvsCc:t:e:p:P:";
   /* long options */
   static struct option long_options[] =
   {
@@ -311,6 +317,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
     {"timeout",       required_argument, NULL, 't'},
     {"email-address", required_argument, NULL, 'e'},
     {"password",      required_argument, NULL, 'p'},
+    {"wl2k-passwd",   required_argument, NULL, 'P'},
     {NULL, no_argument, NULL, 0} /* array termination */
   };
 
@@ -342,6 +349,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   free(cfgbuf);
 
   config->mycall = NULL;
+  config->wl2k_password = NULL;
   config->timeoutsecs = DFLT_TIMEOUTSECS;
   config->hostport = DFLT_TELNET_PORT;
   config->bVerbose = FALSE;
@@ -370,6 +378,10 @@ loadconfig(int argc, char **argv, cfg_t *config)
 
   if ((cfgbuf = conf_get(fileconf, "password")) != NULL) {
     config->password = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "wl2k-password")) != NULL) {
+    config->wl2k_password = cfgbuf;
   }
 
   if ((cfgbuf = conf_get(fileconf, "hostname")) != NULL) {
@@ -430,9 +442,12 @@ loadconfig(int argc, char **argv, cfg_t *config)
       case 'e':   /* set email address */
         config->emailaddr = optarg;
         break;
-      case 'p':   /* set password */
+      case 'p':   /* set telnet password */
         config->password = optarg;
         break;
+      case 'P':   /* set secure login password */
+	config->wl2k_password = optarg;
+	break;
       case 'h':
         usage();  /* does not return */
         break;

@@ -43,11 +43,11 @@ mime2wl_SOURCES=mime2wl.c mime2wl.h buffer.c buffer.h mid.c mid.h compat.h conf.
 wl2mime_CPPFLAGS=-DWL2MIME_MAIN $(WL2K_CPPFLAGS)
 wl2mime_SOURCES=wl2mime.c wl2mime.h buffer.c buffer.h strutil.c strutil.h compat.h
 
-wl2ktelnet_SOURCES=wl2ktelnet.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h
+wl2ktelnet_SOURCES=wl2ktelnet.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h md5.c
 
-wl2kax25_SOURCES=wl2kax25.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h
+wl2kax25_SOURCES=wl2kax25.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h md5.c
 
-wl2kserial_SOURCES=wl2kserial.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h
+wl2kserial_SOURCES=wl2kserial.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h md5.c
 
 wl2kax25d_CPPFLAGS=-DWL2KAX25_DAEMON $(WL2K_CPPFLAGS)
 wl2kax25d_SOURCES=wl2kax25d.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h

@@ -118,6 +118,28 @@ static void putcompressed(struct proposal *prop, FILE *fp);
 static char *tgetline(FILE *fp, int terminator, int ignore);
 static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 
+static void send_my_sid(FILE *ofp);
+
+#ifndef WL2KAX25_DAEMON
+# include "md5.h"
+
+/* Salt for Winlink 2000 secure login */
+static const unsigned char sl_salt[] = {
+  77, 197, 101, 206, 190, 249,
+  93, 200, 51, 243, 93, 237,
+  71, 94, 239, 138, 68, 108,
+  70, 185, 225, 137, 217, 16,
+  51, 122, 193, 48, 194, 195,
+  198, 175, 172, 169, 70, 84,
+  61, 62, 104, 186, 114, 52,
+  61, 168, 66, 129, 192, 208,
+  187, 249, 232, 193, 41, 113,
+  41, 45, 240, 16, 29, 228,
+  208, 228, 61, 20 };
+
+static void compute_secure_login_response(char *challenge, char *response, char *password);
+#endif /* !WL2KAX25_DAEMON */
+
 
 static int
 getrawchar(FILE *fp)
@@ -733,14 +755,60 @@ wl2kgetline(FILE *fp)
   return cp;
 }
 
+#ifndef WL2KAX25_DAEMON
 void
-wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress)
+compute_secure_login_response(char *challenge, char *response, char *password)
+{
+  char *hash_input;
+  unsigned char hash_sig[16];
+  unsigned int m, n;
+  int i, pr;
+  char pr_str[20];
+
+  m = strlen(challenge) + strlen(password);
+  n = m + sizeof(sl_salt);
+  hash_input = (char*)malloc(n);
+  strcpy(hash_input, challenge);
+  strcat(hash_input, password);
+  strupper(hash_input);
+  memcpy(hash_input+m, sl_salt, sizeof(sl_salt));
+  md5_buffer(hash_input, n, hash_sig);
+  free(hash_input);
+
+  pr = hash_sig[3] & 0x3f;
+  for (i=2; i>=0; i--)
+    pr = (pr << 8) | hash_sig[i];
+
+  sprintf(pr_str, "%08d", pr);
+  n = strlen(pr_str);
+  if (n > 8)
+    strcpy(response, pr_str+(n-8));
+  else
+    strcpy(response, pr_str);
+}
+#endif /* !WL2KAX25_DAEMON */
+
+void
+send_my_sid(FILE *ofp)
+{
+  char sidbuf[32];
+
+  sprintf(sidbuf, "[UnixLINK-%s-B2FIHM$]", PACKAGE_VERSION);
+  print_log(LOG_DEBUG, ">%s", sidbuf);
+  resettimeout();
+  if (fprintf(ofp, "%s\r", sidbuf) == -1) {
+    print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+}
+
+void
+wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
 {
   char *cp;
   int proposals = 0;
   int proposalcksum = 0;
   int i,j;
-  char sidbuf[32];
   char *inboundsid = NULL;
   char *inboundsidcodes = NULL;
   char *line;
@@ -760,7 +828,11 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
   int r;
   char *command;
   char pbuf[16];
+#ifndef WL2KAX25_DAEMON
+  char challenge[9];
 
+  challenge[0] = 0;
+#endif /* !WL2KAX25_DAEMON */
 
   if (expire_mids() == -1) {
     print_log(LOG_ERR, "expire_mids() failed");
@@ -840,12 +912,37 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
       } else {
         break;
       }
+#else /* WL2KAX25_DAEMON */
+    } else if (strbegins(line, ";")) {
+      /* parse secure login challenge */
+      if (!strncmp(line, ";PQ: ", 5)) {
+	if (strlen(line+5) == 8) {
+	  strcpy(challenge, line+5);
+	  print_log(LOG_DEBUG, "Challenge received: %s", challenge);
+	}
+      }
 #endif /* WL2KAX25_DAEMON */
     } else if (line[strlen(line) - 1] == '>') {
+      int sent_pr = 0;
       if (inboundsidcodes == NULL) {
-        print_log(LOG_ERR, "inboundsidcodes not set");
+	print_log(LOG_ERR, "inboundsidcodes not set");
         exit(EXIT_FAILURE);
       }
+#ifndef WL2KAX25_DAEMON
+      if ((strlen(challenge) > 0) && (sl_pass != NULL)) {
+	char response[9];
+	send_my_sid(ofp);
+	compute_secure_login_response(challenge, response, sl_pass);
+	print_log(LOG_DEBUG, ">;PR: %s", response);
+	resettimeout();
+	if (fprintf(ofp, ";PR: %s\r", response) == -1) {
+	  print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+	  exit(EXIT_FAILURE);
+	}
+
+	sent_pr = 1;
+      }
+#endif /* !WL2KAX25_DAEMON */
       if (strchr(inboundsidcodes, 'I')) {
         print_log(LOG_DEBUG, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
         resettimeout();
@@ -854,13 +951,8 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
           exit(EXIT_FAILURE);
         }
       }
-      sprintf(sidbuf, "[UnixLINK-%s-B2FIHM$]", PACKAGE_VERSION);
-      print_log(LOG_DEBUG, ">%s", sidbuf);
-      resettimeout();
-      if (fprintf(ofp, "%s\r", sidbuf) == -1) {
-        print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
-        exit(EXIT_FAILURE);
-      }
+      if (!sent_pr)
+	send_my_sid(ofp);
       break;
     }
   }
@@ -1076,4 +1168,3 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
     exit(EXIT_FAILURE);
   }
 }
-

@@ -1,5 +1,34 @@
 $Id$
 
+Sun May 26 13:01:57 PDT 2013  Basil Gunn <basil@pacabunga.com>
+
+    * A patch was provided by Brian WB4ES that adds Winlink secure
+      login via a password and PQ/PR challenge response negotiation.
+      Also included is a fix for a UTC timestamp conversion.
+      Files added:
+        md5.c
+        md5.h
+        md5_loc.h
+      Files modified:
+        Makefile.am
+        wl2k.c
+        wl2k.conf.dist
+        wl2k.h
+        wl2kax25.c
+        wl2kax25d.c
+        wl2kserial.c
+        wl2ktelnet.c
+        wl2kax25.1
+        wl2kserial.1
+        wl2ktelnet.1
+
+    * Fix timestamp conversion to UTC.
+      Brian identified the problem but more portable code
+      referenced from timegm man page is used.
+      Files modified:
+        wl2mime.c
+        wl2mime.h
+
 Thu Mar 21 21:40:49 PDT 2013  Basil Gunn <basil@pacabunga.com>
 
   * Added news files for websockets app
@@ -21,7 +50,6 @@ Fri Sep 16 11:07:27 PDT 2011  Basil Gunn <basil@pacabunga.com>
 Thu Feb 24 11:06:20 PST 2011  Basil Gunn <basil@pacabunga.com>
 
     * Fix unterminated radio call path buffer.
-
       File modified: wl2kax25.c
 
 Sat Feb 12 08:12:38 PST 2011  Basil Gunn <basil@pacabunga.com>

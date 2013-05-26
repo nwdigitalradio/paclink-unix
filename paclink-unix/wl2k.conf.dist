@@ -17,6 +17,10 @@ mycall=MYCALL
 # Use your internet email address
 #email=login-name@localhost
 
+# Winlink 2000 secure login password
+# If you have a WL2K password and have enabled secure login,
+# you must provide that password in order to successfully connect.
+#wl2k-password=
 
 # AX25 section
 # ============
@@ -39,7 +43,7 @@ mycall=MYCALL
 
 # Serial section
 # ==============
-# 
+#
 #device=
 
 #baud=

@@ -27,6 +27,6 @@
 #define WL2K_H
 
 char *wl2kgetline(FILE *fp);
-void wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress);
+void wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass);
 
 #endif

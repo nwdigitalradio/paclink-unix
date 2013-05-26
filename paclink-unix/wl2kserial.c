@@ -139,6 +139,7 @@ typedef struct _wl2ktelnet_config {
   char    *targetcall;
   char    *serialdevice;
   char    *emailaddr;
+  char    *wl2k_password;
   speed_t baudrate;
   unsigned int timeoutsecs;
   int     bVerbose;
@@ -300,7 +301,7 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr);
+  wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
 
   fclose(fp);
   g_mime_shutdown();
@@ -320,6 +321,7 @@ usage(void)
   printf("  -d  --device        Set serial device name\n");
   printf("  -b  --baudrate      Set baud rate of serial device\n");
   printf("  -t  --timeout       Set timeout in seconds\n");
+  printf("  -P  --wl2k-passwd   Set password for WL2K secure login\n");
   printf("  -e  --email-address Set your e-mail address\n");
   printf("  -s  --send-only     Send messages only\n");
   printf("  -V  --verbose       Print verbose messages\n");
@@ -379,6 +381,10 @@ displayconfig(cfg_t *cfg)
     printf("Invalid\n");
   }
 
+  if(cfg->wl2k_password) {
+    printf("  WL2K secure login password: %s\n", cfg->wl2k_password);
+  }
+
   printf("  Timeout: %d\n", cfg->timeoutsecs);
 
   if(cfg->emailaddr) {
@@ -408,7 +414,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   char strDefaultBaudRate[]="9600";  /* String of default baudrate */
   char *pBaudRate = strDefaultBaudRate;
   /* short options */
-  static const char *short_options = "hVvsCc:t:e:d:b:";
+  static const char *short_options = "hVvsCc:t:e:d:b:P:";
   /* long options */
   static struct option long_options[] =
   {
@@ -425,6 +431,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
     {"email-address", required_argument, NULL, 'e'},
     {"device",        required_argument, NULL, 'd'},
     {"baudrate",      required_argument, NULL, 'b'},
+    {"wl2k-passwd",   required_argument, NULL, 'P'},
     {NULL, no_argument, NULL, 0} /* array termination */
   };
 
@@ -450,6 +457,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   config->mycall = NULL;
   config->targetcall = NULL;
   config->timeoutsecs = DFLT_TIMEOUTSECS;
+  config->wl2k_password = NULL;
   config->serialdevice = NULL;
   config->baudrate = B9600;
   config->bVerbose = FALSE;
@@ -473,6 +481,10 @@ loadconfig(int argc, char **argv, cfg_t *config)
 
   if ((cfgbuf = conf_get(fileconf, "email")) != NULL) {
     config->emailaddr = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "wl2k-password")) != NULL) {
+    config->wl2k_password = cfgbuf;
   }
 
   if ((cfgbuf = conf_get(fileconf, "device")) != NULL) {
@@ -530,6 +542,9 @@ loadconfig(int argc, char **argv, cfg_t *config)
       case 'e':   /* set email address */
         config->emailaddr = optarg;
         break;
+      case 'P':   /* set secure login password */
+	config->wl2k_password = optarg;
+	break;
       case 'd':   /* set serial device name */
         config->serialdevice = optarg;
         break;

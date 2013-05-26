@@ -117,6 +117,7 @@ typedef struct _wl2kax25_config {
   struct buffer *pathbuf;
   char *ax25port;
   char *emailaddr;
+  char *wl2k_password;
   unsigned int timeoutsecs;
   int  bVerbose;
   int  bSendonly;
@@ -382,7 +383,7 @@ main(int argc, char *argv[])
             printf("Child process calling wl2kexchange()\n");
     }
     settimeout(cfg.timeoutsecs);
-    wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr);
+    wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
     fclose(fp);
     printf("Child process exiting\n");
     exitcleanup(&cfg);
@@ -400,6 +401,7 @@ usage(void)
   printf("Usage:  %s -c target-call [options]\n", getprogname());
   printf("  -c  --target-call   Set callsign to call\n");
   printf("  -a  --ax25port      Set AX25 port to use\n");
+  printf("  -P  --wl2k-passwd   Set password for WL2K secure login\n");
   printf("  -t  --timeout       Set timeout in seconds\n");
   printf("  -e  --email-address Set your e-mail address\n");
   printf("  -s  --send-only     Send messages only\n");
@@ -446,6 +448,10 @@ displayconfig(cfg_t *cfg)
     printf("  Ax25 port: %s\n", cfg->ax25port);
   }
 
+  if(cfg->wl2k_password) {
+          printf("  WL2K secure login password: %s\n", cfg->wl2k_password);
+  }
+
   printf("  Timeout: %d\n", cfg->timeoutsecs);
 
   if(cfg->emailaddr) {
@@ -471,7 +477,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   bool bDisplayVersion_flag = FALSE;
   bool bRequireConfig_pass = TRUE;
   /* short options */
-  static const char *short_options = "hVvsCc:t:e:a:";
+  static const char *short_options = "hVvsCc:t:e:a:P:";
   /* long options */
   static struct option long_options[] =
   {
@@ -487,6 +493,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
     {"timeout",       required_argument, NULL, 't'},
     {"email-address", required_argument, NULL, 'e'},
     {"ax25port",      required_argument, NULL, 'a'},
+    {"wl2k-passwd",   required_argument, NULL, 'P'},
     {NULL, no_argument, NULL, 0} /* array termination */
   };
 
@@ -510,6 +517,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   config->mycall = NULL;
   config->targetcall = NULL;
   config->pathbuf = NULL;
+  config->wl2k_password = NULL;
   config->timeoutsecs = DFLT_TIMEOUTSECS;
   config->ax25port = NULL;
   config->bVerbose = FALSE;
@@ -538,6 +546,10 @@ loadconfig(int argc, char **argv, cfg_t *config)
 
   if ((cfgbuf = conf_get(fileconf, "ax25port")) != NULL) {
     config->ax25port = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "wl2k-password")) != NULL) {
+          config->wl2k_password = cfgbuf;
   }
 
   /*
@@ -586,6 +598,9 @@ loadconfig(int argc, char **argv, cfg_t *config)
       case 'e':   /* set email address */
         config->emailaddr = optarg;
         break;
+      case 'P':   /* set secure login password */
+	config->wl2k_password = optarg;
+	break;
       case 'a':   /* set ax25 port */
         config->ax25port = optarg;
         break;
