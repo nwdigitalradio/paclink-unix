@@ -1,5 +1,11 @@
 $Id$
 
+Mon Apr  7 12:52:23 PDT 2014  Basil Gunn <basil@pacabunga.com>
+
+    * A patch was mostly provided by C.J. KF7BMP to correct warnings
+      in the current version of autoconf. 
+      File modified: configure.ac
+
 Sun May 26 13:01:57 PDT 2013  Basil Gunn <basil@pacabunga.com>
 
     * A patch was provided by Brian WB4ES that adds Winlink secure

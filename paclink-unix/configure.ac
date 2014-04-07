@@ -23,8 +23,8 @@ dnl =======================================================================
 
 AC_PROG_CC
 AC_PROG_RANLIB
-AM_PROG_MKDIR_P
-AM_PROG_INSTALL
+AC_PROG_MKDIR_P
+AC_PROG_INSTALL
 AM_PROG_CC_C_O
 
 AC_PATH_PROG([SENDMAIL], [sendmail], , [$PATH:/usr/libexec:/usr/sbin:/usr/lib:/usr/lib/sendmail:/usr/pkg/libexec/sendmail])
@@ -133,30 +133,30 @@ dnl Checks for library symbols.
 dnl =======================================================================
 
 AC_MSG_CHECKING([for __progname])
-AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
-                               [[extern char *__progname; puts(__progname);]]),
-ax_cv___progname=yes,
-ax_cv___progname=no)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]],
+                               [[extern char *__progname; puts(__progname);]])],
+[ax_cv___progname=yes],
+[ax_cv___progname=no])
 AC_MSG_RESULT($ax_cv___progname)
 if test x$ax_cv___progname = xyes; then
   AC_DEFINE(HAVE___PROGNAME, 1, [Define to 1 if you have the global variable __progname])
 fi
 
 AC_MSG_CHECKING([for __Argv])
-AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
-                               [[extern char **__Argv; puts(__Argv@<:@0@:>@);]]),
-ax_cv___Argv=yes,
-ax_cv___Argv=no)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]],
+                               [[extern char **__Argv; puts(__Argv@<:@0@:>@);]])],
+[ax_cv___Argv=yes],
+[ax_cv___Argv=no])
 AC_MSG_RESULT($ax_cv___Argv)
 if test x$ax_cv___Argv = xyes; then
   AC_DEFINE(HAVE___ARGV, 1, [Define to 1 if you have the global variable __Argv])
 fi
 
 AC_MSG_CHECKING([for ___Argv])
-AC_LINK_IFELSE(AC_LANG_PROGRAM([[#include <stdio.h>]],
-                               [[extern char **___Argv; puts(___Argv@<:@0@:>@);]]),
-ax_cv____Argv=yes,
-ax_cv____Argv=no)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]],
+                               [[extern char **___Argv; puts(___Argv@<:@0@:>@);]])],
+[ax_cv____Argv=yes],
+[ax_cv____Argv=no])
 AC_MSG_RESULT($ax_cv____Argv)
 if test x$ax_cv____Argv = xyes; then
   AC_DEFINE(HAVE____ARGV, 1, [Define to 1 if you have the global variable ___Argv])
