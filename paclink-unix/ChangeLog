@@ -1,5 +1,13 @@
 $Id$
 
+Mon Apr  7 13:10:47 PDT 2014  Basil Gunn <basil@pacabunga.com>
+
+    * Updated my call sign & Jeffery Stedfast's e-mail 
+      at request of C.J. KF7BMP
+      Files modified:
+        AUTHORS 
+        doc/wl2kax25d.1
+
 Mon Apr  7 12:52:23 PDT 2014  Basil Gunn <basil@pacabunga.com>
 
     * A patch was mostly provided by C.J. KF7BMP to correct warnings

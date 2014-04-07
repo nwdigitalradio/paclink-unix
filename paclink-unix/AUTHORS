@@ -3,7 +3,7 @@ $Id$
 Nicholas S. Castellano N2QZ <n2qz@arrl.net>
 Started this crazy thing
 
-Basil Gunn KE7KRO <basil@pacabunga.com>
+Basil Gunn N7NIX <basil@pacabunga.com>
 Parametrized the command line commands and expanded
 the configuration file
 
@@ -22,7 +22,7 @@ Author of lib/asprintf.c and lib/vasprintf.c (public domain)
 Todd C. Miller <Todd.Miller@courtesan.com>
 Author of lib/strlcpy.c (BSD license)
 
-Jeffrey Stedfast <fejj@helixcode.com> Helix Code, Inc. (www.helixcode.com)
+Jeffrey Stedfast <fejj@gnome.org> Xamarin (www.xamarin.com)
 Author of code from gmime library and gmime sample code which was
 adapted for paclink-unix use in mime2wl.c and wl2mime.c
 
