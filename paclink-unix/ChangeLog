@@ -1,5 +1,18 @@
 $Id$
 
+Tue Oct  7 16:29:07 PDT 2014  Basil Gunn <basil@pacabunga.com>
+
+     * Remove jquery verion number from jquery file name in html file.
+       Added install instructions.
+       Load external modules from global directory.
+       Get uid/gid for spawning commands programmatically.
+       Delete unused getNetworkIP code.
+       Update server code to use connect 3.x module.
+       Files Added: webapp/INSTALL
+       Files modified:
+         webapp/plu-server.js
+         webapp/plu.html
+
 Mon Apr  7 13:10:47 PDT 2014  Basil Gunn <basil@pacabunga.com>
 
     * Updated my call sign & Jeffery Stedfast's e-mail 
@@ -45,7 +58,7 @@ Sun May 26 13:01:57 PDT 2013  Basil Gunn <basil@pacabunga.com>
 
 Thu Mar 21 21:40:49 PDT 2013  Basil Gunn <basil@pacabunga.com>
 
-  * Added news files for websockets app
+  * Added new files for websocket app
     Files Added:
       webapp/plu-frontend.js
       webapp/plu-server.js

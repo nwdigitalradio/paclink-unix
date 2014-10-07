@@ -1,6 +1,9 @@
 // http://ejohn.org/blog/ecmascript-5-strict-mode-json-and-more/
 "use strict";
 
+// Install node modules globally npm -g install <module_name>
+var global_module_dir='/usr/local/lib/node_modules/';
+
 // Optional. You will see this name in eg. 'ps' or 'top' command
 process.title = 'plu-server';
 
@@ -20,7 +23,6 @@ var NETHOST = '127.0.0.1';
 //var NETPORT = 9124;
 var UNIXPORT = '/tmp/PACLINK_UI';
 var NETPORT = UNIXPORT;
-var ETH_IFACE = 'br0';
 
 // *** Web socket server
 var webSocketsServerPort = 1339;
@@ -40,16 +42,20 @@ var pluClients = [];
 
 var netClients = [ ];
 var wsClients = [ ];
-var myIPaddr=0;
 
 
 // websocket and http servers
-var webSocketServer = require('websocket').server;
+var webSocketServer = require(global_module_dir + 'websocket').server;
 var http = require('http');
 var events = require("events");
 
 var aprs_emitter = new events.EventEmitter();
 //var msg_emitter = new events.EventEmitter();
+
+var sys = require('sys');
+/* user & group ID running this program */
+var plu_uid;
+var plu_gid;
 
 /**
  * Helper function for escaping html special characters
@@ -59,11 +65,8 @@ function htmlEntities(str) {
                         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 };
 
-function exec_command (chillens, connection) {
-        var sys = require('sys');
+function exec_command (chillens, connection, command) {
         var cached;
-        var command = 'ls -lt /usr/local/var/wl2k/outbox';
-        //        var command = 'tail -f /var/log/syslog';
 
         console.log('Yeah, button depressed\n');
 
@@ -101,8 +104,6 @@ function exec_command (chillens, connection) {
 function spawn_command (chillens, connection, progname) {
         var child_process = require('child_process');
         var cached;
-        var plu_uid = 1002;
-        var plu_gid = 1002;
 
         console.log(' button depressed for: ' + progname + ', strlen args: ' + plu_args.length + '\n');
 
@@ -136,7 +137,7 @@ function spawn_command (chillens, connection, progname) {
 
                 var jmsg = {
                         type: 'msg',
-                              data: dataStr
+                        data: dataStr
                 };
                 var jmsgstr = JSON.stringify( jmsg );
 
@@ -152,87 +153,15 @@ function spawn_command (chillens, connection, progname) {
 
                 var jmsg = {
                         type: 'msg',
-                              data: dataStr
+                        data: dataStr
                 };
                 var jmsgstr = JSON.stringify( jmsg );
 
                 console.log('json msg stderr: ' + jmsgstr + '\n');
 
                 connection.sendUTF(jmsgstr);
-
-
         });
 };
-
-var getNetworkIP = (function () {
-        var ignoreRE = /^(127\.0\.0\.1|::1|fe80(:1)?::1(%.*)?)$/i;
-
-        var cached;
-        var command;
-        var filterRE;
-
-        switch (process.platform) {
-
-        case 'darwin':
-                command = 'ifconfig ' + ETH_IFACE;
-                filterRE = /\binet\s+([^\s]+)/g;
-                // filterRE = /\binet6\s+([^\s]+)/g; // IPv6
-                              break;
-        default:
-                command = 'ifconfig ' + ETH_IFACE;
-                filterRE = /\binet\b[^:]+:\s*([^\s]+)/g;
-                // filterRE = /\binet6[^:]+:\s*([^\s]+)/g; // IPv6
-                              break;
-        }
-
-        return function (callback, bypassCache) {
-                // get cached value
-                if (cached && !bypassCache) {
-                        callback(null, cached);
-                        return;
-                }
-                // system call
-                exec(command, function (error, stdout, sterr) {
-                        var ips = [];
-                        // extract IPs
-                                        var matches = stdout.match(filterRE);
-                        // JS has no lookbehind REs, so we need a trick
-                        for (var i = 0; i < matches.length; i++) {
-                                ips.push(matches[i].replace(filterRE, '$1'));
-                        }
-
-                        // filter BS
-                        for (var i = 0, l = ips.length; i < l; i++) {
-                                if (!ignoreRE.test(ips[i])) {
-                                        //if (!error) {
-                                                cached = ips[i];
-                                                //}
-                                        callback(error, ips[i]);
-                                        return;
-                                }
-                        }
-                        // nothing found
-                        callback(error, null);
-                });
-        };
-})();
-
-/*
-   * Broadcast server
-   */
-getNetworkIP(function (error, ip) {
-        console.log(ip);
-        if (error) {
-                console.log('error:', error);
-        } else {
-                myIPaddr = ip;
-        }
-        console.log('Saving local ip address: ' + myIPaddr);
-        return ip;
-}, false);
-
-
-
 
 // Array with some colors, don't use the background color, currently orange
    var colors = [ 'red', 'green', 'blue', 'magenta', 'purple', 'plum', 'GreenYellow', 'DarkKhaki', 'Brown', 'SaddleBrown', 'SteelBlue' ];
@@ -293,34 +222,47 @@ wsClients.push(wsServer);
 // This callback function is called every time someone
 // tries to connect to the WebSocket server
 wsServer.on('request', function(request) {
-        var chillens = [];
+	var chillens = [];
 
-        console.log((new Date()) + ' Connection from origin ' + request.origin + '.');
+	console.log((new Date()) + ' Connection from origin ' + request.origin + '.');
 
-        // accept connection - you should check 'request.origin' to make sure that
-        // client is connecting from your website
-        // (http://en.wikipedia.org/wiki/Same_origin_policy)
-        var connection = request.accept(null, request.origin);
-        // we need to know client index to remove them on 'close' event
-        var index = pluClients.push(connection) - 1;
-        var curIndex =0;
-        var userName = false;
-        var destName = false;
-        var userColor = false;
+	// accept connection - you should check 'request.origin' to make sure that
+	// client is connecting from your website
+	// (http://en.wikipedia.org/wiki/Same_origin_policy)
+	var connection = request.accept(null, request.origin);
+	// we need to know client index to remove them on 'close' event
+	var index = pluClients.push(connection) - 1;
+	var curIndex =0;
+	var userName = false;
+	var destName = false;
+	var userColor = false;
 
-        console.log((new Date()) + ' Connection accepted for index: ' + index);
+	console.log((new Date()) + ' Connection accepted for index: ' + index);
 
-        //Test if anyone has logged in yet
-        if(pluClients[0] !== undefined && pluClients[0].length !== undefined) {
-                console.log("ws: Client length: " +  pluClients[0].length );
-        } else {
-                console.log("ws: NO Client");
-        }
+	//Test if anyone has logged in yet
+	if(pluClients[0] !== undefined && pluClients[0].length !== undefined) {
+		console.log("ws: Client length: " +  pluClients[0].length );
+	} else {
+		console.log("ws: NO Client");
+	}
 
-        console.log('Test front end');
+	/*
+	 * Get the uid & gid of this program
+	 */
+	exec("id -u", function (error, stdout, stderr) {
+		plu_uid = parseInt(stdout);
+		sys.print('uid: ' + plu_uid + '\n');
 
-        // user sent some message
-        connection.on('message', function(message) {
+	});
+	exec("id -g", function (error, stdout, stderr) {
+		plu_gid = parseInt(stdout);
+		sys.print('gid: ' + plu_gid + '\n');
+	});
+
+	console.log('Test front end');
+
+	// user sent some message
+	connection.on('message', function(message) {
 
                 console.log("connection: received message");
 
@@ -345,7 +287,7 @@ wsServer.on('request', function(request) {
 
                                 if(frontendmsg.data === "send_button_test") {
 
-                                        exec_command(chillens, connection);
+					exec_command(chillens, connection, 'ls -lt /usr/local/var/wl2k/outbox');
 
                                 } else if(frontendmsg.data === "send_button_telnet") {
 
@@ -468,16 +410,6 @@ net.createServer(function(sock) {
                 console.log('Unix socket connection closed at: ' + (new Date()) + 'socket address: ' + sock.remoteAddress +' '+ sock.remotePort);
         });
 
-        //        msg_emitter.on("aprs_msg", function(message) {
-        //                console.log('MSG: ' + message);
-        //                sock.write(message);
-        //        });
-
-        //        msg_emitter.on("aprs_cfg", function(message) {
-        //                console.log('CFG: ' + message);
-        //                sock.write(message);
-        //        });
-
 }).listen(NETPORT, NETHOST);
 
 console.log('Server listening on ' + NETHOST +':'+ NETPORT);
@@ -486,11 +418,15 @@ console.log('Server listening on ' + NETHOST +':'+ NETPORT);
  * ===================== HTML server ========================
  */
 
-var connect = require('connect');
-connect.createServer(
-                     connect.static(__dirname),
-                     function(req, res){
-        res.setHeader('Content-Type', 'text/html');
-        res.end('You need a path, try /plu.html\n');
-}
-).listen(HTMLPORT);
+var connect = require(global_module_dir + 'connect'),
+    serveStatic = require(global_module_dir + 'serve-static');
+var finalhandler = require(global_module_dir + 'finalhandler');
+
+var app = connect();
+var serve = serveStatic(__dirname, {'index': ['plu.html']})
+	// Create server
+	    var server = http.createServer(function(req, res) {
+		    var done = finalhandler(req, res)
+		    serve(req, res, done)
+})
+server.listen(HTMLPORT);
