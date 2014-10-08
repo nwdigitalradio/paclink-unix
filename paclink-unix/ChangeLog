@@ -1,8 +1,13 @@
 $Id$
 
+Wed Oct  8 11:11:20 PDT 2014  Basil Gunn <basil@pacabunga.com>
+
+    * Updated webapp INSTALL notes to include all external node modules.
+      Filed modified: webapp/INSTALL
+
 Tue Oct  7 16:29:07 PDT 2014  Basil Gunn <basil@pacabunga.com>
 
-     * Remove jquery verion number from jquery file name in html file.
+    * Remove jquery verion number from jquery file name in html file.
        Added install instructions.
        Load external modules from global directory.
        Get uid/gid for spawning commands programmatically.

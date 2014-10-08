@@ -38,6 +38,9 @@ ie. You need to install them.
   websocket
   connect
   finalhandler
+  serve-static
+
+npm install -g websocket connect finalhandler serve-static
 
 To verify that a node module has been installed:
 
@@ -95,7 +98,7 @@ wl2kax25: Need to specify target callsign
 Notes
 ----- 
 
-If you run node plu-server.js as root, not a good idea,
-you will need to delete the link if you run it as some other user.
+If you run node plu-server.js as root, not a good idea, you will need
+to delete the following link if you run it as some other user.
 
 /tmp/PACKLINK_UI
