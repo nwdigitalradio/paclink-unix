@@ -158,8 +158,8 @@ mbo_header(char *mh_from, const char *callsign)
 
       /* Check if the mbo string is NOT call sign */
       if(strncasecmp(pmh_mbo, callsign, strlen(callsign) )) {
-        syslog(LOG_WARNING, "mbo_header: mbo string not callsign [%s]\n",
-               pmh_mbo);
+        syslog(LOG_WARNING, "mbo_header: mbo string [%s] not callsign [%s]\n",
+               pmh_mbo, callsign);
       }
     }
   } else {
