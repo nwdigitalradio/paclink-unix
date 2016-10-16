@@ -1,5 +1,16 @@
 $Id$
 
+Sun Oct 16 11:31:25 PDT 2016  Basil Gunn <basil@pacabunga.com>
+
+    * Display string of incorrect call sign for mbo.
+      File modified: mime2wl.c
+
+    * Return child process status when parent exits.  Enables using
+      wl2kax25 in a shell script to detect when wl2kax25 child process
+      times out. Requested by Mark KD0QYN.
+
+      File modified: wl2kax25.c
+
 Wed Oct  8 11:11:20 PDT 2014  Basil Gunn <basil@pacabunga.com>
 
     * Updated webapp INSTALL notes to include all external node modules.
@@ -20,16 +31,16 @@ Tue Oct  7 16:29:07 PDT 2014  Basil Gunn <basil@pacabunga.com>
 
 Mon Apr  7 13:10:47 PDT 2014  Basil Gunn <basil@pacabunga.com>
 
-    * Updated my call sign & Jeffery Stedfast's e-mail 
+    * Updated my call sign & Jeffery Stedfast's e-mail
       at request of C.J. KF7BMP
       Files modified:
-        AUTHORS 
+        AUTHORS
         doc/wl2kax25d.1
 
 Mon Apr  7 12:52:23 PDT 2014  Basil Gunn <basil@pacabunga.com>
 
     * A patch was mostly provided by C.J. KF7BMP to correct warnings
-      in the current version of autoconf. 
+      in the current version of autoconf.
       File modified: configure.ac
 
 Sun May 26 13:01:57 PDT 2013  Basil Gunn <basil@pacabunga.com>

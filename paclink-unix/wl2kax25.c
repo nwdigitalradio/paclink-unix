@@ -39,6 +39,7 @@
 
 #if HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#include <sys/wait.h>
 #endif
 
 #ifdef __RCSID
@@ -158,6 +159,8 @@ main(int argc, char *argv[])
   } sockaddr;
   char *dev;
   pid_t procID;
+  int childstatus;
+  int childexitstatus;
   int sv[2];
   int ready;
   struct pollfd fds[2];
@@ -322,8 +325,18 @@ main(int argc, char *argv[])
       }
     }
 
+    childstatus = -1;
+    childexitstatus = EXIT_SUCCESS;
     printf("Closing ax25 connection\n");
-#if 1
+    if ( waitpid(procID, &childstatus, 0) == -1 ) {
+      perror("waitpid failed");
+    } else {
+      if ( WIFEXITED(childstatus) ) {
+	childexitstatus = WEXITSTATUS(childstatus);
+	printf("Child exit status: %d\n", childexitstatus);
+      }
+    }
+
     {
       time_t start_time, current_time;
       bool bax25conn;
@@ -334,7 +347,7 @@ main(int argc, char *argv[])
         printf("Waiting for AX25 peer ... ");
         while(isax25connected(s)){
           current_time = time(NULL);
-          if (difftime(current_time, start_time) > 5) {
+          if (difftime(current_time, start_time) > 6) {
             break;
           }
         }
@@ -345,13 +358,12 @@ main(int argc, char *argv[])
         }
       }
     }
-#endif
 
     g_mime_shutdown();
     close(sv[0]);
     close(s);
     exitcleanup(&cfg);
-    exit(EXIT_SUCCESS);
+    exit(childexitstatus); /* exit parent process */
     return 1;
   }
   else
