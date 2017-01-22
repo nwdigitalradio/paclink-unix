@@ -1,0 +1,6 @@
+*.in
+*.m4
+*.cache
+missing
+test-driver
+configure
