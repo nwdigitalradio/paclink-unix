@@ -7,7 +7,7 @@ paclink-unix is currently beyond beta & works quite well. If you are
 interested in assisting with the development effort, please contact
 the author: n2qz@arrl.net
 
-Copyright (C) 2005-2016 Nicholas S. Castellano N2QZ
+Copyright (C) 2005-2017 Nicholas S. Castellano N2QZ
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
