@@ -1,4 +1,10 @@
-$Id$
+
+Sat Jan 21 15:41:38 PST 2017  Basil Gunn <basil@pacabunga.com>
+
+    * Add support for SCS P4dragon
+      Files modified:
+        wl2k.conf.dist
+        wl2kserial.c
 
 Sun Oct 16 11:31:25 PDT 2016  Basil Gunn <basil@pacabunga.com>
 
@@ -8,13 +14,12 @@ Sun Oct 16 11:31:25 PDT 2016  Basil Gunn <basil@pacabunga.com>
     * Return child process status when parent exits.  Enables using
       wl2kax25 in a shell script to detect when wl2kax25 child process
       times out. Requested by Mark KD0QYN.
-
       File modified: wl2kax25.c
 
 Wed Oct  8 11:11:20 PDT 2014  Basil Gunn <basil@pacabunga.com>
 
     * Updated webapp INSTALL notes to include all external node modules.
-      Filed modified: webapp/INSTALL
+      File modified: webapp/INSTALL
 
 Tue Oct  7 16:29:07 PDT 2014  Basil Gunn <basil@pacabunga.com>
 

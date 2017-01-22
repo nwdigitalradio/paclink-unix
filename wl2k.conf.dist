@@ -48,6 +48,9 @@ mycall=MYCALL
 
 #baud=
 
+# modem defaults to PTC-IIpro, else choose P4dragon
+#modem=
+
 # wl2kax25d specific section
 # ==========================
 #

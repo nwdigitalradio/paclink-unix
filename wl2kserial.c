@@ -48,6 +48,8 @@ __RCSID("$Id$");
 #if HAVE_CTYPE_H
 # include <ctype.h>
 #endif
+#include <sys/ioctl.h>
+#include <linux/serial.h>
 #include <fcntl.h>
 #include <termios.h>
 
@@ -77,6 +79,20 @@ __RCSID("$Id$");
  */
 int gverbose_flag=FALSE;
 int gsendmsgonly_flag=FALSE;
+
+#define SCSMODEM_UNDEFINED 0
+#define SCSMODEM_PTCIIPRO 1
+#define SCSMODEM_P4DRAGON 2
+
+/* Names of SCS pactor modems */
+const struct modemtype {
+        const char *modem_name;
+        int modem;
+} modems[] = {
+        {"PTC-IIpro", SCSMODEM_PTCIIPRO}, /* default */
+        {"P4dragon",  SCSMODEM_P4DRAGON},
+        {NULL, 0}
+};
 
 const struct baudrate {
   const char *asc;
@@ -134,12 +150,13 @@ const struct baudrate {
 /*
  * Config parameters struct
  */
-typedef struct _wl2ktelnet_config {
+typedef struct _wl2kserial_config {
   char    *mycall;
   char    *targetcall;
   char    *serialdevice;
   char    *emailaddr;
   char    *wl2k_password;
+  int     modem;
   speed_t baudrate;
   unsigned int timeoutsecs;
   int     bVerbose;
@@ -238,9 +255,41 @@ main(int argc, char *argv[])
   t.c_cc[VMIN] = 1;
   t.c_cc[VTIME] = 0;
 
+  /* set P4dragon serial port flags */
+  if (cfg.modem == SCSMODEM_P4DRAGON) {
+    t.c_oflag = 0;
+    t.c_lflag = 0;
+    t.c_cflag &= (unsigned int)~(CSTOPB | PARENB | PARODD | HUPCL);
+    t.c_cflag |= (CS8 | CRTSCTS | CREAD | CLOCAL);
+  }
+
   if ((tcsetattr(fd, TCSAFLUSH, &t)) == -1) {
     perror("tcsetattr()");
     exit(EXIT_FAILURE);
+  }
+
+  /* set P4dragon baud rate */
+  if (cfg.modem == SCSMODEM_P4DRAGON) {
+
+    struct serial_struct sstruct;
+
+    /* get serial_struct */
+    if (ioctl(fd, TIOCGSERIAL, &sstruct) < 0) {
+      close (fd);
+      perror("ioctl(): could not get serial ioctl");
+      exit(EXIT_FAILURE);
+    }
+
+    /* set custom divisor to get 829440 baud */
+    sstruct.custom_divisor = 29;
+    sstruct.flags |= (int)ASYNC_SPD_CUST;
+
+    /* set serial_struct */
+    if (ioctl(fd, TIOCSSERIAL, &sstruct) < 0) {
+      close (fd);
+      perror("ioctl(): could not set custom comm baud divisor");
+      exit(EXIT_FAILURE);
+    }
   }
 
   resettimeout();
@@ -316,10 +365,11 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-  printf("Usage:  %s -c target-call -d device -b baudrate options\n", getprogname());
+  printf("Usage:  %s -c target_call -d serial_device -b baudrate -m modem_name options\n", getprogname());
   printf("  -c  --target-call   Set callsign to call\n");
   printf("  -d  --device        Set serial device name\n");
   printf("  -b  --baudrate      Set baud rate of serial device\n");
+  printf("  -m  --modem         Set SCS modem type (PTC-IIpro, P4dragon)\n");
   printf("  -t  --timeout       Set timeout in seconds\n");
   printf("  -P  --wl2k-passwd   Set password for WL2K secure login\n");
   printf("  -e  --email-address Set your e-mail address\n");
@@ -354,7 +404,9 @@ displayversion(void)
 static void
 displayconfig(cfg_t *cfg)
 {
-  struct baudrate *bp;
+
+  struct baudrate const *bp;
+  struct modemtype const *mp;
 
   printf("Using this config:\n");
 
@@ -381,6 +433,19 @@ displayconfig(cfg_t *cfg)
     printf("Invalid\n");
   }
 
+  printf("  Modem type: ");
+  /* Loop through the modem name table */
+  for (mp = modems; mp->modem_name != NULL; mp++) {
+    if (mp->modem == cfg->modem) {
+      break;
+    }
+  }
+  if(mp->modem_name != NULL) {
+    printf(" %s\n", mp->modem_name);
+  } else {
+    printf("Invalid\n");
+  }
+
   if(cfg->wl2k_password) {
     printf("  WL2K secure login password: %s\n", cfg->wl2k_password);
   }
@@ -395,16 +460,18 @@ displayconfig(cfg_t *cfg)
          cfg->bVerbose ? "On" : "Off");
 }
 
-/* Load these 6 config parameters:
- * mycall targetcall device baud timeoutsecs emailaddress
+/* Load these 7 config parameters:
+ * mycall targetcall device baudrate modem timeoutsecs emailaddress
  */
 static bool
 loadconfig(int argc, char **argv, cfg_t *config)
 {
   struct conf *fileconf;
   char *endp;
-  struct baudrate *bp;
+  struct baudrate const *bp;
   speed_t baud;
+  struct modemtype const *mp;
+  int modemtype;
   int next_option;
   int option_index = 0; /* getopt_long stores the option index here. */
   char *cfgbuf;
@@ -413,8 +480,10 @@ loadconfig(int argc, char **argv, cfg_t *config)
   bool bDisplayVersion_flag = FALSE;
   char strDefaultBaudRate[]="9600";  /* String of default baudrate */
   char *pBaudRate = strDefaultBaudRate;
+  char strDefaultModemType[]="PTC-IIpro";
+  char *pModemType = strDefaultModemType;
   /* short options */
-  static const char *short_options = "hVvsCc:t:e:d:b:P:";
+  static const char *short_options = "hVvsCc:t:e:d:b:P:m:";
   /* long options */
   static struct option long_options[] =
   {
@@ -432,6 +501,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
     {"device",        required_argument, NULL, 'd'},
     {"baudrate",      required_argument, NULL, 'b'},
     {"wl2k-passwd",   required_argument, NULL, 'P'},
+    {"modem",         required_argument, NULL, 'm'},
     {NULL, no_argument, NULL, 0} /* array termination */
   };
 
@@ -462,6 +532,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   config->baudrate = B9600;
   config->bVerbose = FALSE;
   config->bSendonly = FALSE;
+  config->modem = SCSMODEM_PTCIIPRO;
 
   /*
    * Get config from config file
@@ -494,6 +565,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
   /* Get pointer to an ASCII baud rate */
   if ((cfgbuf = conf_get(fileconf, "baud")) != NULL) {
     pBaudRate = cfgbuf;
+  }
+
+  /* Get pointer to an ASCII modem type */
+  if ((cfgbuf = conf_get(fileconf, "modem")) != NULL) {
+    pModemType = cfgbuf;
   }
 
   /*
@@ -543,13 +619,16 @@ loadconfig(int argc, char **argv, cfg_t *config)
         config->emailaddr = optarg;
         break;
       case 'P':   /* set secure login password */
-	config->wl2k_password = optarg;
-	break;
+        config->wl2k_password = optarg;
+        break;
       case 'd':   /* set serial device name */
         config->serialdevice = optarg;
         break;
       case 'b':  /* Get pointer to an ASCII baud rate */
         pBaudRate = optarg;
+        break;
+      case 'm':  /* Get pointer to an ASCII modem type */
+        pModemType = optarg;
         break;
       case 'h':
         usage();  /* does not return */
@@ -577,6 +656,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   /* set verbose flag here in case long option was used */
   config->bVerbose = gverbose_flag;
 
+  /* Set baud rate */
   if(pBaudRate != NULL) {
     /* Convert ASCII baud rate into some usable bits */
     baud = B0;
@@ -600,6 +680,37 @@ loadconfig(int argc, char **argv, cfg_t *config)
 
     /* Save the baudrate bits in the config struct */
     config->baudrate = baud;
+  }
+
+  /* Set modem type */
+  if(pModemType != NULL) {
+    /* Convert ASCII modem type into an int */
+    modemtype = SCSMODEM_UNDEFINED;
+    for (mp = modems; mp->modem_name != NULL; mp++) {
+      if (strcasecmp(mp->modem_name, pModemType) == 0) {
+        modemtype = mp->modem;
+        break;
+      }
+    }
+
+    /* Verify a valid modem type */
+    if (modemtype == SCSMODEM_UNDEFINED) {
+      fprintf(stderr, "%s: Invalid modem '%s' -- valid modem names are: ",
+              getprogname(), pModemType);
+      for (mp = modems; mp->modem_name != NULL; mp++) {
+        fprintf(stderr, "%s ", mp->modem_name);
+      }
+      fprintf(stderr, "\n");
+      usage();  /* does not return */
+    }
+
+    /* Save modem type in the config struct */
+    config->modem = modemtype;
+  }
+
+  if (config->modem == SCSMODEM_P4DRAGON) {
+    /* custom divisor only works if baud is set to 38400 */
+    config->baudrate = B38400;
   }
 
   if(bDisplayVersion_flag) {
