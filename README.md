@@ -35,6 +35,8 @@ See the COPYING file for the complete license or click on [this link.](http://ww
 | **INSTALL**	| Installation instructions |
 | **COPYING**   | GPL version 2 |
 
+* [GitPitch presentation](https://gitpitch.com/nwdigitalradio/paclink-unix/master?grs=github&t=moon)
+
 If you use and enjoy paclink-unix I would love to hear from you.
 Drop me a QSL or postcard in the mail!
 
