@@ -52,7 +52,7 @@ var events = require("events");
 var aprs_emitter = new events.EventEmitter();
 //var msg_emitter = new events.EventEmitter();
 
-var sys = require('sys');
+var sys = require('util');
 /* user & group ID running this program */
 var plu_uid;
 var plu_gid;
