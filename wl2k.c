@@ -631,6 +631,18 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
     }
     print_log(LOG_DEBUG, "<%s", line);
 
+#if 0 /* For line beginning: ";PM: " */
+    if (strbegins(line, ";")) {
+    /* ignore this line & get next line */
+      print_log(LOG_DEBUG, "Found comment line ??");
+
+      if ((line = wl2kgetline(ifp)) == NULL) {
+        print_log(LOG_ERR, "connection closed");
+	exit(EXIT_FAILURE);
+      }
+      print_log(LOG_DEBUG, "<%s", line);
+    }
+#endif
     if (!strbegins(line, "FS ")) {
       print_log(LOG_ERR, "B2 protocol error 1");
       exit(EXIT_FAILURE);
