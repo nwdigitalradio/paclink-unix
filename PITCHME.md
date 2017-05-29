@@ -7,12 +7,12 @@
 ### History
 * First entry in SourceForge repository Nov 10, 2005
 
-### Authors
+#### Authors
 * Nicholas S. Castellano N2QZ
 * Dana Borgman KA1WPM
 * Basil Gunn N7NIX
 
-### Patches
+#### Patches
 * John Ronan EI7IG
 * Brian Smith WB4ES
 
@@ -31,23 +31,50 @@
 * MUA - Mail User Agent is a 'mail client program', the part you see and use to send and receive mail.
 * MTA - Mail Transfer Agent is anything between MUAs. MTAs generally do the routing and transferring of mail between hosts, ISPs, etc.
 * Mime - Multipurpose Internet Mail Extension
+* SMTP - Simple Mail Transfer Protocol - Internet standard for sending messages to a mail server.
 
 #VSLIDE
 
-### How does it work?
+#### How does it work?
+###### Send a message
+
+* Compose & address a Winlink message using your mail program
+  * paclink-unix converts the regular email message into Winlink format.
+  * Mail message files end up in /usr/local/var/wl2k/outbox
+* Use one of the paclink-unix transport methods to send the message.
+* Winlink stores messages addressed to winlink.org & sends the rest on to an SMTP server.
+
+#VSLIDE
+
+#### How does it work? - con't
+###### Receive a message
+
+* Using one of paclink-unix transport methods contact a Winlink CMS
+  * Winlink checks for any messages waiting to be delivered for your callsign.
+* Paclink-unix gets the messages & converts them into standard email messages
+  * paclink-unix then hands message to you MTA
+  * MTA deposits converted mail messages into your regular email inbox.
+
+#VSLIDE
+
+#### How does it work? - con't
+###### Processes
+
 * Converts messages to/from GMime and Winlink formats
 * Encodes/Decodes B2F protocol
 * Encodes/Decodes lzhuf compression
-* Communicates through AX.25 & TCP sockets
+* Communicates through AX.25, TCP sockets or serial port
 
 #VSLIDE
 
-Diagram here
+Diagram or 2 here
 
 #HSLIDE
 
 ### Installation - overview
 
+* Use either lite or regular compass image
+  * paclink-unix does not require a window manager
 * Use Install scripts then configure scripts
   * start here https://github.com/nwdigitalradio/n7nix
 * Complete notes for a manual install at Dokuwiki
@@ -57,7 +84,19 @@ Diagram here
 
 ### Installation - con't
 
-postfix
+* Basic installation includes these packages:
+  * paclink-unix
+  * postfix (MTA)
+  * mutt (MUA)
+
+#VSLIDE
+
+### Installation - con't
+
+* Imap installation includes previous packages plus:
+  * hostapd
+  * dovecot
+  * node.js
 
 #VSLIDE
 
@@ -70,9 +109,14 @@ postfix
 
 #VSLIDE
 
-#### Configuration file in /usr/local/etc/ directory
-* wl2k.conf
+#### Configuration files
 
+* paclink-unix config file lives here:
+  *  _/usr/local/etc/wl2k.conf_
+* postfix config files live here:
+  * /etc/postfix
+* mutt config file lives here:
+  * /home/`<user>`/.muttrc
 * As root run app_config.sh plu
 ```
 cd n7nix/config
@@ -85,7 +129,7 @@ cd n7nix/config
 * Use mutt
 * Address mail to yourself ie. just your callsign
 * After creating email hit 'y' to send, then 'q' to Quit.
-* Check outbox directory again
+* Check outbox directory
 ```
 ls -salt /usr/local/var/wl2k/outbox/
 ```
@@ -93,11 +137,6 @@ ls -salt /usr/local/var/wl2k/outbox/
 ```
 wl2ktelnet
 ```
-
-#### Verify Install/config
-###### Send mail
-
-
 
 #HSLIDE
 
