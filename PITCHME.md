@@ -41,9 +41,9 @@
 
 * Compose & address a Winlink message using your email client program
   * paclink-unix converts the regular email message into Winlink format.
-  * Mail message files end up in /usr/local/var/wl2k/outbox
+  * Mail message files end up in outbox dir
 * Use one of the paclink-unix transport methods to send the message.
-* Winlink stores messages addressed to winlink.org & sends the rest on to an SMTP server.
+* Winlink stores messages addressed to winlink.org & sends rest on to SMTP server.
 
 #VSLIDE
 
@@ -83,7 +83,7 @@ Diagram or 2 here
 
 #VSLIDE
 
-### Installation - con't
+#### Installation - con't
 
 * Basic installation includes these packages:
   * paclink-unix
@@ -92,7 +92,7 @@ Diagram or 2 here
 
 #VSLIDE
 
-### Installation - con't
+#### Installation - con't
 
 * Imap installation includes previous packages plus:
   * hostapd
