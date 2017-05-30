@@ -26,6 +26,14 @@
 
 #VSLIDE
 
+#### Use Case
+
+* RPi on all the time running RMS Gateway, ssh access, use console based mail client
+* RPi used for other things, use screen & keyboard probably with console based mail client
+* RPi used for other things, use mobile device mail client & web control for paclink-unix
+
+#VSLIDE
+
 ### Definitions
 
 * MUA - Mail User Agent is an 'email client program', the part you see and use to send and receive email.
@@ -65,10 +73,6 @@
 * Encodes/Decodes B2 Forwarding protocol
 * Encodes/Decodes lzhuf compression
 * Communicates through AX.25, TCP sockets or serial port
-
-#VSLIDE
-
-Diagram or 2 here
 
 #HSLIDE
 
@@ -127,7 +131,7 @@ Diagram or 2 here
 
 ```
 cd n7nix/config
-./app_config plu
+./app_config.sh plu
 ```
 
 #HSLIDE
@@ -170,7 +174,7 @@ wl2ktelnet
 tail -f /var/log/mail.log
 ```
 * Run _wl2ktelnet_
-* Chech that a new email message appears in your email client
+* Check that a new email message appears in your email client
 
 #VSLIDE
 
