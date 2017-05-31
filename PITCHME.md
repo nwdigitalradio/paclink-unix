@@ -69,7 +69,7 @@
 #### How does it work? - con't
 ###### Processes
 
-* Converts messages to/from GMime and Winlink formats
+* Converts messages to/from Mime and Winlink formats
 * Encodes/Decodes B2 Forwarding protocol
 * Encodes/Decodes lzhuf compression
 * Communicates through AX.25, TCP sockets or serial port
@@ -129,6 +129,7 @@
 * Core (direwolf, ax25) must be config'd first
 
 * As root run core config from _n7nix/config_ dir
+
 ```
 cd n7nix/config
 ./app_config.sh core
