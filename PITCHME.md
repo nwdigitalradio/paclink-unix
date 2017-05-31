@@ -160,8 +160,16 @@ cd bin
 ###### Create a Winlink mail message
 
 * As user (pi) **NOT** root
-* Use mutt to compose message
-  * mutt spawns an editor, set editor in /home/`<user>`/.muttrc
+  * Use mutt to compose message
+* mutt spawns an editor,
+  * set editor in _/home/`<user>`/.muttrc_
+
+
+#VSLIDE
+
+#### Verify Install/config - con't
+###### Create a Winlink mail message
+
 * Address mail to yourself ie. **just your callsign**
   * mutt automatically appends winlink.org ie. n7nix@winlink.org
 * After creating email in editor, exit editor & use mutt
@@ -204,6 +212,7 @@ tail -f /var/log/mail.log
 ###### Locate an RMS Gateway or two
 
 ```
+cd bin
 ./gatewaylist.sh -m 35 -g cn85ax -s
 
 ```
@@ -224,8 +233,9 @@ tail -f /var/log/mail.log
 #### Verify Install/config - cont'd
 ###### Set up some console windows
 
-* Open up a packet spy in a console window (as root)
+* Open up a packet spy in a console window
 ```
+sudo su
 listen -at
 ```
 
@@ -273,9 +283,18 @@ wl2kax25 -c WA7VE-10
 
 * https://groups.yahoo.com/neo/groups/paclink-unix/info
 
-#### Installation Guide
+#VSLIDE
+
+#### Internet sites
+
+###### Installation Guide
 
 * http://bazaudi.com/plu/
+
+###### NW Digital Radio
+
+https://github.com/nwdigitalradio/paclink-unix
+https://github.com/nwdigitalradio/n7nix/tree/master/plu
 
 #HSLIDE
 
