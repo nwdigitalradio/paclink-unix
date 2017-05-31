@@ -127,18 +127,41 @@
 
 #### Configure with script
 
-* As root run app_config.sh plu
+#### Configure with script
+* Core (direwolf, ax25, systemd) must be config'd first
+
+* As root run core config from _n7nix/config_ dir
+```
+cd n7nix/config
+./app_config.sh core
+```
+
+* As root run paclink-unix config
+  * then reboot
 
 ```
 cd n7nix/config
 ./app_config.sh plu
+shutdown -r now
 ```
 
 #HSLIDE
 
 #### Verify Install/config
+##### Check core config
+
+```
+cd
+cd bin
+./ax25-status
+```
+
+#VSLIDE
+
+#### Verify Install/config - con't
 ###### Create a Winlink mail message
 
+* As user (pi) **NOT** root
 * Use mutt to compose message
   * mutt spawns an editor, set editor in /home/`<user>`/.muttrc
 * Address mail to yourself ie. **just your callsign**
