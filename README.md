@@ -27,6 +27,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 See the COPYING file for the complete license or click on [this link.](http://www.gnu.org/licenses/gpl-2.0.html)
 
+Installation notes can be found at [this link](https://github.com/nwdigitalradio/paclink-unix/blob/master/INSTALL.md)
+
 ### Other files you might want to peruse:
 
 | File name     |  Description  |
@@ -34,7 +36,6 @@ See the COPYING file for the complete license or click on [this link.](http://ww
 | **AUTHORS**	| Who's involved |
 | **ChangeLog**	| Detailed list of changes |
 | **NEWS**	| Summary of feature changes and fixes |
-| **INSTALL**	| Installation instructions |
 | **COPYING**   | GPL version 2 |
 
 If you use and enjoy paclink-unix I would love to hear from you.
