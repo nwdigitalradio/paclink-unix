@@ -10,15 +10,58 @@ config.h.in
 config.log
 config.status
 configure
+stamp-h1
+paclink-unix-*.tar.gz
 
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
 lzhuf_1
 wl2kserial
 wl2ktelnet
 wl2kax25
+wl2kax25d
 mail.wl2k
 wl2k.m4
-
 mime2wl
 wl2mime
 
-paclink-unix-*.tar.gz
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
