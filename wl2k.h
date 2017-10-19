@@ -26,6 +26,8 @@
 #ifndef WL2K_H
 #define WL2K_H
 
+#define SID_NAME "UnixLINK"
+
 char *wl2kgetline(FILE *fp);
 void wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass);
 

@@ -182,8 +182,8 @@ main(int argc, char *argv[])
    *       user in case the SSID has been changed in the network.
    */
 
-  print_log(LOG_INFO, "[PaclinkUNIX-%s-B2FIHM$]", PACKAGE_VERSION);
-  fprintf(stdout, "[PaclinkUNIX-%s-B2FIHM$]\r", PACKAGE_VERSION);
+  print_log(LOG_INFO, "[%s-%s-B2FIHM$]", SID_NAME, PACKAGE_VERSION);
+  fprintf(stdout, "[%s-%s-B2FIHM$]\r", SID_NAME, PACKAGE_VERSION);
 
   /*
    * Use defaults if gridsquare or welcome message are not defined in

@@ -140,6 +140,21 @@ static const unsigned char sl_salt[] = {
 static void compute_secure_login_response(char *challenge, char *response, char *password);
 #endif /* !WL2KAX25_DAEMON */
 
+/* Debug only */
+void dump_hex(char *buf, size_t len);
+
+void
+   dump_hex(char *buf, size_t len)
+{
+	size_t i;
+	unsigned char *pBuf;
+	pBuf = (unsigned char *)buf;
+
+	for(i=0; i < len; i++) {
+		printf("%02x ", *pBuf++);
+	}
+	printf("\n");
+}
 
 static int
 getrawchar(FILE *fp)
@@ -773,7 +788,7 @@ compute_secure_login_response(char *challenge, char *response, char *password)
 {
   char *hash_input;
   unsigned char hash_sig[16];
-  unsigned int m, n;
+  size_t m, n;
   int i, pr;
   char pr_str[20];
 
@@ -784,7 +799,7 @@ compute_secure_login_response(char *challenge, char *response, char *password)
   strcat(hash_input, password);
   strupper(hash_input);
   memcpy(hash_input+m, sl_salt, sizeof(sl_salt));
-  md5_buffer(hash_input, n, hash_sig);
+  md5_buffer(hash_input, (unsigned int)n, hash_sig);
   free(hash_input);
 
   pr = hash_sig[3] & 0x3f;
@@ -805,7 +820,7 @@ send_my_sid(FILE *ofp)
 {
   char sidbuf[32];
 
-  sprintf(sidbuf, "[UnixLINK-%s-B2FIHM$]", PACKAGE_VERSION);
+  sprintf(sidbuf, "[%s-%s-B2FIHM$]", SID_NAME, PACKAGE_VERSION);
   print_log(LOG_DEBUG, ">%s", sidbuf);
   resettimeout();
   if (fprintf(ofp, "%s\r", sidbuf) == -1) {
@@ -842,9 +857,9 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
   char pbuf[16];
 #ifndef WL2KAX25_DAEMON
   char challenge[9];
-
   challenge[0] = 0;
 #endif /* !WL2KAX25_DAEMON */
+
 
   if (expire_mids() == -1) {
     print_log(LOG_ERR, "expire_mids() failed");
@@ -1172,6 +1187,8 @@ wl2kexchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddr
     } else {
       print_log(LOG_ERR, "unrecognized command (len %lu): /%s/",
                 (unsigned long) strlen(line), line);
+      /* Debug only */
+      dump_hex(line, strlen(line));
       exit(EXIT_FAILURE);
     }
   }
