@@ -646,7 +646,7 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
     }
     print_log(LOG_DEBUG, "<%s", line);
 
-#if 0 /* For line beginning: ";PM: " */
+#if 1 /* For line beginning: ";PM: " */
     if (strbegins(line, ";")) {
     /* ignore this line & get next line */
       print_log(LOG_DEBUG, "Found comment line ??");
