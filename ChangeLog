@@ -1,3 +1,8 @@
+Thu Nov  2 10:35:21 PDT 2017  Basil Gunn <basil@pacabunga.com>
+
+    * Fix "wl2kxxxx: B2 protocol error 1" pending message parsing bug.
+      * B2 parser was expecting "FS" but finds ";PM" instead
+      File modified: wl2k.c
 
 Sat Jan 21 15:41:38 PST 2017  Basil Gunn <basil@pacabunga.com>
 
