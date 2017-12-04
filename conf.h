@@ -29,7 +29,11 @@
 #define DFLT_TIMEOUTSECS (120)  /* default time out seconds */
 #define DFLT_TELNET_PORT 8772
 #define DFLT_TELNET_CALL "wl2k"
+/* This telnet server was deprecasted in 2017 in favor of the Amazon
+ * Web Service (AWS) address
 #define DFLT_TELNET_HOSTNAME "server.winlink.org"
+*/
+#define DFLT_TELNET_HOSTNAME "cms.winlink.org"
 #define DFLT_TELNET_PASSWORD "CMSTelnet"
 
 struct conf {
