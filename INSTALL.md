@@ -15,7 +15,16 @@ git clone https://github.com/nwdigitalradio/paclink-unix
 
 ### Install links & notes
 
-* [using scripts](https://github.com/nwdigitalradio/n7nix/tree/master/plu/README.md)
+There is a build script [buildall.sh](https://github.com/nwdigitalradio/paclink-unix/blob/master/buildall.sh)
+that automates the build process.
+  * All build requirements need to be met before running this script.
+  * Defaults to using postfix MTA, comment out _MTA=_ line to use sendmail MTA.
+  * Use the following as user (NOT root) to rebuild everything:
+```
+./buildall.sh clean
+```
+
+* [useful install scripts](https://github.com/nwdigitalradio/n7nix/tree/master/plu/README.md)
 * [wiki with comprehensive notes for basic install](http://bazaudi.com/plu/doku.php)
-* INSTALL: original install file found in this repo
-* INSTALL.csv : original install file using SourceForge and [CVS](https://en.wikipedia.org/wiki/Concurrent_Versions_System) **<- deprecated**
+* [INSTALL](https://github.com/nwdigitalradio/paclink-unix/blob/master/INSTALL): original install file found in this repo
+* [INSTALL.csv](https://github.com/nwdigitalradio/paclink-unix/blob/master/INSTALL.CVS) : original install file using SourceForge and [CVS](https://en.wikipedia.org/wiki/Concurrent_Versions_System) **<- deprecated**

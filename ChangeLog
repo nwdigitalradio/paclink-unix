@@ -1,9 +1,17 @@
+Mon Dec 18 12:25:54 PST 2017  Basil Gunn <basil@pacabunga.com>
+
+    * Add a build script.
+      File added: buildall.sh
+      File modified: INSTALL.md
+
 Sun Dec 17 17:02:09 PST 2017  Basil Gunn <basil@pacabunga.com>
 
     * Bump version number to 0.6
       File modified:  configure.ac
+
     * Add description of -m for command line modem selection.
       File modified:  doc/wl2kserial.1
+
     * Fix white space.
       File modified:  wl2k.c
 
