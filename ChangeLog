@@ -1,3 +1,12 @@
+Sun Dec 17 17:02:09 PST 2017  Basil Gunn <basil@pacabunga.com>
+
+    * Bump version number to 0.6
+      File modified:  configure.ac
+    * Add description of -m for command line modem selection.
+      File modified:  doc/wl2kserial.1
+    * Fix white space.
+      File modified:  wl2k.c
+
 Sun Dec 17 16:32:46 PST 2017  Basil Gunn <basil@pacabunga.com>
 
     * Fix "pending message/forwarding mail" parsing to handle multiple
