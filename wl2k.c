@@ -301,7 +301,7 @@ putcompressed(struct proposal *prop, FILE *fp)
 
   /* ** Send hearder */
   resettimeout();
-  if (fprintf(fp, "%c%c%s%c%s%c", CHRSOH, len, title, CHRNUL, offset, CHRNUL) == -1) {
+  if (fprintf(fp, "%c%c%s%c%s%c", CHRSOH, (int)len, title, CHRNUL, offset, CHRNUL) == -1) {
     print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
     exit(EXIT_FAILURE);
   }
@@ -646,10 +646,10 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
     }
     print_log(LOG_DEBUG, "<%s", line);
 
-#if 1 /* For line beginning: ";PM: " */
-    if (strbegins(line, ";")) {
+    /* For line beginning: ";PM: " pending messages */
+    while (strbegins(line, ";PM:")) {
     /* ignore this line & get next line */
-      print_log(LOG_DEBUG, "Found comment line ??");
+      print_log(LOG_DEBUG, "Found WL2K extension, pending msg");
 
       if ((line = wl2kgetline(ifp)) == NULL) {
         print_log(LOG_ERR, "connection closed");
@@ -657,7 +657,17 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       }
       print_log(LOG_DEBUG, "<%s", line);
     }
-#endif
+    /* For line beginning: ";FW: " forwarding mail */
+    while (strbegins(line, ";FW:")) {
+    /* ignore this line & get next line */
+	    print_log(LOG_DEBUG, "Found WL2K extension, forward mail");
+
+	    if ((line = wl2kgetline(ifp)) == NULL) {
+		    print_log(LOG_ERR, "connection closed");
+		    exit(EXIT_FAILURE);
+	    }
+	    print_log(LOG_DEBUG, "<%s", line);
+    }
     if (!strbegins(line, "FS ")) {
       print_log(LOG_ERR, "B2 protocol error 1");
       exit(EXIT_FAILURE);

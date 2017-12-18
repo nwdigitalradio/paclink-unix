@@ -1,3 +1,9 @@
+Sun Dec 17 16:32:46 PST 2017  Basil Gunn <basil@pacabunga.com>
+
+    * Fix "pending message/forwarding mail" parsing to handle multiple
+      instances in one session.
+      File modified: wl2k.c
+
 Thu Nov  2 10:35:21 PDT 2017  Basil Gunn <basil@pacabunga.com>
 
     * Fix "wl2kxxxx: B2 protocol error 1" pending message parsing bug.
