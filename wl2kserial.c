@@ -316,10 +316,67 @@ main(int argc, char *argv[])
       printf("mycall %s\n", cfg.mycall);
       fprintf(fp, "tones 4\r");
       printf("tones 4\n");
-      fprintf(fp, "chobell 0\r");
+      fprintf(fp, "chobell 0\r");     /* Changeover Bell off */
       printf("chobell 0\n");
-      fprintf(fp, "lfignore 1\r");
+      fprintf(fp, "lfignore 1\r");    /* xxx Insertion of Line feed */
       printf("lfignore 1\n");
+      if (cfg.modem == SCSMODEM_P4DRAGON) {
+        /* Taken from BPQ32 SCSPactor.c file
+         * Copyright 2001-2015 John Wiseman G8BPQ
+         * The SCSPactor.c file is part of LinBPQ/BPQ32.
+         *
+         * Set P4 Dragon with KISS over Hostmade
+         */
+        fprintf(fp, "MAXERR 30\r");   /* Max retries */
+        printf("MAXERR 30\n");
+        fprintf(fp, "MODE 0\r");      /* ASCII mode, no PTC II compression (Forwarding will use FBB Compression) */
+        printf("MODE 0\n");
+        fprintf(fp, "MAXSUM 20\r");   /* Max count for memory ARQ */
+        printf("MAXSUM 20\n");
+        fprintf(fp, "CWID 0\r");      /* CW ID disabled */
+        printf("CWID 0\n");
+        fprintf(fp, "PTCC 0\r");      /* Dragon out of PTC Compatibility Mode */
+        printf("PTCC 0\n");
+        fprintf(fp, "VER\r");         /* Try to determine Controller Type */
+        printf("VER\n");
+        fprintf(fp, "ADDLF 0\r");     /* Auto Line Feed disabled */
+        printf("ADDLF 0\n");
+        fprintf(fp, "ARX 0\r");       /* Amtor Phasing disabled */
+        printf("ARX 0\n");
+        fprintf(fp, "BCs 0\r");       /* FEC reception is disabled */
+        printf("BC 0\n");
+        fprintf(fp, "BKCHR 2\r");     /* Breakin Char = 2*/
+        printf("BKCHR 2\n");
+        fprintf(fp, "CMSG 0\r");      /* Connect Message Off */
+        printf("CMSG 0\n");
+        fprintf(fp, "LISTEN 0\r");    /* Pactor Listen disabled */
+        printf("LISTEN 0\n");
+        fprintf(fp, "MAIL 0\r");      /* Disable internal mailbox reporting */
+        printf("MAIL 0\n");
+        fprintf(fp, "REMOTE 0\r");    /* Disable remote control */
+        printf("REMOTE 0\n");
+
+        fprintf(fp, "PAC CBELL 0\r");
+        printf("PAC CBELL 0\n");
+        fprintf(fp, "PAC CMSG 0\r");
+        printf("PAC CMSG 0\n");
+        fprintf(fp, "PAC PRBOX 0\r");
+        printf("PAC PRBOX 0\n");
+
+        /*  Automatic Status must be enabled for paclink-unix
+         *  Pactor must use Host Mode Channel 31
+         *  PDuplex must be set. The Node code relies on automatic IRS/ISS changeover
+         *	5 second duplex timer
+         */
+        fprintf(fp, "STATUS 2\r");
+        printf("STATUS 2\n");
+        fprintf(fp, "PTCHN 31\r");
+        printf("PTCHN\n");
+        fprintf(fp, "PDUPLEX 1\r");
+        printf("PDUPLEX 1\n");
+        fprintf(fp, "PDTIMER 5\r");
+        printf("PDTIMER 5\n");
+      }
       break;
     }
     fprintf(fp, "\r\n");

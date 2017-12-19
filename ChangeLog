@@ -1,3 +1,8 @@
+Mon Dec 18 16:23:58 PST 2017  Basil Gunn <basil@pacabunga.com>
+
+    * Add P4 Dragon initialization from BPQ32
+      File modified: wl2kserial.c
+
 Mon Dec 18 12:25:54 PST 2017  Basil Gunn <basil@pacabunga.com>
 
     * Add a build script.
