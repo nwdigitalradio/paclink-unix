@@ -1,3 +1,16 @@
+Fri Dec 22 10:50:07 PST 2017  Basil Gunn <basil@pacabunga.com>
+
+    * Separte daemon code used for direct connect from client code.
+      File added: wl2kd.c
+      Files modified:
+        Makefile.am
+        wl2k.c
+        wl2k.h
+        wl2kax25.c
+        wl2kax25d.c
+        wl2kserial.c
+        wl2ktelnet.c
+
 Mon Dec 18 16:23:58 PST 2017  Basil Gunn <basil@pacabunga.com>
 
     * Add P4 Dragon initialization from BPQ32
