@@ -13,6 +13,13 @@ To get a copy of the current repository:
 git clone https://github.com/nwdigitalradio/paclink-unix
 ```
 
+To update a local previously cloned repository:
+
+```
+cd <directory_of_previously_cloned_repository>
+git pull
+```
+
 ### Install links & notes
 
 There is a build script [buildall.sh](https://github.com/nwdigitalradio/paclink-unix/blob/master/buildall.sh)
