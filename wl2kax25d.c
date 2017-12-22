@@ -207,7 +207,7 @@ main(int argc, char *argv[])
   /* Output the banner msg to stdout parsing any escape '\' chars */
   print_esc_string(pStr, FALSE);
 
-  wl2kexchange(cfg.mycall, cfg.targetcall, stdin, stdout, cfg.emailaddr, NULL);
+  wl2kd_exchange(cfg.mycall, cfg.targetcall, stdin, stdout, cfg.emailaddr, NULL);
 
   unsettimeout();
   print_log(LOG_DEBUG, "Exiting\n");

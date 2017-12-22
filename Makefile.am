@@ -10,7 +10,7 @@ LDADD=lib/libcompat.a
 EXTRA_DIST=ascmail binmail.uue test_lzhuf_1 lzhuf_1.zip.uue
 
 clean-local:
-	rm -f *~ .*~ *.orig *.rej core *.core TAGS .depend foo bar baz binmail *.test
+	rm -f *~ .*~ *.orig *.rej core *.core TAGS .depend foo bar baz binmail *.test *.out
 
 bin_PROGRAMS=lzhuf_1 wl2ktelnet wl2kserial
 
@@ -50,7 +50,7 @@ wl2kax25_SOURCES=wl2kax25.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.
 wl2kserial_SOURCES=wl2kserial.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h md5.c
 
 wl2kax25d_CPPFLAGS=-DWL2KAX25_DAEMON $(WL2K_CPPFLAGS)
-wl2kax25d_SOURCES=wl2kax25d.c strutil.c strutil.h timeout.c timeout.h wl2k.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h
+wl2kax25d_SOURCES=wl2kax25d.c strutil.c strutil.h timeout.c timeout.h wl2kd.c wl2k.h mid.c mid.h buffer.c buffer.h lzhuf_1.c lzhuf_1.h wl2mime.c wl2mime.h compat.h conf.c conf.h printlog.c printlog.h
 
 mail_wl2k_SOURCES=mail.wl2k.c buffer.c buffer.h mime2wl.c mime2wl.h mid.c mid.h strutil.c strutil.h timeout.c timeout.h compat.h conf.c conf.h printlog.c printlog.h
 

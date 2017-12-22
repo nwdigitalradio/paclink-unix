@@ -92,6 +92,7 @@ __RCSID("$Id$");
 
 /* Send messages only flag */
 extern int gsendmsgonly_flag;
+bool bForwardMail=false;
 
 struct proposal {
   char code;
@@ -120,6 +121,7 @@ static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 
 static void send_my_sid(FILE *ofp);
 static char *parse_inboundsid(char *line);
+
 
 #ifndef WL2KAX25_DAEMON
 # include "md5.h"
@@ -603,8 +605,9 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
   int cksum = 0;
   char *line;
   struct proposal *prop;
-  char *endp;
+	char *endp;
 
+	print_log(LOG_INFO, "%s: start", __FUNCTION__);
 
   if (*oproplist) {
     prop = *oproplist;
@@ -641,13 +644,15 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
     }
     fflush(ofp);
 
+		print_log(LOG_INFO, "%s: parse FS 0", __FUNCTION__);
+
     if ((line = wl2kgetline(ifp)) == NULL) {
       print_log(LOG_ERR, "connection closed");
       exit(EXIT_FAILURE);
     }
     print_log(LOG_DEBUG, "<%s", line);
 
-    /* For line beginning: ";PM: " pending messages */
+#if 1 /* For line beginning: ";PM: " pending messages */
     while (strbegins(line, ";PM:")) {
       /* ignore this line & get next line */
       print_log(LOG_DEBUG, "Found WL2K extension, pending msg");
@@ -658,8 +663,12 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       }
       print_log(LOG_DEBUG, "<%s", line);
     }
-    /* For line beginning: ";FW: " forwarding mail */
-    while (strbegins(line, ";FW:")) {
+#endif
+#if 1 /* For line beginning: ";FW: " forwarding mail */
+		while (strbegins(line, ";FW:")) {
+			print_log(LOG_DEBUG,"set forward mail true");
+
+      bForwardMail = true;
       /* ignore this line & get next line */
       print_log(LOG_DEBUG, "Found WL2K extension, forward mail");
 
@@ -669,6 +678,8 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       }
       print_log(LOG_DEBUG, "<%s", line);
     }
+#endif
+		print_log(LOG_INFO, "%s: parse FS 1", __FUNCTION__);
     if (!strbegins(line, "FS ")) {
       print_log(LOG_ERR, "B2 protocol error 1");
       exit(EXIT_FAILURE);
@@ -715,7 +726,7 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       cp++;
       prop = prop->next;
     }
-
+		print_log(LOG_INFO, "%s: parse FS 2", __FUNCTION__);
     prop = *oproplist;
     for (i = 0; i < PROPLIMIT; i++) {
       if(prop->delete == 0) {
@@ -725,7 +736,8 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       if ((prop = prop->next) == NULL) {
   break;
       }
-    }
+		}
+		print_log(LOG_INFO, "%s: parse FS 3", __FUNCTION__);
     *oproplist = prop;
     print_log(LOG_DEBUG_VERBOSE, "Finished proplist %d putcompressed", i);
     return 0;
@@ -747,7 +759,8 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
     }
     fflush(ofp);
     return 0;
-  }
+	}
+	print_log(LOG_INFO, "%s: parse FS 4", __FUNCTION__);
 }
 
 static char *
@@ -843,32 +856,32 @@ send_my_sid(FILE *ofp)
 char *
 parse_inboundsid(char *line)
 {
-  char *cp;
-  char *inboundsid = NULL;
-  char *inboundsidcodes = NULL;
+	char *cp;
+	char *inboundsid = NULL;
+	char *inboundsidcodes = NULL;
 
-  inboundsid = strdup(line);
-  if ((cp = strrchr(inboundsid, '-')) == NULL) {
-    print_log(LOG_ERR, "bad sid %s", inboundsid);
-    exit(EXIT_FAILURE);
-  }
-  inboundsidcodes = strdup(cp);
-  if ((cp = strrchr(inboundsidcodes, ']')) == NULL) {
-    print_log(LOG_ERR, "bad sid %s", inboundsid);
-    exit(EXIT_FAILURE);
-  }
-  *cp = '\0';
-  strupper(inboundsidcodes);
-  if (strstr(inboundsidcodes, "B2F") == NULL) {
-    print_log(LOG_ERR,  "sid %s does not support B2F protocol", inboundsid);
-    exit(EXIT_FAILURE);
-  }
-  print_log(LOG_DEBUG, "sid %s inboundsidcodes %s", inboundsid, inboundsidcodes);
-  return (inboundsidcodes);
+	inboundsid = strdup(line);
+	if ((cp = strrchr(inboundsid, '-')) == NULL) {
+		print_log(LOG_ERR, "bad sid %s", inboundsid);
+		exit(EXIT_FAILURE);
+	}
+	inboundsidcodes = strdup(cp);
+	if ((cp = strrchr(inboundsidcodes, ']')) == NULL) {
+		print_log(LOG_ERR, "bad sid %s", inboundsid);
+		exit(EXIT_FAILURE);
+	}
+	*cp = '\0';
+	strupper(inboundsidcodes);
+	if (strstr(inboundsidcodes, "B2F") == NULL) {
+		print_log(LOG_ERR,  "sid %s does not support B2F protocol", inboundsid);
+		exit(EXIT_FAILURE);
+	}
+	print_log(LOG_DEBUG, "sid %s inboundsidcodes %s", inboundsid, inboundsidcodes);
+	return (inboundsidcodes);
 }
 
 void
-wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
 {
   char *cp;
   int proposals = 0;
@@ -894,7 +907,7 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
   char pbuf[16];
 #ifndef WL2KAX25_DAEMON
   char challenge[9];
-  challenge[0] = 0;
+	challenge[0] = 0;
 #endif /* !WL2KAX25_DAEMON */
 
 
@@ -902,6 +915,8 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
     print_log(LOG_ERR, "expire_mids() failed");
     exit(EXIT_FAILURE);
   }
+
+	print_log(LOG_INFO, "%s: Calling wl2kd daemon exchange", __FUNCTION__);
 
   oproplist = prepare_outbound_proposals();
 
@@ -949,7 +964,7 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
   while ((line = wl2kgetline(ifp)) != NULL) {
     print_log(LOG_DEBUG, "<%s", line);
     if (strchr(line, '[')) {
-      inboundsidcodes = parse_inboundsid(line);
+			inboundsidcodes = parse_inboundsid(line);
 #ifdef WL2KAX25_DAEMON
       break;
     } else if (strbegins(line, ";")) {
@@ -1011,23 +1026,29 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
 
   nproplist = oproplist;
 #ifndef  WL2KAX25_DAEMON
-  if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+	print_log(LOG_INFO, "%s: check b2outboundproposal 1", __FUNCTION__);
+	if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+		print_log(LOG_INFO, "%s: return from b2outboundproposal != 0 1", __FUNCTION__);
     return;
-  }
-#endif  /* NOT WL2KAX25_DAEMON */
+	}
+	print_log(LOG_INFO, "%s: return from b2outboundproposal == 0 1", __FUNCTION__);
+#endif /* NOT WL2KAX25_DAEMON */
 
   fflush(ofp);
+
+	print_log(LOG_INFO, "%s: Begin 2nd part", __FUNCTION__);
 
   while ((line = wl2kgetline(ifp)) != NULL) {
     print_log(LOG_DEBUG, "<%s", line);
     if (strbegins(line, ";")) {
-      /* do nothing */
+	    /* do nothing */
     } else if (strlen(line) == 0) {
-      /* do nothing */
+			/* do nothing */
 #ifdef WL2KAX25_DAEMON
-    } else if (strchr(line, '[')) {
-      inboundsidcodes = parse_inboundsid(line);
-      break;
+		} else if (strchr(line, '[')) {
+		inboundsidcodes = parse_inboundsid(line);
+		/*		break; */
+		print_log(LOG_INFO, "%s: finished parse_inboundsid", __FUNCTION__);
 #endif
     } else if (strbegins(line, "FC")) {
       dodelete(&oproplist, &nproplist);
@@ -1040,26 +1061,29 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
         exit(EXIT_FAILURE);
       }
       if ((prop = parse_proposal(line)) == NULL) {
-        print_log(LOG_ERR, "wl2kexchange() failed to parse proposal");
+        print_log(LOG_ERR, "%s failed to parse proposal", __FUNCTION__);
         exit(EXIT_FAILURE);
       }
       memcpy(&ipropary[proposals], prop, sizeof(struct proposal));
       printprop(&ipropary[proposals]);
       proposals++;
-    } else if (strbegins(line, "FF")) {
-      dodelete(&oproplist, &nproplist);
-      if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+    } else if (strbegins(line, "FF") || bForwardMail) {
+			dodelete(&oproplist, &nproplist);
+			print_log(LOG_DEBUG,"Found FF or forward mail true");
+			if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+				print_log(LOG_INFO, "%s: return from b2outboundproposal != 0 2", __FUNCTION__);
 #ifdef  WL2KAX25_DAEMON
-        print_log(LOG_DEBUG, ">; %s de %s SK", yourcall, mycall);
-        resettimeout();
-        if (fprintf(ofp, "; %s de %s SK\r", yourcall, mycall) == -1) {
-          print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
-          exit(EXIT_FAILURE);
-        }
-        fflush(ofp);
+				print_log(LOG_DEBUG, ">; %s de %s SK", yourcall, mycall);
+				resettimeout();
+				if (fprintf(ofp, "; %s de %s SK\r", yourcall, mycall) == -1) {
+					print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
+					exit(EXIT_FAILURE);
+				}
+				fflush(ofp);
 #endif  /* WL2KAX25_DAEMON */
-        return;
-      }
+				return;
+			}
+			print_log(LOG_INFO, "%s: return from b2outboundproposal == 0 2", __FUNCTION__);
     } else if (strbegins(line, "B")) {
       return;
     } else if (strbegins(line, "FQ")) {
@@ -1199,14 +1223,21 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
           ipropary[i].cbuf = NULL;
           print_log(LOG_DEBUG, "Finished!");
         }
-      }
+			}
+			print_log(LOG_INFO, "%s: Finished proposals", __FUNCTION__);
       proposals = 0;
       proposalcksum = 0;
-      if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+			print_log(LOG_INFO, "%s: check b2outboundproposal 3", __FUNCTION__);
+			if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+				print_log(LOG_INFO, "%s: return from b2outboundproposal != 0 3", __FUNCTION__);
         return;
-      }
+			}
+			print_log(LOG_INFO, "%s: return from b2outboundproposal != 0 3", __FUNCTION__);
+
     } else if (line[strlen(line - 1)] == '>') {
-      dodelete(&oproplist, &nproplist);
+			dodelete(&oproplist, &nproplist);
+			print_log(LOG_INFO, "%s: check b2outboundproposal 4", __FUNCTION__);
+
       if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
         return;
       }
@@ -1219,7 +1250,7 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
     }
   }
   if (line == NULL) {
-    print_log(LOG_ERR, "wl2kexchange(), Lost connection. 4");
+    print_log(LOG_ERR, "%s, Lost connection. 4", __FUNCTION__);
     exit(EXIT_FAILURE);
   }
 }

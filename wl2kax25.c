@@ -395,7 +395,7 @@ main(int argc, char *argv[])
             printf("Child process calling wl2kexchange()\n");
     }
     settimeout(cfg.timeoutsecs);
-    wl2kexchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
+    wl2k_exchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
     fclose(fp);
     printf("Child process exiting\n");
     exitcleanup(&cfg);
