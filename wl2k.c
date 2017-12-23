@@ -145,7 +145,7 @@ static void compute_secure_login_response(char *challenge, char *response, char 
 void dump_hex(char *buf, size_t len);
 
 void
-   dump_hex(char *buf, size_t len)
+dump_hex(char *buf, size_t len)
 {
 	size_t i;
 	unsigned char *pBuf;
@@ -755,6 +755,9 @@ tgetline(FILE *fp, int terminator, int ignore)
 {
   static struct buffer *buf = NULL;
   int c;
+  int notascii_buf[256]; /* debug only */
+  size_t notascii_ind = 0;
+
 
   if (buf == NULL) {
     if ((buf = buffer_new()) == NULL) {
@@ -769,10 +772,22 @@ tgetline(FILE *fp, int terminator, int ignore)
     if ((c = fgetc(fp)) == EOF) {
       return NULL;
     }
+    /* Debug only */
+    if (!isascii(c) && c != terminator && c != ignore) {
+      notascii_buf[notascii_ind] = c;
+      if(notascii_ind < 255) {
+        notascii_ind++;
+      }
+      continue;
+    }
     if (c == terminator) {
       if (buffer_addchar(buf, '\0') == -1) {
         print_log(LOG_ERR, "buffer_addchar()- %s",  strerror(errno));
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
+      }
+      if (notascii_ind > 0) {
+        print_log(LOG_DEBUG, "Found non ascii response:");
+        dump_hex((char *)notascii_buf, notascii_ind);
       }
       return (char *) buf->data;
     }
