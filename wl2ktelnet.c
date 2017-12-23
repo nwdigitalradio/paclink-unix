@@ -229,7 +229,7 @@ usage(void)
 }
 
 /*
- * Display package version & repository version of this program.
+ * Display package version of this program.
  */
 static void
 displayversion(void)
@@ -239,9 +239,10 @@ displayversion(void)
 
   /* Check verbose flag for displaying gmime version */
   if(gverbose_flag) {
-    printf("Using gmime version %d.%d.%d\n",
+    printf("Using gmime version %d.%d.%d",
            gmime_major_version, gmime_minor_version, gmime_micro_version);
   }
+  printf("\n");
 }
 
 /*
@@ -252,7 +253,7 @@ static void
 displayconfig(cfg_t *cfg)
 {
 
-  printf("Using this config:\n");
+  printf("%s: Using this config:\n", getprogname());
 
   if(cfg->mycall) {
     printf("  My callsign: %s\n", cfg->mycall);

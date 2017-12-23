@@ -1,3 +1,12 @@
+Fri Dec 22 16:05:56 PST 2017  Basil Gunn <basil@pacabunga.com>
+
+  * Fix version display for wl2ktelnet, wl2kserial & wl2kax25
+    Files modified:
+      wl2kax25.c
+      wl2kax25d.c
+      wl2kserial.c
+      wl2ktelnet.c
+
 Fri Dec 22 10:50:07 PST 2017  Basil Gunn <basil@pacabunga.com>
 
     * Separte daemon code used for direct connect from client code.

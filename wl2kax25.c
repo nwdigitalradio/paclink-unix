@@ -425,7 +425,7 @@ usage(void)
 }
 
 /*
- * Display package version & repository version of this program.
+ * Display package version of this program.
  */
 static void
 displayversion(void)
@@ -435,9 +435,10 @@ displayversion(void)
 
   /* Check verbose flag for displaying gmime version */
   if(gverbose_flag) {
-    printf("Using gmime version %d.%d.%d\n",
+    printf("Using gmime version %d.%d.%d",
            gmime_major_version, gmime_minor_version, gmime_micro_version);
   }
+  printf("\n");
 }
 
 /*
@@ -453,9 +454,11 @@ displayconfig(cfg_t *cfg)
   if(cfg->mycall) {
     printf("  My callsign: %s\n", cfg->mycall);
   }
+
   if(cfg->targetcall) {
     printf("  Target callsign: %s\n", cfg->targetcall);
   }
+
   if(cfg->ax25port) {
     printf("  Ax25 port: %s\n", cfg->ax25port);
   }
