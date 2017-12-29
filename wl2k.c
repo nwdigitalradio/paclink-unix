@@ -773,7 +773,7 @@ tgetline(FILE *fp, int terminator, int ignore)
       return NULL;
     }
     /* Debug only */
-    if (!isascii(c) && c != terminator && c != ignore) {
+    if (c == 0x1e || (!isascii(c) && c != terminator && c != ignore) ) {
       notascii_buf[notascii_ind] = c;
       if(notascii_ind < 255) {
         notascii_ind++;
