@@ -363,15 +363,15 @@ main(int argc, char *argv[])
         fprintf(fp, "PAC PRBOX 0\r");
         printf("PAC PRBOX 0\n");
 
-        /*  Automatic Status must be enabled for paclink-unix
+        /*  Automatic Status must be enabled for paclink-unix??
          *  Pactor must use Host Mode Channel 31
          *  PDuplex must be set. The Node code relies on automatic IRS/ISS changeover
          *	5 second duplex timer
          */
-        fprintf(fp, "STATUS 2\r");
-        printf("STATUS 2\n");
+        fprintf(fp, "STATUS 0\r");
+        printf("STATUS 0\n");
         fprintf(fp, "PTCHN 31\r");
-        printf("PTCHN\n");
+        printf("PTCHN 31\n");
         fprintf(fp, "PDUPLEX 1\r");
         printf("PDUPLEX 1\n");
         fprintf(fp, "PDTIMER 5\r");
@@ -414,6 +414,11 @@ main(int argc, char *argv[])
 
   wl2k_exchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
 
+  /* If D (Disconect) doesn't work try DD (Dirty Disconnect) */
+  if (cfg.modem == SCSMODEM_P4DRAGON) {
+          fprintf(fp, "D\r");   /* Disconnect from Dragon modem */
+          printf("Disconnect\n");
+  }
   fclose(fp);
   g_mime_shutdown();
   exit(EXIT_SUCCESS);
@@ -519,8 +524,8 @@ displayconfig(cfg_t *cfg)
     printf("  Email address: %s\n", cfg->emailaddr);
   }
   printf("  Flags: verbose = %s, send-only = %s\n",
-         cfg->bSendonly ? "On" : "Off",
-         cfg->bVerbose ? "On" : "Off");
+         cfg->bVerbose  ? "On" : "Off",
+         cfg->bSendonly ? "On" : "Off");
 }
 
 /* Load these 7 config parameters:
