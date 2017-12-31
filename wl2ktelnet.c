@@ -532,3 +532,6 @@ loadconfig(int argc, char **argv, cfg_t *config)
 
   return(TRUE);
 }
+
+void disconnect(void) {
+}

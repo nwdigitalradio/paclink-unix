@@ -538,3 +538,5 @@ print_esc_string (const char *str, bool bXlate)
       putchar (*str);
     }
 }
+void disconnect(void) {
+}

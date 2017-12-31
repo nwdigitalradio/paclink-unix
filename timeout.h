@@ -30,5 +30,5 @@ void sigalrm(int sig ATTRIBUTE_UNUSED);
 void settimeout(unsigned int secs);
 void resettimeout(void);
 void unsettimeout(void);
-
+extern void disconnect(void);
 #endif

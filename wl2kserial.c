@@ -166,12 +166,16 @@ typedef struct _wl2kserial_config {
   unsigned int timeoutsecs;
   int     bVerbose;
   int     bSendonly;
+  FILE    *modemfp;
 }cfg_t;
+
+static cfg_t cfg;
 
 static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
 static void displayversion(void);
-static void displayconfig(cfg_t *cfg);
+static void displayconfig(cfg_t *config);
+void disconnect(void);
 
 /**
  * Function: main
@@ -198,7 +202,6 @@ main(int argc, char *argv[])
   struct termios init;
   struct termios t;
   int flags;
-  static cfg_t cfg;
 
   loadconfig(argc, argv, &cfg);
 
@@ -306,6 +309,8 @@ main(int argc, char *argv[])
     perror("fdopen()");
     exit(EXIT_FAILURE);
   }
+  /* save for disconnect */
+  cfg.modemfp = fp;
   setbuf(fp, NULL);
 
   fprintf(fp, "\r\n");
@@ -414,15 +419,19 @@ main(int argc, char *argv[])
 
   wl2k_exchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
 
-  /* If D (Disconect) doesn't work try DD (Dirty Disconnect) */
-  if (cfg.modem == SCSMODEM_P4DRAGON) {
-          fprintf(fp, "D\r");   /* Disconnect from Dragon modem */
-          printf("Disconnect\n");
-  }
+  disconnect();
   fclose(fp);
   g_mime_shutdown();
   exit(EXIT_SUCCESS);
   return 1;
+}
+
+void disconnect(void) {
+  /* If D (Disconect) doesn't work try DD (Dirty Disconnect) */
+  if (cfg.modem == SCSMODEM_P4DRAGON) {
+    fprintf(cfg.modemfp, "D\r");   /* Disconnect from Dragon modem */
+    printf("Disconnect\n");
+  }
 }
 
 /*
@@ -470,7 +479,7 @@ displayversion(void)
  *  parsed from defaults, config file & command line
  */
 static void
-displayconfig(cfg_t *cfg)
+displayconfig(cfg_t *config)
 {
 
   struct baudrate const *bp;
@@ -478,20 +487,20 @@ displayconfig(cfg_t *cfg)
 
   printf("%s: Using this config:\n", getprogname());
 
-  if(cfg->mycall) {
-    printf("  My callsign: %s\n", cfg->mycall);
+  if(config->mycall) {
+    printf("  My callsign: %s\n", config->mycall);
   }
-  if(cfg->targetcall) {
-    printf("  Target callsign: %s\n", cfg->targetcall);
+  if(config->targetcall) {
+    printf("  Target callsign: %s\n", config->targetcall);
   }
-  if(cfg->serialdevice) {
-    printf("  Serial device: %s\n", cfg->serialdevice);
+  if(config->serialdevice) {
+    printf("  Serial device: %s\n", config->serialdevice);
   }
 
   printf("  Baud rate: ");
   /* Loop through the baud rate table */
   for (bp = baudrates; bp->asc != NULL; bp++) {
-    if (bp->num == cfg->baudrate) {
+    if (bp->num == config->baudrate) {
       break;
     }
   }
@@ -504,7 +513,7 @@ displayconfig(cfg_t *cfg)
   printf("  Modem type: ");
   /* Loop through the modem name table */
   for (mp = modems; mp->modem_name != NULL; mp++) {
-    if (mp->modem == cfg->modem) {
+    if (mp->modem == config->modem) {
       break;
     }
   }
@@ -514,18 +523,18 @@ displayconfig(cfg_t *cfg)
     printf("Invalid\n");
   }
 
-  if(cfg->wl2k_password) {
-    printf("  WL2K secure login password: %s\n", cfg->wl2k_password);
+  if(config->wl2k_password) {
+    printf("  WL2K secure login password: %s\n", config->wl2k_password);
   }
 
-  printf("  Timeout: %d\n", cfg->timeoutsecs);
+  printf("  Timeout: %d\n", config->timeoutsecs);
 
-  if(cfg->emailaddr) {
-    printf("  Email address: %s\n", cfg->emailaddr);
+  if(config->emailaddr) {
+    printf("  Email address: %s\n", config->emailaddr);
   }
   printf("  Flags: verbose = %s, send-only = %s\n",
-         cfg->bVerbose  ? "On" : "Off",
-         cfg->bSendonly ? "On" : "Off");
+         config->bVerbose  ? "On" : "Off",
+         config->bSendonly ? "On" : "Off");
 }
 
 /* Load these 7 config parameters:

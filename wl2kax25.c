@@ -743,3 +743,5 @@ static void exitcleanup(cfg_t *config)
     config->pathbuf = NULL;
   }
 }
+void disconnect(void) {
+}

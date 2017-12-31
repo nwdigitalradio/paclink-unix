@@ -172,3 +172,5 @@ void usage(void)
   fprintf(stderr, "Usage: %s [-m]\n", getprogname());
   exit(EXIT_FAILURE);
 }
+void disconnect(void) {
+}

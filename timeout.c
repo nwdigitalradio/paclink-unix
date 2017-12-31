@@ -29,15 +29,20 @@
 # include <sys/types.h>
 #endif
 
-#ifdef __RCSID
-__RCSID("$Id$");
+#if HAVE_STDIO_H
+# include <stdio.h>
 #endif
-
 #if HAVE_STDLIB_H
 # include <stdlib.h>
 #endif
 #if HAVE_UNISTD_H
 # include <unistd.h>
+#endif
+#if HAVE_ERRNO_H
+# include <errno.h>
+#endif
+#if HAVE_STRING_H
+# include <string.h>
 #endif
 #ifdef HAVE_SIGNAL_H
 # include <signal.h>
@@ -54,8 +59,19 @@ unsigned int timeoutsecs;
 void
 sigalrm(int sig ATTRIBUTE_UNUSED)
 {
-  const char msg[] = "Timed out, exiting!\n";
-  write(STDERR_FILENO, msg, sizeof(msg));
+  char msg[128];
+  ssize_t byteswritten;
+
+  sprintf(msg, "Timed out, exiting %s!\n", getprogname());
+
+  byteswritten = write(STDERR_FILENO, msg, sizeof(msg));
+  if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
+    fprintf(stdout,"%s error writing to stderr: %s)\n",
+            getprogname(), strerror(errno));
+  }
+  /* send a disconnect to modem */
+  disconnect();
+
   syslog(LOG_ERR, "Timed out, exiting!");
   _exit(EXIT_FAILURE);
 }

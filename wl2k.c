@@ -682,7 +682,7 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
     while (*cp && prop) {
       if (i == PROPLIMIT) {
         print_log(LOG_ERR, "B2 protocol error 2");
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
       }
       prop->accepted = 0;
       prop->delete = 0;
@@ -691,26 +691,26 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       case 'Y': case 'y':
       case 'H': case 'h':
       case '+':
-	prop->accepted = 1;
-	break;
+        prop->accepted = 1;
+        break;
       case 'N': case 'n':
       case 'R': case 'r':
       case '-':
-	prop->delete = 1;
-	break;
+        prop->delete = 1;
+        break;
       case 'L': case 'l':
       case '=':
-	break;
+        break;
       case 'A': case 'a':
       case '!':
-	prop->accepted = 1;
-	prop->offset = strtoul((const char *) cp, &endp, 10);
-	cp = ((unsigned char *) endp) - 1;
-	break;
+        prop->accepted = 1;
+        prop->offset = strtoul((const char *) cp, &endp, 10);
+        cp = ((unsigned char *) endp) - 1;
+        break;
       default:
         print_log(LOG_ERR, "B2 protocol error 3");
-	exit(EXIT_FAILURE);
-	break;
+        exit(EXIT_FAILURE);
+        break;
       }
       cp++;
       prop = prop->next;
@@ -723,7 +723,8 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
         prop->delete = 1;
       }
       if ((prop = prop->next) == NULL) {
-  break;
+        print_log(LOG_DEBUG, "Debug: After putcompressed prop->next = NULL, i:%d", i);
+        break;
       }
     }
     *oproplist = prop;
@@ -1025,13 +1026,16 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
   }
 
   nproplist = oproplist;
-#ifndef  WL2KAX25_DAEMON
+
+  print_log(LOG_DEBUG, "Debug: xmit 1st parser");
+
   if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
     return;
   }
-#endif  /* NOT WL2KAX25_DAEMON */
 
   fflush(ofp);
+
+  print_log(LOG_DEBUG, "Debug: Start 2nd parser");
 
   while ((line = wl2kgetline(ifp)) != NULL) {
     print_log(LOG_DEBUG, "<%s", line);
@@ -1039,11 +1043,6 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
       /* do nothing */
     } else if (strlen(line) == 0) {
       /* do nothing */
-#ifdef WL2KAX25_DAEMON
-    } else if (strchr(line, '[')) {
-      inboundsidcodes = parse_inboundsid(line);
-      break;
-#endif
     } else if (strbegins(line, "FC")) {
       dodelete(&oproplist, &nproplist);
       for (cp = line; *cp; cp++) {
@@ -1063,6 +1062,9 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
       proposals++;
     } else if (strbegins(line, "FF")) {
       dodelete(&oproplist, &nproplist);
+
+      print_log(LOG_DEBUG, "Debug: xmit 2nd parser 1");
+
       if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
 #ifdef  WL2KAX25_DAEMON
         print_log(LOG_DEBUG, ">; %s de %s SK", yourcall, mycall);
@@ -1217,11 +1219,15 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
       }
       proposals = 0;
       proposalcksum = 0;
+      print_log(LOG_DEBUG, "Debug: xmit 2nd parser 2");
       if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
         return;
       }
     } else if (line[strlen(line - 1)] == '>') {
       dodelete(&oproplist, &nproplist);
+
+      print_log(LOG_DEBUG, "Debug: xmit 2nd parser 3");
+
       if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
         return;
       }

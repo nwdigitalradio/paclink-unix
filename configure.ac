@@ -2,7 +2,7 @@ dnl $Id$
 dnl Process this file with autoconf to produce a configure script.
 
 dnl Increment the package version for each release.
-AC_INIT(PACLINK-UNIX, 0.6)
+AC_INIT(PACLINK-UNIX, 0.7)
 AC_CONFIG_HEADER(config.h)
 
 AM_INIT_AUTOMAKE
@@ -10,12 +10,6 @@ AM_INIT_AUTOMAKE
 AC_LANG(C)
 
 AC_USE_SYSTEM_EXTENSIONS
-
-AH_TOP([#ifndef __RCSID
-#define __RCSID(msg) \
-static /**/const char rcsid[] = { "@@(#)" msg }
-#endif
-])
 
 dnl =======================================================================
 dnl Checks for programs.
