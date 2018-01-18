@@ -45,7 +45,7 @@ apt-get update
 apt-get install build-essential autoconf automake libtool
 apt-get install postfix libdb-dev libglib2.0-0 zlib1g-dev libncurses5-dev libdb5.3-dev libgmime-2.6-dev
 ```
-* Get a copy of the paclink-unix repositpory
+* Get a copy of the paclink-unix repository
 ```
 git clone https://github.com/nwdigitalradio/paclink-unix
 ```
