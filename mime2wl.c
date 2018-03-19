@@ -314,10 +314,10 @@ mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data
 
     if ((fn == NULL) && (buffer_length(wl2k->bbuf) == 0UL)) {
       if (g_mime_content_type_is_type(content_type, "text", "plain")) {
-	buf = wl2k->bbuf;
+       buf = wl2k->bbuf;
       } else if (g_mime_content_type_is_type(content_type, "text", "html")) {
-	/* XXX convert to plain text */
-	buf = wl2k->bbuf;
+       /* XXX convert to plain text */
+       buf = wl2k->bbuf;
       }
     }
 
@@ -338,11 +338,11 @@ mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data
     }
     if (buf == wl2k->abuf) {
       if (fn == NULL) {
-	if (g_mime_content_type_is_type(content_type, "text", "*")) {
-	  fn = "attachment.txt";
-	} else {
-	  fn = "attachment.bin";
-	}
+        if (g_mime_content_type_is_type(content_type, "text", "*")) {
+          fn = "attachment.txt";
+        } else {
+          fn = "attachment.bin";
+        }
       }
       buffer_addstring(wl2k->fbuf, (const unsigned char *)"File: ");
       buffer_addstring(wl2k->fbuf, (const unsigned char *)slen);
