@@ -35,6 +35,10 @@ __RCSID("$Id$");
 # include <ctype.h>
 #endif
 
+#if HAVE_CTYPE_H
+# include <stdint.h>
+#endif
+
 #include "compat.h"
 #include "buffer.h"
 #include "lzhuf_1.h"
@@ -53,8 +57,6 @@ static int EncodePosition(unsigned c, struct buffer *outbuf);
 static int EncodeEnd(struct buffer *outbuf);
 static int DecodeChar(struct buffer *inbuf);
 static int DecodePosition(struct buffer *inbuf);
-static void link (int n, int p, int q);
-static void linknode (int p, int q, int r);
 
 /* crctab calculated by Mark G. Mendel, Network Systems Corporation */
 static unsigned short crctab[256] = {
@@ -94,25 +96,23 @@ static unsigned short crctab[256] = {
 
 #define updcrc(cp, crc) ((crc << 8) ^ crctab[(cp & 0xff) ^ (crc >> 8)])
 
-static unsigned long int textsize = 0, codesize = 0;
+static uint32_t textsize = 0, codesize = 0;
 static unsigned short crc;
 static unsigned putbuf;
 static unsigned char putlen;
 
 /********** LZSS compression **********/
 
-#define N               4096    /* buffer size */
+#define N               2048    /* buffer size */
 #define F               60      /* lookahead buffer size */
 #define THRESHOLD       2
 #define NIL             N       /* leaf of tree */
-#define RSONSZE (N+N)
+#define RSONSZE         (N + 256 +1) /* (N + 256 + 1) */
 
 unsigned char text_buf[N + F - 1];
 unsigned int match_position;
 int match_length;
 int lson[N + 1], rson[RSONSZE+1], dad[N + 1];
-
-unsigned char    same[N + 1];
 
 static int
 crc_fputc(int c, struct buffer *crcoutbuf)
@@ -148,66 +148,49 @@ InitTree(void)
 static void
 InsertNode(int r)
 {
-  int p, cmp;
-  unsigned char	*key;
-  unsigned int	c;
-  unsigned int	i, j;
+  int  i, p, cmp;
+  unsigned char  *key;
+  unsigned int c;
 
   cmp = 1;
   key = &text_buf[r];
-  i = key[1] ^ key[2];
-  i ^= i >> 4;
-  p = (int)(N + 1 + key[0] + (int)((i & 0x0f) << 8));
+  p = N + 1 + key[0];
   rson[r] = lson[r] = NIL;
   match_length = 0;
-  i = j = 1;
   for ( ; ; ) {
     if (cmp >= 0) {
-      if (rson[p] != NIL) {
+      if (rson[p] != NIL)
         p = rson[p];
-        j = same[p];
-      } else {
+      else {
         rson[p] = r;
         dad[r] = p;
-        same[r] = (unsigned char)i;
         return;
       }
     } else {
-      if (lson[p] != NIL) {
+      if (lson[p] != NIL)
         p = lson[p];
-        j = same[p];
-      } else {
+      else {
         lson[p] = r;
         dad[r] = p;
-        same[r] = (unsigned char)i;
         return;
       }
     }
-
-    if (i > j) {
-      i = j;
-      cmp = key[i] - text_buf[(unsigned int)p + i];
-    } else
-      if (i == j) {
-        for (; i < F; i++)
-          if ((cmp = key[i] - text_buf[(unsigned int)p + i]) != 0)
-            break;
-      }
-
+    for (i = 1; i < F; i++)
+      if ((cmp = key[i] - text_buf[p + i]) != 0)
+        break;
     if (i > THRESHOLD) {
-      if (i > (unsigned int)match_length) {
-        match_position = (unsigned int)(((r - p) & (N - 1)) - 1);
-        if ((match_length = (int)i) >= F)
+      if (i > match_length) {
+        match_position = ((r - p) & (N - 1)) - 1;
+        if ((match_length = i) >= F)
           break;
-      } else
-        if (i == (unsigned int)match_length) {
-          if ((c = (unsigned int)((r - p) & (N - 1)) - 1) < match_position) {
-            match_position = c;
-          }
+      }
+      if (i == match_length) {
+        if ((int)(c = ((r - p) & (N - 1)) - 1) < match_position) {
+          match_position = c;
         }
+      }
     }
   }
-  same[r] = same[p];
   dad[r] = dad[p];
   lson[r] = lson[p];
   rson[r] = rson[p];
@@ -220,38 +203,6 @@ InsertNode(int r)
   dad[p] = NIL;  /* remove p */
 }
 
-static void
-link (int n, int p, int q)
-{
-  register unsigned char *s1, *s2, *s3;
-  if (p >= NIL) {
-    same[q] = 1;
-    return;
-  }
-  s1 = text_buf + p + n;
-  s2 = text_buf + q + n;
-  s3 = text_buf + p + F;
-  while (s1 < s3) {
-    if (*s1++ != *s2++) {
-      same[q] = (unsigned char)(s1 - 1 - text_buf - p);
-      return;
-    }
-  }
-  same[q] = F;
-}
-
-static void
-linknode (int p, int q, int r)
-{
-  int cmp;
-
-  if ((cmp = same[q] - same[r]) == 0) {
-    link(same[q], p, r);
-  } else if (cmp < 0) {
-    same[r] = same[q];
-  }
-}
-
 /* remove from tree */
 static void
 DeleteNode (int p)
@@ -259,30 +210,23 @@ DeleteNode (int p)
   int q;
 
   if (dad[p] == NIL)
-    return;                 /* not registered */
-  if (rson[p] == NIL) {
-    if ((q = lson[p]) != NIL)
-      linknode(dad[p], p, q);
-  } else
-    if (lson[p] == NIL) {
+    return;			/* not registered */
+  if (rson[p] == NIL)
+    q = lson[p];
+  else
+    if (lson[p] == NIL)
       q = rson[p];
-      linknode(dad[p], p, q);
-    } else {
+    else {
       q = lson[p];
       if (rson[q] != NIL) {
         do {
           q = rson[q];
         } while (rson[q] != NIL);
-        if (lson[q] != NIL)
-          linknode(dad[q], q, lson[q]);
-        link(1, q, lson[p]);
         rson[dad[q]] = lson[q];
         dad[lson[q]] = dad[q];
         lson[q] = lson[p];
         dad[lson[p]] = q;
       }
-      link(1, dad[p], q);
-      link(1, q, rson[p]);
       rson[q] = rson[p];
       dad[rson[p]] = q;
     }
@@ -399,16 +343,17 @@ static unsigned char d_len[256] = {
   0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
 };
 
-static unsigned freq[T + 1];   /* frequency table */
+static unsigned freq[T + 1];    /* cumulative frequency table */
 
-static int prnt[T + N_CHAR];   /* pointers to parent nodes, except for the */
-                        /* elements [T..T + N_CHAR - 1] which are used to get */
-                        /* the positions of leaves corresponding to the codes. */
+static int prnt[T + N_CHAR];    /* pointers to parent nodes, except for the */
+                                /* elements [T..T + N_CHAR - 1] which are used to get */
+                                /* the positions of leaves corresponding to the codes. */
 
-static int son[T];             /* pointers to child nodes (son[], son[] + 1) */
+static int son[T];              /* pointers to child nodes (son[], son[] + 1) */
 
-static unsigned getbuf;
-static unsigned char getlen;
+static unsigned code;
+static unsigned getbuf = 0;
+static unsigned char getlen = 0;
 
 /* get one bit */
 static int
@@ -499,8 +444,7 @@ static void
 reconst(void)
 {
   int i, j, k;
-  unsigned f;
-  unsigned *p, *e;
+  unsigned first, last;
 
   /* collect leaf nodes in the first half of the table */
   /* and replace the freq by (freq + 1) / 2. */
@@ -515,21 +459,15 @@ reconst(void)
   /* begin constructing tree by connecting sons */
   for (i = 0, j = N_CHAR; j < T; i += 2, j++) {
     k = i + 1;
-    f = freq[j] = freq[i] + freq[k];
-    for (k = j - 1; f < freq[k]; k--);
+    first = freq[j] = freq[i] + freq[k];
+    for (k = j - 1; first < freq[k]; k--);
     k++;
-
-    for (p = &freq[j], e = &freq[k]; p > e; p--) {
-      p[0] = p[-1];
-    }
-    freq[k] = f;
-
-    for (p = (unsigned *)&son[j], e = (unsigned *)&son[k]; p > e; p--) {
-      p[0] = p[-1];
-    }
+    last = (j - k) * sizeof(unsigned int);  /* # BYTES to move right */
+    memmove(&freq[k + 1], &freq[k], last);
+    freq[k] = first;
+    memmove(&son[k + 1], &son[k], last);
     son[k] = i;
   }
-
   /* connect prnt */
   for (i = 0; i < T; i++) {
     if ((k = son[i]) >= T) {
@@ -544,10 +482,8 @@ reconst(void)
 static void
 update(int c)
 {
-  int i, j;
+  int i, j, l;
   unsigned k;
-  int l;
-  unsigned *p;
 
   if (freq[R] == MAX_FREQ) {
     reconst();
@@ -557,23 +493,23 @@ update(int c)
     k = ++freq[c];
 
     /* if the order is disturbed, exchange nodes */
-    if (k > freq[l = c + 1]) {
-      for (p = freq+l+1; k > *p++; ) ;
-      l = p - freq - 2;
-      freq[c] = p[-2];
-      p[-2] = k;
+    if (k > (int)freq[l = c + 1]) {
+      while (k > (int)freq[++l]);
+      l--;
+      freq[c] = freq[l];
+      freq[l] = k;
 
       i = son[c];
       prnt[i] = l;
       if (i < T)
-	prnt[i + 1] = l;
+        prnt[i + 1] = l;
 
       j = son[l];
       son[l] = i;
 
       prnt[j] = c;
       if (j < T)
-	prnt[j + 1] = c;
+        prnt[j + 1] = c;
       son[c] = j;
 
       c = l;
@@ -604,20 +540,12 @@ EncodeChar(unsigned c, struct buffer *outbuf)
       return(-1);
     }
   } while ((k = prnt[k]) != R);
+  Putcode(j, i, outbuf);
 
-  if (j > 16) {
-    if(Putcode(16, i, outbuf) == -1) {
-      return -1;
-    }
-    if(Putcode(j - 16, i, outbuf) == -1) {
-      return -1;
-    }
-  } else {
-    if(Putcode(j, i, outbuf) == -1) {
-      return -1;
-    }
-  }
-
+  code = i;
+/* Not used
+ *   len = j;
+ */
   update((int) c);
   return 0;
 }
@@ -706,7 +634,8 @@ Encode(struct buffer *inbuf)
   printcount = 1;
 #endif
 
-  textsize = inbuf->dlen;
+  /* Needs to be 4 bytes */
+  textsize = (uint32_t)inbuf->dlen;
 
   if ((outbuf = buffer_new()) == NULL) {
     return NULL;
@@ -740,7 +669,8 @@ Encode(struct buffer *inbuf)
     text_buf[i] = ' ';
   for (len = 0; len < F && (c = buffer_iterchar(inbuf)) != EOF; len++)
     text_buf[r + len] = (unsigned char)c;
-  textsize = (long unsigned int)len;
+
+  textsize = (uint32_t)len;
   for (i = 1; i <= F; i++)
     InsertNode(r - i);
   InsertNode(r);
@@ -750,33 +680,33 @@ Encode(struct buffer *inbuf)
     if (match_length <= THRESHOLD) {
       match_length = 1;
       if (EncodeChar(text_buf[r], outbuf) == -1) {
-	buffer_free(outbuf);
-	return NULL;
+        buffer_free(outbuf);
+        return NULL;
       }
     } else {
       if (EncodeChar((unsigned) (255 - THRESHOLD + match_length), outbuf) == -1) {
-	buffer_free(outbuf);
-	return NULL;
+        buffer_free(outbuf);
+        return NULL;
       }
       if (EncodePosition((unsigned) match_position, outbuf) == -1) {
-	buffer_free(outbuf);
-	return NULL;
+        buffer_free(outbuf);
+        return NULL;
       }
     }
     last_match_length = match_length;
     for (i = 0; i < last_match_length &&
-	   (c = buffer_iterchar(inbuf)) != EOF; i++) {
+             (c = buffer_iterchar(inbuf)) != EOF; i++) {
       DeleteNode(s);
       text_buf[s] = (unsigned char)c;
       if (s < F - 1)
-	text_buf[s + N] = (unsigned char)c;
+        text_buf[s + N] = (unsigned char)c;
       s = (s + 1) & (N - 1);
       r = (r + 1) & (N - 1);
       InsertNode(r);
     }
 #ifdef LZHUF_1_MAIN
     if ((textsize += (unsigned long int)i) > printcount) {
-      fprintf(stderr, "%12ld\r", textsize);
+      fprintf(stderr, "%12d\r", textsize);
       printcount += 1024;
     }
 #endif
@@ -795,8 +725,8 @@ Encode(struct buffer *inbuf)
   }
 
 #ifdef LZHUF_1_MAIN
-  fprintf(stderr, "In : %ld bytes\n", textsize);
-  fprintf(stderr, "Out: %ld bytes\n", codesize);
+  fprintf(stderr, "In : %u bytes\n", textsize);
+  fprintf(stderr, "Out: %u bytes\n", codesize);
   fprintf(stderr, "Out/In: %.3f\n", (double) codesize / textsize);
 #endif
   return outbuf;
@@ -860,22 +790,22 @@ Decode(struct buffer *inbuf)
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  textsize = (long unsigned int)x;
+  textsize = (uint32_t)x;
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  textsize |= (long unsigned int)(x << 8);
+  textsize |= (uint32_t)(x << 8);
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  textsize |= (long unsigned int)(x << 16);
+  textsize |= (uint32_t)(x << 16);
   if ((x = crc_fgetc(inbuf)) == EOF) {
     return NULL;
   }
-  textsize |= (long unsigned int)(x << 24);
+  textsize |= (uint32_t)(x << 24);
 
 #ifdef LZHUF_1_MAIN
-  fprintf(stderr, "File Size = %lu\n", textsize);
+  fprintf(stderr, "File Size = %u\n", textsize);
 #endif
   if ((outbuf = buffer_new()) == NULL) {
     perror("buffer_new()");
@@ -893,8 +823,8 @@ Decode(struct buffer *inbuf)
     c = DecodeChar(inbuf);
     if (c < 256) {
       if (buffer_addchar(outbuf, c) == EOF) {
-	buffer_free(outbuf);
-	return NULL;
+        buffer_free(outbuf);
+        return NULL;
       }
       text_buf[r++] = (unsigned char)c;
       r &= (N - 1);
@@ -903,14 +833,14 @@ Decode(struct buffer *inbuf)
       i = (r - DecodePosition(inbuf) - 1) & (N - 1);
       j = c - 255 + THRESHOLD;
       for (k = 0; k < j; k++) {
-	c = text_buf[(i + k) & (N - 1)];
-	if (buffer_addchar(outbuf, c) == EOF) {
-	  buffer_free(outbuf);
-	  return NULL;
-	}
-	text_buf[r++] = (unsigned char)c;
-	r &= (N - 1);
-	count++;
+        c = text_buf[(i + k) & (N - 1)];
+        if (buffer_addchar(outbuf, c) == EOF) {
+          buffer_free(outbuf);
+          return NULL;
+        }
+        text_buf[r++] = (unsigned char)c;
+        r &= (N - 1);
+        count++;
       }
     }
 #ifdef LZHUF_1_MAIN
