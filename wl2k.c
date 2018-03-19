@@ -89,6 +89,8 @@ __RCSID("$Id$");
 #include "printlog.h"
 
 #define PROPLIMIT 5
+/* number of bytes to send through socket */
+#define CHUNK_SIZE 255
 
 /* Send messages only flag */
 extern int gsendmsgonly_flag;
@@ -289,9 +291,10 @@ putcompressed(struct proposal *prop, FILE *fp)
   unsigned char title[81];
   unsigned char offset[7];
   int cksum = 0;
-  unsigned char *cp;
+  unsigned char *cp, *cp_buf;
   long rem;
   unsigned char msglen;
+  size_t msgbuflen;
 
   strlcpy((char *) title, prop->title, sizeof(title));
   snprintf((char *) offset, sizeof(offset), "%lu", prop->offset);
@@ -300,7 +303,7 @@ putcompressed(struct proposal *prop, FILE *fp)
 
   len = strlen((const char *) title) + strlen((const char *) offset) + 2;
 
-  /* ** Send hearder */
+  /* ** Send header */
   resettimeout();
   if (fprintf(fp, "%c%c%s%c%s%c", CHRSOH, (int)len, title, CHRNUL, offset, CHRNUL) == -1) {
     print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
@@ -327,8 +330,8 @@ putcompressed(struct proposal *prop, FILE *fp)
   /* ** Send message */
   while (rem > 0) {
     print_log(LOG_DEBUG,"... %ld", rem);
-    if (rem > 250) {
-      msglen = 250;
+    if (rem > CHUNK_SIZE) {
+      msglen = CHUNK_SIZE;
     } else {
       msglen = (unsigned char)rem;
     }
@@ -338,14 +341,23 @@ putcompressed(struct proposal *prop, FILE *fp)
     }
 
     /* ** send buffer to ax25 stack */
+    cp_buf = cp;
+    msgbuflen = msglen;
     while (msglen--) {
       resettimeout();
       cksum += *cp;
+#if 0
       if (fputc(*cp++, fp) == EOF) {
         print_log(LOG_ERR, "fputc - %s", strerror(errno));
         exit(EXIT_FAILURE);
       }
+#else
+      cp++;
+#endif
       rem--;
+    }
+    if( fwrite(cp_buf, 1, msgbuflen, fp) < msgbuflen) {
+      print_log(LOG_ERR, "socket write - %s", strerror(errno));
     }
     fflush(fp);
   }
@@ -1038,7 +1050,7 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
   print_log(LOG_DEBUG, "Debug: Start 2nd parser");
 
   while ((line = wl2kgetline(ifp)) != NULL) {
-    print_log(LOG_DEBUG, "<%s", line);
+    print_log(LOG_DEBUG, "<%s [%d]", line, strlen(line));
     if (strbegins(line, ";")) {
       /* do nothing */
     } else if (strlen(line) == 0) {
