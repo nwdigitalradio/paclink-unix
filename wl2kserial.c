@@ -381,6 +381,8 @@ main(int argc, char *argv[])
         printf("PDUPLEX 1\n");
         fprintf(fp, "PDTIMER 5\r");
         printf("PDTIMER 5\n");
+        fprintf(fp, "JHOST4\r");
+        printf("JHOST4\n");
       }
       break;
     }
@@ -429,6 +431,8 @@ main(int argc, char *argv[])
 void disconnect(void) {
   /* If D (Disconect) doesn't work try DD (Dirty Disconnect) */
   if (cfg.modem == SCSMODEM_P4DRAGON) {
+    /* get out of host mode */
+    fprintf(cfg.modemfp, "\x1bJHOST0\r");   /*  */
     fprintf(cfg.modemfp, "D\r");   /* Disconnect from Dragon modem */
     printf("Disconnect\n");
   }
