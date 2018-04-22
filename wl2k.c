@@ -122,7 +122,9 @@ static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 
 static void send_my_sid(FILE *ofp);
 static char *parse_inboundsid(char *line);
-void inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress);
+static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress);
+static char *outbound_parser(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount);
+
 
 # include "md5.h"
 
@@ -815,6 +817,20 @@ wl2kgetline(FILE *fp)
 }
 
 void
+   send_my_sid(FILE *ofp)
+{
+  char sidbuf[32];
+
+  sprintf(sidbuf, "[%s-%s-B2FIHM$]", SID_NAME, PACKAGE_VERSION);
+  print_log(LOG_DEBUG, ">%s", sidbuf);
+  resettimeout();
+  if (fprintf(ofp, "%s\r", sidbuf) == -1) {
+    print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+}
+
+void
 compute_secure_login_response(char *challenge, char *response, char *password)
 {
   char *hash_input;
@@ -845,18 +861,23 @@ compute_secure_login_response(char *challenge, char *response, char *password)
     strcpy(response, pr_str);
 }
 
-void
-send_my_sid(FILE *ofp)
+int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
 {
-  char sidbuf[32];
+  int sent_pr = 0;
 
-  sprintf(sidbuf, "[%s-%s-B2FIHM$]", SID_NAME, PACKAGE_VERSION);
-  print_log(LOG_DEBUG, ">%s", sidbuf);
-  resettimeout();
-  if (fprintf(ofp, "%s\r", sidbuf) == -1) {
-    print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
-    exit(EXIT_FAILURE);
+  if ((strlen(challenge) > 0) && (sl_pass != NULL)) {
+    char response[9];
+    send_my_sid(ofp);
+    compute_secure_login_response(challenge, response, sl_pass);
+    print_log(LOG_DEBUG, ">;PR: %s", response);
+    resettimeout();
+    if (fprintf(ofp, ";PR: %s\r", response) == -1) {
+      print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    sent_pr = 1;
   }
+  return(sent_pr);
 }
 
 char *
@@ -886,26 +907,7 @@ parse_inboundsid(char *line)
   return (inboundsidcodes);
 }
 
-int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
-{
-  int sent_pr = 0;
-
-  if ((strlen(challenge) > 0) && (sl_pass != NULL)) {
-    char response[9];
-    send_my_sid(ofp);
-    compute_secure_login_response(challenge, response, sl_pass);
-    print_log(LOG_DEBUG, ">;PR: %s", response);
-    resettimeout();
-    if (fprintf(ofp, ";PR: %s\r", response) == -1) {
-      print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
-      exit(EXIT_FAILURE);
-    }
-    sent_pr = 1;
-  }
- return(sent_pr);
-}
-
-void inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress)
+static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress)
 {
   int i,j;
   char *cp;
@@ -920,6 +922,7 @@ void inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct pro
   struct buffer *mimebuf;
   int c;
   int r;
+  int b2outret;
 
   int proposalcksum = 0;
   int proposals = 0;
@@ -953,16 +956,16 @@ void inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct pro
     } else if (strbegins(line, "FF")) {
       dodelete(&oproplist, &nproplist);
 
-      print_log(LOG_DEBUG, "Debug: xmit inbound parser 1");
+      print_log(LOG_DEBUG, "Debug: %s: xmit 1", __FUNCTION__);
 
-      if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
-        return;
+      if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
+        return(b2outret);
       }
     } else if (strbegins(line, "B")) {
-      return;
+      return(-1);
     } else if (strbegins(line, "FQ")) {
       dodelete(&oproplist, &nproplist);
-      return;
+      return(-1);
     } else if (strbegins(line, "F>")) {
       /* Send message only option -
        *  -bail out from a session after receive proposal */
@@ -1096,17 +1099,17 @@ void inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct pro
       }
       proposals = 0;
       proposalcksum = 0;
-      print_log(LOG_DEBUG, "Debug: xmit inbound parser 2");
-      if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
-        return;
+      print_log(LOG_DEBUG, "Debug: %s: xmit 2", __FUNCTION__);
+      if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
+        return(b2outret);
       }
     } else if (line[strlen(line - 1)] == '>') {
       dodelete(&oproplist, &nproplist);
 
-      print_log(LOG_DEBUG, "Debug: xmit inbound parser 3");
+      print_log(LOG_DEBUG, "Debug: %s: xmit 3", __FUNCTION__);
 
-      if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
-        return;
+      if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
+        return(b2outret);
       }
     } else {
       print_log(LOG_ERR, "unrecognized command (len %lu): /%s/",
@@ -1116,34 +1119,20 @@ void inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct pro
       exit(EXIT_FAILURE);
     }
   }
+  if (line == NULL) {
+    print_log(LOG_ERR, "%s, Lost connection. 4",__FUNCTION__);
+    exit(EXIT_FAILURE);
+  }
+  return(0);
 }
-void
-wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+
+static char *outbound_parser(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount)
 {
+  static char *line;
   char *inboundsidcodes = NULL;
-  char *line;
-  struct proposal *prop;
-  struct proposal *oproplist;
-  struct proposal *nproplist;
-  int opropcount = 0;
-  long unsigned int oprop_usize = 0;
-  long unsigned int oprop_csize = 0;
   char challenge[9];
   challenge[0] = 0;
 
-
-  if (expire_mids() == -1) {
-    print_log(LOG_ERR, "expire_mids() failed");
-    exit(EXIT_FAILURE);
-  }
-
-  oproplist = prepare_outbound_proposals();
-
-  for (prop = oproplist; prop; prop = prop->next) {
-    opropcount++;
-    oprop_usize += prop->usize;
-    oprop_csize += prop->csize;
-  }
 
   while ((line = wl2kgetline(ifp)) != NULL) {
     print_log(LOG_DEBUG, "<%s", line);
@@ -1180,12 +1169,38 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
     }
   }
   if (line == NULL) {
-    print_log(LOG_ERR, "Lost connection. 1");
+    print_log(LOG_ERR, "%s: Lost connection. 1",__FUNCTION__);
+    exit(EXIT_FAILURE);
+  }
+  return(line);
+}
+
+void
+wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+{
+  static char *line;
+  struct proposal *prop;
+  struct proposal *oproplist;
+  struct proposal *nproplist;
+  int opropcount = 0;
+  long unsigned int oprop_usize = 0;
+  long unsigned int oprop_csize = 0;
+
+  if (expire_mids() == -1) {
+    print_log(LOG_ERR, "expire_mids() failed");
     exit(EXIT_FAILURE);
   }
 
-  nproplist = oproplist;
+  oproplist = prepare_outbound_proposals();
 
+  for (prop = oproplist; prop; prop = prop->next) {
+    opropcount++;
+    oprop_usize += prop->usize;
+    oprop_csize += prop->csize;
+  }
+
+  line = outbound_parser(ifp, ofp, sl_pass, mycall, yourcall, opropcount);
+  nproplist = oproplist;
 
   if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
     return;
@@ -1195,9 +1210,5 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
   fflush(ofp);
 
   print_log(LOG_DEBUG, "Debug: Start inbound parser");
-  inbound_parser(ifp,ofp, nproplist, oproplist, emailaddress);
-  if (line == NULL) {
-    print_log(LOG_ERR, "wl2kexchange(), Lost connection. 4");
-    exit(EXIT_FAILURE);
-  }
+  inbound_parser(ifp, ofp, nproplist, oproplist, emailaddress);
 }
