@@ -1,5 +1,7 @@
 #! /bin/sh
 
+srcdir=$(pwd)
+
 cleanup () {
 	rm -f binmail ascmail1.test binmail.test binmail1.test
 }
