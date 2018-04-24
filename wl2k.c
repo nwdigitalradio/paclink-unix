@@ -78,6 +78,8 @@ __RCSID("$Id$");
 # endif
 #endif
 
+#define USE_SECURE_LOGIN 1
+
 #include "compat.h"
 #include "strutil.h"
 #include "wl2k.h"
@@ -123,8 +125,11 @@ static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 static void send_my_sid(FILE *ofp);
 static char *parse_inboundsid(char *line);
 static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress);
-static char *outbound_parser(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount);
 
+#ifdef USE_SECURE_LOGIN
+static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount);
+static void compute_secure_login_response(char *challenge, char *response, char *password);
+static int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass);
 
 # include "md5.h"
 
@@ -141,9 +146,7 @@ static const unsigned char sl_salt[] = {
   187, 249, 232, 193, 41, 113,
   41, 45, 240, 16, 29, 228,
   208, 228, 61, 20 };
-
-static void compute_secure_login_response(char *challenge, char *response, char *password);
-static int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass);
+#endif
 
 /* Debug only */
 void dump_hex(char *buf, size_t len);
@@ -830,56 +833,6 @@ void
   }
 }
 
-void
-compute_secure_login_response(char *challenge, char *response, char *password)
-{
-  char *hash_input;
-  unsigned char hash_sig[16];
-  size_t m, n;
-  int i, pr;
-  char pr_str[20];
-
-  m = strlen(challenge) + strlen(password);
-  n = m + sizeof(sl_salt);
-  hash_input = (char*)malloc(n);
-  strcpy(hash_input, challenge);
-  strcat(hash_input, password);
-  strupper(hash_input);
-  memcpy(hash_input+m, sl_salt, sizeof(sl_salt));
-  md5_buffer(hash_input, (unsigned int)n, hash_sig);
-  free(hash_input);
-
-  pr = hash_sig[3] & 0x3f;
-  for (i=2; i>=0; i--)
-    pr = (pr << 8) | hash_sig[i];
-
-  sprintf(pr_str, "%08d", pr);
-  n = strlen(pr_str);
-  if (n > 8)
-    strcpy(response, pr_str+(n-8));
-  else
-    strcpy(response, pr_str);
-}
-
-int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
-{
-  int sent_pr = 0;
-
-  if ((strlen(challenge) > 0) && (sl_pass != NULL)) {
-    char response[9];
-    send_my_sid(ofp);
-    compute_secure_login_response(challenge, response, sl_pass);
-    print_log(LOG_DEBUG, ">;PR: %s", response);
-    resettimeout();
-    if (fprintf(ofp, ";PR: %s\r", response) == -1) {
-      print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
-      exit(EXIT_FAILURE);
-    }
-    sent_pr = 1;
-  }
-  return(sent_pr);
-}
-
 char *
 parse_inboundsid(char *line)
 {
@@ -907,6 +860,15 @@ parse_inboundsid(char *line)
   return (inboundsidcodes);
 }
 
+/*
+ * returns from:
+ *   b2outboundproposal
+ *     put compressed output FF 0
+ *     output FQ -1
+ *   Found 'B' -1
+ *   Found 'FQ' -1
+ *   End of Function 0
+ */
 static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress)
 {
   int i,j;
@@ -956,9 +918,10 @@ static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, stru
     } else if (strbegins(line, "FF")) {
       dodelete(&oproplist, &nproplist);
 
-      print_log(LOG_DEBUG, "Debug: %s: xmit 1", __FUNCTION__);
+      print_log(LOG_DEBUG, "Debug: %s(): xmit 1", __FUNCTION__);
 
       if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
+        print_log(LOG_DEBUG, "Debug: %s(): ret: 0x%02x, xmit 1", b2outret, __FUNCTION__);
         return(b2outret);
       }
     } else if (strbegins(line, "B")) {
@@ -1082,7 +1045,15 @@ static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, stru
           if ((r = pclose(smfp)) != 0) {
             if (r < 0) {
               print_log(LOG_ERR, "pclose() - %s", strerror(errno));
-              { exit(EXIT_FAILURE); }
+              /* Check if process terminated before pclose was called
+               * errno 10 = ECHILD No child processes
+               */
+              if(errno != ECHILD) {
+                print_log(LOG_ERR, "pclose exiting on error");
+                exit(EXIT_FAILURE);
+              } else {
+                print_log(LOG_ERR, "pclose error, continuing after No child processes");
+              }
             } else {
               print_log(LOG_ERR, "sendmail failed - %s", strerror(errno));
               exit(EXIT_FAILURE);
@@ -1094,21 +1065,21 @@ static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, stru
           ipropary[i].ubuf = NULL;
           buffer_free(ipropary[i].cbuf);
           ipropary[i].cbuf = NULL;
-          print_log(LOG_DEBUG, "Finished!");
         }
       }
       proposals = 0;
       proposalcksum = 0;
-      print_log(LOG_DEBUG, "Debug: %s: xmit 2", __FUNCTION__);
+      print_log(LOG_DEBUG, "Debug: %s(): xmit 2", __FUNCTION__);
       if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
+        print_log(LOG_DEBUG, "Debug: %s(): ret: 0x%02x, xmit 2", b2outret, __FUNCTION__);
         return(b2outret);
       }
     } else if (line[strlen(line - 1)] == '>') {
       dodelete(&oproplist, &nproplist);
 
-      print_log(LOG_DEBUG, "Debug: %s: xmit 3", __FUNCTION__);
-
+      print_log(LOG_DEBUG, "Debug: %s(): xmit 3", __FUNCTION__);
       if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
+        print_log(LOG_DEBUG, "Debug: %s(): ret: 0x%02x, xmit 3", b2outret, __FUNCTION__);
         return(b2outret);
       }
     } else {
@@ -1120,13 +1091,65 @@ static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, stru
     }
   }
   if (line == NULL) {
-    print_log(LOG_ERR, "%s, Lost connection. 4",__FUNCTION__);
+    print_log(LOG_ERR, "%s(): Lost connection. 4",__FUNCTION__);
     exit(EXIT_FAILURE);
   }
   return(0);
 }
 
-static char *outbound_parser(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount)
+#ifdef USE_SECURE_LOGIN
+void
+compute_secure_login_response(char *challenge, char *response, char *password)
+{
+  char *hash_input;
+  unsigned char hash_sig[16];
+  size_t m, n;
+  int i, pr;
+  char pr_str[20];
+
+  m = strlen(challenge) + strlen(password);
+  n = m + sizeof(sl_salt);
+  hash_input = (char*)malloc(n);
+  strcpy(hash_input, challenge);
+  strcat(hash_input, password);
+  strupper(hash_input);
+  memcpy(hash_input+m, sl_salt, sizeof(sl_salt));
+  md5_buffer(hash_input, (unsigned int)n, hash_sig);
+  free(hash_input);
+
+  pr = hash_sig[3] & 0x3f;
+  for (i=2; i>=0; i--)
+    pr = (pr << 8) | hash_sig[i];
+
+  sprintf(pr_str, "%08d", pr);
+  n = strlen(pr_str);
+  if (n > 8)
+    strcpy(response, pr_str+(n-8));
+  else
+    strcpy(response, pr_str);
+}
+
+int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
+{
+  int sent_pr = 0;
+
+  if ((strlen(challenge) > 0) && (sl_pass != NULL)) {
+    char response[9];
+    send_my_sid(ofp);
+    compute_secure_login_response(challenge, response, sl_pass);
+    print_log(LOG_DEBUG, ">;PR: %s", response);
+    resettimeout();
+    if (fprintf(ofp, ";PR: %s\r", response) == -1) {
+      print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    sent_pr = 1;
+  }
+  return(sent_pr);
+}
+#endif /* USE_SECURE_LOGIN */
+
+static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount)
 {
   static char *line;
   char *inboundsidcodes = NULL;
@@ -1169,7 +1192,7 @@ static char *outbound_parser(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, c
     }
   }
   if (line == NULL) {
-    print_log(LOG_ERR, "%s: Lost connection. 1",__FUNCTION__);
+    print_log(LOG_ERR, "%s(): Lost connection. 1",__FUNCTION__);
     exit(EXIT_FAILURE);
   }
   return(line);
@@ -1199,8 +1222,10 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
     oprop_csize += prop->csize;
   }
 
-  line = outbound_parser(ifp, ofp, sl_pass, mycall, yourcall, opropcount);
+  line = handshake(ifp, ofp, sl_pass, mycall, yourcall, opropcount);
   nproplist = oproplist;
+
+  print_log(LOG_DEBUG, "Debug ex: handshake FINISHED");
 
   if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
     return;

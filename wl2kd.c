@@ -89,10 +89,11 @@ __RCSID("$Id$");
 #include "printlog.h"
 
 #define PROPLIMIT 5
+/* number of bytes to send through socket */
+#define CHUNK_SIZE 255
 
 /* Send messages only flag */
 extern int gsendmsgonly_flag;
-bool bForwardMail=false;
 
 struct proposal {
   char code;
@@ -121,9 +122,15 @@ static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 
 static void send_my_sid(FILE *ofp);
 static char *parse_inboundsid(char *line);
+static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress);
+static void p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsigned int oprop_usize);
+static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, int opropcount);
 
+#ifdef USE_SECURE_LOGIN
+static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount);
+static void compute_secure_login_response(char *challenge, char *response, char *password);
+static int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass);
 
-#ifndef WL2KAX25_DAEMON
 # include "md5.h"
 
 /* Salt for Winlink 2000 secure login */
@@ -139,15 +146,13 @@ static const unsigned char sl_salt[] = {
   187, 249, 232, 193, 41, 113,
   41, 45, 240, 16, 29, 228,
   208, 228, 61, 20 };
-
-static void compute_secure_login_response(char *challenge, char *response, char *password);
-#endif /* !WL2KAX25_DAEMON */
+#endif
 
 /* Debug only */
 void dump_hex(char *buf, size_t len);
 
 void
-   dump_hex(char *buf, size_t len)
+dump_hex(char *buf, size_t len)
 {
 	size_t i;
 	unsigned char *pBuf;
@@ -291,9 +296,10 @@ putcompressed(struct proposal *prop, FILE *fp)
   unsigned char title[81];
   unsigned char offset[7];
   int cksum = 0;
-  unsigned char *cp;
+  unsigned char *cp, *cp_buf;
   long rem;
   unsigned char msglen;
+  size_t msgbuflen;
 
   strlcpy((char *) title, prop->title, sizeof(title));
   snprintf((char *) offset, sizeof(offset), "%lu", prop->offset);
@@ -302,7 +308,7 @@ putcompressed(struct proposal *prop, FILE *fp)
 
   len = strlen((const char *) title) + strlen((const char *) offset) + 2;
 
-  /* ** Send hearder */
+  /* ** Send header */
   resettimeout();
   if (fprintf(fp, "%c%c%s%c%s%c", CHRSOH, (int)len, title, CHRNUL, offset, CHRNUL) == -1) {
     print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
@@ -329,8 +335,8 @@ putcompressed(struct proposal *prop, FILE *fp)
   /* ** Send message */
   while (rem > 0) {
     print_log(LOG_DEBUG,"... %ld", rem);
-    if (rem > 250) {
-      msglen = 250;
+    if (rem > CHUNK_SIZE) {
+      msglen = CHUNK_SIZE;
     } else {
       msglen = (unsigned char)rem;
     }
@@ -340,14 +346,16 @@ putcompressed(struct proposal *prop, FILE *fp)
     }
 
     /* ** send buffer to ax25 stack */
+    cp_buf = cp;
+    msgbuflen = msglen;
     while (msglen--) {
       resettimeout();
       cksum += *cp;
-      if (fputc(*cp++, fp) == EOF) {
-        print_log(LOG_ERR, "fputc - %s", strerror(errno));
-        exit(EXIT_FAILURE);
-      }
+      cp++;
       rem--;
+    }
+    if( fwrite(cp_buf, 1, msgbuflen, fp) < msgbuflen) {
+      print_log(LOG_ERR, "socket write - %s", strerror(errno));
     }
     fflush(fp);
   }
@@ -605,9 +613,8 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
   int cksum = 0;
   char *line;
   struct proposal *prop;
-	char *endp;
+  char *endp;
 
-	print_log(LOG_INFO, "%s: start", __FUNCTION__);
 
   if (*oproplist) {
     prop = *oproplist;
@@ -644,15 +651,13 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
     }
     fflush(ofp);
 
-		print_log(LOG_INFO, "%s: parse FS 0", __FUNCTION__);
-
     if ((line = wl2kgetline(ifp)) == NULL) {
       print_log(LOG_ERR, "connection closed");
       exit(EXIT_FAILURE);
     }
     print_log(LOG_DEBUG, "<%s", line);
 
-#if 1 /* For line beginning: ";PM: " pending messages */
+    /* For line beginning: ";PM: " pending messages */
     while (strbegins(line, ";PM:")) {
       /* ignore this line & get next line */
       print_log(LOG_DEBUG, "Found WL2K extension, pending msg");
@@ -663,12 +668,8 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       }
       print_log(LOG_DEBUG, "<%s", line);
     }
-#endif
-#if 1 /* For line beginning: ";FW: " forwarding mail */
-		while (strbegins(line, ";FW:")) {
-			print_log(LOG_DEBUG,"set forward mail true");
-
-      bForwardMail = true;
+    /* For line beginning: ";FW: " forwarding mail */
+    while (strbegins(line, ";FW:")) {
       /* ignore this line & get next line */
       print_log(LOG_DEBUG, "Found WL2K extension, forward mail");
 
@@ -678,8 +679,6 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       }
       print_log(LOG_DEBUG, "<%s", line);
     }
-#endif
-		print_log(LOG_INFO, "%s: parse FS 1", __FUNCTION__);
     if (!strbegins(line, "FS ")) {
       print_log(LOG_ERR, "B2 protocol error 1");
       exit(EXIT_FAILURE);
@@ -693,7 +692,7 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
     while (*cp && prop) {
       if (i == PROPLIMIT) {
         print_log(LOG_ERR, "B2 protocol error 2");
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
       }
       prop->accepted = 0;
       prop->delete = 0;
@@ -702,31 +701,31 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
       case 'Y': case 'y':
       case 'H': case 'h':
       case '+':
-	prop->accepted = 1;
-	break;
+        prop->accepted = 1;
+        break;
       case 'N': case 'n':
       case 'R': case 'r':
       case '-':
-	prop->delete = 1;
-	break;
+        prop->delete = 1;
+        break;
       case 'L': case 'l':
       case '=':
-	break;
+        break;
       case 'A': case 'a':
       case '!':
-	prop->accepted = 1;
-	prop->offset = strtoul((const char *) cp, &endp, 10);
-	cp = ((unsigned char *) endp) - 1;
-	break;
+        prop->accepted = 1;
+        prop->offset = strtoul((const char *) cp, &endp, 10);
+        cp = ((unsigned char *) endp) - 1;
+        break;
       default:
         print_log(LOG_ERR, "B2 protocol error 3");
-	exit(EXIT_FAILURE);
-	break;
+        exit(EXIT_FAILURE);
+        break;
       }
       cp++;
       prop = prop->next;
     }
-		print_log(LOG_INFO, "%s: parse FS 2", __FUNCTION__);
+
     prop = *oproplist;
     for (i = 0; i < PROPLIMIT; i++) {
       if(prop->delete == 0) {
@@ -734,10 +733,10 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
         prop->delete = 1;
       }
       if ((prop = prop->next) == NULL) {
-  break;
+        print_log(LOG_DEBUG, "Debug: After putcompressed prop->next = NULL, i:%d", i);
+        break;
       }
-		}
-		print_log(LOG_INFO, "%s: parse FS 3", __FUNCTION__);
+    }
     *oproplist = prop;
     print_log(LOG_DEBUG_VERBOSE, "Finished proplist %d putcompressed", i);
     return 0;
@@ -759,8 +758,7 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
     }
     fflush(ofp);
     return 0;
-	}
-	print_log(LOG_INFO, "%s: parse FS 4", __FUNCTION__);
+  }
 }
 
 static char *
@@ -768,6 +766,9 @@ tgetline(FILE *fp, int terminator, int ignore)
 {
   static struct buffer *buf = NULL;
   int c;
+  int notascii_buf[256]; /* debug only */
+  size_t notascii_ind = 0;
+
 
   if (buf == NULL) {
     if ((buf = buffer_new()) == NULL) {
@@ -782,10 +783,22 @@ tgetline(FILE *fp, int terminator, int ignore)
     if ((c = fgetc(fp)) == EOF) {
       return NULL;
     }
+    /* Debug only */
+    if (c == 0x1e || (!isascii(c) && c != terminator && c != ignore) ) {
+      notascii_buf[notascii_ind] = c;
+      if(notascii_ind < 255) {
+        notascii_ind++;
+      }
+      continue;
+    }
     if (c == terminator) {
       if (buffer_addchar(buf, '\0') == -1) {
         print_log(LOG_ERR, "buffer_addchar()- %s",  strerror(errno));
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
+      }
+      if (notascii_ind > 0) {
+        print_log(LOG_DEBUG, "Found non ascii response:");
+        dump_hex((char *)notascii_buf, notascii_ind);
       }
       return (char *) buf->data;
     }
@@ -806,41 +819,8 @@ wl2kgetline(FILE *fp)
   return cp;
 }
 
-#ifndef WL2KAX25_DAEMON
 void
-compute_secure_login_response(char *challenge, char *response, char *password)
-{
-  char *hash_input;
-  unsigned char hash_sig[16];
-  size_t m, n;
-  int i, pr;
-  char pr_str[20];
-
-  m = strlen(challenge) + strlen(password);
-  n = m + sizeof(sl_salt);
-  hash_input = (char*)malloc(n);
-  strcpy(hash_input, challenge);
-  strcat(hash_input, password);
-  strupper(hash_input);
-  memcpy(hash_input+m, sl_salt, sizeof(sl_salt));
-  md5_buffer(hash_input, (unsigned int)n, hash_sig);
-  free(hash_input);
-
-  pr = hash_sig[3] & 0x3f;
-  for (i=2; i>=0; i--)
-    pr = (pr << 8) | hash_sig[i];
-
-  sprintf(pr_str, "%08d", pr);
-  n = strlen(pr_str);
-  if (n > 8)
-    strcpy(response, pr_str+(n-8));
-  else
-    strcpy(response, pr_str);
-}
-#endif /* !WL2KAX25_DAEMON */
-
-void
-send_my_sid(FILE *ofp)
+   send_my_sid(FILE *ofp)
 {
   char sidbuf[32];
 
@@ -856,200 +836,68 @@ send_my_sid(FILE *ofp)
 char *
 parse_inboundsid(char *line)
 {
-	char *cp;
-	char *inboundsid = NULL;
-	char *inboundsidcodes = NULL;
+  char *cp;
+  char *inboundsid = NULL;
+  char *inboundsidcodes = NULL;
 
-	inboundsid = strdup(line);
-	if ((cp = strrchr(inboundsid, '-')) == NULL) {
-		print_log(LOG_ERR, "bad sid %s", inboundsid);
-		exit(EXIT_FAILURE);
-	}
-	inboundsidcodes = strdup(cp);
-	if ((cp = strrchr(inboundsidcodes, ']')) == NULL) {
-		print_log(LOG_ERR, "bad sid %s", inboundsid);
-		exit(EXIT_FAILURE);
-	}
-	*cp = '\0';
-	strupper(inboundsidcodes);
-	if (strstr(inboundsidcodes, "B2F") == NULL) {
-		print_log(LOG_ERR,  "sid %s does not support B2F protocol", inboundsid);
-		exit(EXIT_FAILURE);
-	}
-	print_log(LOG_DEBUG, "sid %s inboundsidcodes %s", inboundsid, inboundsidcodes);
-	return (inboundsidcodes);
+  inboundsid = strdup(line);
+  if ((cp = strrchr(inboundsid, '-')) == NULL) {
+    print_log(LOG_ERR, "bad sid %s", inboundsid);
+    exit(EXIT_FAILURE);
+  }
+  inboundsidcodes = strdup(cp);
+  if ((cp = strrchr(inboundsidcodes, ']')) == NULL) {
+    print_log(LOG_ERR, "bad sid %s", inboundsid);
+    exit(EXIT_FAILURE);
+  }
+  *cp = '\0';
+  strupper(inboundsidcodes);
+  if (strstr(inboundsidcodes, "B2F") == NULL) {
+    print_log(LOG_ERR,  "sid %s does not support B2F protocol", inboundsid);
+    exit(EXIT_FAILURE);
+  }
+  print_log(LOG_DEBUG, "sid %s inboundsidcodes %s", inboundsid, inboundsidcodes);
+  return (inboundsidcodes);
 }
 
-void
-wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+/*
+ * returns from:
+ *   b2outboundproposal
+ *     put compressed output FF 0
+ *     output FQ -1
+ *   Found 'B' -1
+ *   Found 'FQ' -1
+ *   End of Function 0
+ */
+static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress)
 {
-  char *cp;
-  int proposals = 0;
-  int proposalcksum = 0;
   int i,j;
-  char *inboundsidcodes = NULL;
-  char *line;
-  struct proposal *prop;
-  struct proposal ipropary[PROPLIMIT];
-  struct proposal *oproplist;
-  struct proposal *nproplist;
-  unsigned long sentcksum;
+  char *cp;
+
   char *endp;
-  int opropcount = 0;
-  long unsigned int oprop_usize = 0;
-  long unsigned int oprop_csize = 0;
+  char pbuf[16];
+  char *line;
+  unsigned long sentcksum;
   char responsechar;
   FILE *smfp;
+  char *command;
   struct buffer *mimebuf;
   int c;
   int r;
-  char *command;
-  char pbuf[16];
-#ifndef WL2KAX25_DAEMON
-  char challenge[9];
-	challenge[0] = 0;
-#endif /* !WL2KAX25_DAEMON */
+  int b2outret;
 
+  int proposalcksum = 0;
+  int proposals = 0;
+  struct proposal *prop;
+  struct proposal ipropary[PROPLIMIT];
 
-  if (expire_mids() == -1) {
-    print_log(LOG_ERR, "expire_mids() failed");
-    exit(EXIT_FAILURE);
-  }
-
-	print_log(LOG_INFO, "%s: Calling wl2kd daemon exchange", __FUNCTION__);
-
-  oproplist = prepare_outbound_proposals();
-
-  for (prop = oproplist; prop; prop = prop->next) {
-    opropcount++;
-    oprop_usize += prop->usize;
-    oprop_csize += prop->csize;
-  }
-
-#ifdef WL2KAX25_DAEMON
-  {
-    char *sp;
-    resettimeout();
-
-    if(opropcount) {
-      /* Not sure how to calc this total message size??? */
-      if(asprintf(&sp,"%s de %s QTC %d msg %lu char>\r",
-                  yourcall, mycall, opropcount, oprop_usize+18) == -1) {
-        print_log(LOG_ERR, "asprintf() - %s", strerror(errno));
-        exit(EXIT_FAILURE);
-      }
-    } else {
-      if (fputs("No Traffic\r",ofp) == -1) {
-        print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
-        exit(EXIT_FAILURE);
-      }
-      print_log(LOG_DEBUG,"No Traffic");
-
-      if(asprintf(&sp,"%s de %s>\r",  yourcall, mycall) == -1) {
-        print_log(LOG_ERR, "asprintf() - %s", strerror(errno));
-        exit(EXIT_FAILURE);
-      }
-    }
-    print_log(LOG_DEBUG,"%s", sp);
-
-    if (fprintf(ofp, "%s", sp) == -1) {
-      print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
-      exit(EXIT_FAILURE);
-    }
-    fflush(ofp);
-    free(sp);
-  }
-#endif /* WL2KAX25_DAEMON */
 
   while ((line = wl2kgetline(ifp)) != NULL) {
-    print_log(LOG_DEBUG, "<%s", line);
-    if (strchr(line, '[')) {
-			inboundsidcodes = parse_inboundsid(line);
-#ifdef WL2KAX25_DAEMON
-      break;
-    } else if (strbegins(line, ";")) {
-      /* parse (am|em:h1 ... line here */
-      if (strstr(line, "QTC")) {
-        /* parse ; MYCALL DE YOURCALL QTC 0 line here */
-        continue;
-      } else {
-        break;
-      }
-#else /* WL2KAX25_DAEMON */
-    } else if (strbegins(line, ";")) {
-      /* parse secure login challenge */
-      if (!strncmp(line, ";PQ: ", 5)) {
-	if (strlen(line+5) == 8) {
-	  strcpy(challenge, line+5);
-	  print_log(LOG_DEBUG, "Challenge received: %s", challenge);
-	}
-      }
-#endif /* WL2KAX25_DAEMON */
-    } else if (line[strlen(line) - 1] == '>') {
-      int sent_pr = 0;
-      if (inboundsidcodes == NULL) {
-	print_log(LOG_ERR, "inboundsidcodes not set");
-        exit(EXIT_FAILURE);
-      }
-#ifndef WL2KAX25_DAEMON
-      if ((strlen(challenge) > 0) && (sl_pass != NULL)) {
-	char response[9];
-	send_my_sid(ofp);
-	compute_secure_login_response(challenge, response, sl_pass);
-	print_log(LOG_DEBUG, ">;PR: %s", response);
-	resettimeout();
-	if (fprintf(ofp, ";PR: %s\r", response) == -1) {
-	  print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
-	  exit(EXIT_FAILURE);
-	}
-
-	sent_pr = 1;
-      }
-#endif /* !WL2KAX25_DAEMON */
-      if (strchr(inboundsidcodes, 'I')) {
-        print_log(LOG_DEBUG, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
-        resettimeout();
-        if (fprintf(ofp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount) == -1) {
-          print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
-          exit(EXIT_FAILURE);
-        }
-      }
-      if (!sent_pr)
-	send_my_sid(ofp);
-      break;
-    }
-  }
-  if (line == NULL) {
-    print_log(LOG_ERR, "Lost connection. 1");
-    exit(EXIT_FAILURE);
-  }
-
-  nproplist = oproplist;
-#ifndef  WL2KAX25_DAEMON
-	print_log(LOG_INFO, "%s: check b2outboundproposal 1", __FUNCTION__);
-	if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
-		print_log(LOG_INFO, "%s: return from b2outboundproposal != 0 1", __FUNCTION__);
-    return;
-	}
-	print_log(LOG_INFO, "%s: return from b2outboundproposal == 0 1", __FUNCTION__);
-#endif /* NOT WL2KAX25_DAEMON */
-
-  fflush(ofp);
-
-	print_log(LOG_INFO, "%s: Begin 2nd part", __FUNCTION__);
-
-  while ((line = wl2kgetline(ifp)) != NULL) {
-    print_log(LOG_DEBUG, "<%s", line);
+    print_log(LOG_DEBUG, "<%s [%d]", line, strlen(line));
     if (strbegins(line, ";")) {
-	    /* do nothing */
+      /* do nothing */
     } else if (strlen(line) == 0) {
-			/* do nothing */
-#ifdef WL2KAX25_DAEMON
-		} else if (strchr(line, '[')) {
-		inboundsidcodes = parse_inboundsid(line);
-		/*		break; */
-		print_log(LOG_INFO, "%s: finished parse_inboundsid", __FUNCTION__);
-#endif
+      /* do nothing */
     } else if (strbegins(line, "FC")) {
       dodelete(&oproplist, &nproplist);
       for (cp = line; *cp; cp++) {
@@ -1061,34 +909,26 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
         exit(EXIT_FAILURE);
       }
       if ((prop = parse_proposal(line)) == NULL) {
-        print_log(LOG_ERR, "%s failed to parse proposal", __FUNCTION__);
+        print_log(LOG_ERR, "wl2kexchange() failed to parse proposal");
         exit(EXIT_FAILURE);
       }
       memcpy(&ipropary[proposals], prop, sizeof(struct proposal));
       printprop(&ipropary[proposals]);
       proposals++;
-    } else if (strbegins(line, "FF") || bForwardMail) {
-			dodelete(&oproplist, &nproplist);
-			print_log(LOG_DEBUG,"Found FF or forward mail true");
-			if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
-				print_log(LOG_INFO, "%s: return from b2outboundproposal != 0 2", __FUNCTION__);
-#ifdef  WL2KAX25_DAEMON
-				print_log(LOG_DEBUG, ">; %s de %s SK", yourcall, mycall);
-				resettimeout();
-				if (fprintf(ofp, "; %s de %s SK\r", yourcall, mycall) == -1) {
-					print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
-					exit(EXIT_FAILURE);
-				}
-				fflush(ofp);
-#endif  /* WL2KAX25_DAEMON */
-				return;
-			}
-			print_log(LOG_INFO, "%s: return from b2outboundproposal == 0 2", __FUNCTION__);
+    } else if (strbegins(line, "FF")) {
+      dodelete(&oproplist, &nproplist);
+
+      print_log(LOG_DEBUG, "Debug: %s(): xmit 1", __FUNCTION__);
+
+      if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
+        print_log(LOG_DEBUG, "Debug: %s(): ret: 0x%02x, xmit 1", b2outret, __FUNCTION__);
+        return(b2outret);
+      }
     } else if (strbegins(line, "B")) {
-      return;
+      return(-1);
     } else if (strbegins(line, "FQ")) {
       dodelete(&oproplist, &nproplist);
-      return;
+      return(-1);
     } else if (strbegins(line, "F>")) {
       /* Send message only option -
        *  -bail out from a session after receive proposal */
@@ -1205,11 +1045,15 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
           if ((r = pclose(smfp)) != 0) {
             if (r < 0) {
               print_log(LOG_ERR, "pclose() - %s", strerror(errno));
-#ifdef  WL2KAX25_DAEMON
-              /* exception for "no child process" */
-              if(errno != ECHILD)
-#endif /*   WL2KAX25_DAEMON */
-                { exit(EXIT_FAILURE); }
+              /* Check if process terminated before pclose was called
+               * errno 10 = ECHILD No child processes
+               */
+              if(errno != ECHILD) {
+                print_log(LOG_ERR, "pclose exiting on error");
+                exit(EXIT_FAILURE);
+              } else {
+                print_log(LOG_ERR, "pclose error, continuing after No child processes");
+              }
             } else {
               print_log(LOG_ERR, "sendmail failed - %s", strerror(errno));
               exit(EXIT_FAILURE);
@@ -1221,25 +1065,22 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
           ipropary[i].ubuf = NULL;
           buffer_free(ipropary[i].cbuf);
           ipropary[i].cbuf = NULL;
-          print_log(LOG_DEBUG, "Finished!");
         }
-			}
-			print_log(LOG_INFO, "%s: Finished proposals", __FUNCTION__);
+      }
       proposals = 0;
       proposalcksum = 0;
-			print_log(LOG_INFO, "%s: check b2outboundproposal 3", __FUNCTION__);
-			if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
-				print_log(LOG_INFO, "%s: return from b2outboundproposal != 0 3", __FUNCTION__);
-        return;
-			}
-			print_log(LOG_INFO, "%s: return from b2outboundproposal != 0 3", __FUNCTION__);
-
+      print_log(LOG_DEBUG, "Debug: %s(): xmit 2", __FUNCTION__);
+      if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
+        print_log(LOG_DEBUG, "Debug: %s(): ret: 0x%02x, xmit 2", b2outret, __FUNCTION__);
+        return(b2outret);
+      }
     } else if (line[strlen(line - 1)] == '>') {
-			dodelete(&oproplist, &nproplist);
-			print_log(LOG_INFO, "%s: check b2outboundproposal 4", __FUNCTION__);
+      dodelete(&oproplist, &nproplist);
 
-      if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
-        return;
+      print_log(LOG_DEBUG, "Debug: %s(): xmit 3", __FUNCTION__);
+      if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
+        print_log(LOG_DEBUG, "Debug: %s(): ret: 0x%02x, xmit 3", b2outret, __FUNCTION__);
+        return(b2outret);
       }
     } else {
       print_log(LOG_ERR, "unrecognized command (len %lu): /%s/",
@@ -1250,7 +1091,240 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
     }
   }
   if (line == NULL) {
-    print_log(LOG_ERR, "%s, Lost connection. 4", __FUNCTION__);
+    print_log(LOG_ERR, "%s(): Lost connection. 4",__FUNCTION__);
     exit(EXIT_FAILURE);
   }
+  return(0);
+}
+
+#ifdef USE_SECURE_LOGIN
+void
+compute_secure_login_response(char *challenge, char *response, char *password)
+{
+  char *hash_input;
+  unsigned char hash_sig[16];
+  size_t m, n;
+  int i, pr;
+  char pr_str[20];
+
+  m = strlen(challenge) + strlen(password);
+  n = m + sizeof(sl_salt);
+  hash_input = (char*)malloc(n);
+  strcpy(hash_input, challenge);
+  strcat(hash_input, password);
+  strupper(hash_input);
+  memcpy(hash_input+m, sl_salt, sizeof(sl_salt));
+  md5_buffer(hash_input, (unsigned int)n, hash_sig);
+  free(hash_input);
+
+  pr = hash_sig[3] & 0x3f;
+  for (i=2; i>=0; i--)
+    pr = (pr << 8) | hash_sig[i];
+
+  sprintf(pr_str, "%08d", pr);
+  n = strlen(pr_str);
+  if (n > 8)
+    strcpy(response, pr_str+(n-8));
+  else
+    strcpy(response, pr_str);
+}
+
+int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
+{
+  int sent_pr = 0;
+
+  if ((strlen(challenge) > 0) && (sl_pass != NULL)) {
+    char response[9];
+    send_my_sid(ofp);
+    compute_secure_login_response(challenge, response, sl_pass);
+    print_log(LOG_DEBUG, ">;PR: %s", response);
+    resettimeout();
+    if (fprintf(ofp, ";PR: %s\r", response) == -1) {
+      print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    sent_pr = 1;
+  }
+  return(sent_pr);
+}
+
+static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount)
+{
+  static char *line;
+  char *inboundsidcodes = NULL;
+  char challenge[9];
+  challenge[0] = 0;
+
+
+  while ((line = wl2kgetline(ifp)) != NULL) {
+    print_log(LOG_DEBUG, "<%s", line);
+    if (strchr(line, '[')) {
+      inboundsidcodes = parse_inboundsid(line);
+    } else if (strbegins(line, ";")) {
+      /* parse secure login challenge */
+      if (!strncmp(line, ";PQ: ", 5)) {
+        if (strlen(line+5) == 8) {
+          strcpy(challenge, line+5);
+          print_log(LOG_DEBUG, "Challenge received: %s", challenge);
+        }
+      }
+    } else if (line[strlen(line) - 1] == '>') {
+      int sent_pr = 0;
+      if (inboundsidcodes == NULL) {
+        print_log(LOG_ERR, "inboundsidcodes not set");
+        exit(EXIT_FAILURE);
+      }
+      sent_pr = send_secure_login_response(ofp, challenge, sl_pass);
+      if (strchr(inboundsidcodes, 'I')) {
+        /* Identify: with QTC (I have telegrams) */
+        print_log(LOG_DEBUG, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
+        resettimeout();
+        if (fprintf(ofp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount) == -1) {
+          print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+          exit(EXIT_FAILURE);
+        }
+      }
+      if (!sent_pr) {
+        send_my_sid(ofp);
+      }
+      break;
+    }
+  }
+  if (line == NULL) {
+    print_log(LOG_ERR, "%s(): Lost connection. 1",__FUNCTION__);
+    exit(EXIT_FAILURE);
+  }
+  return(line);
+}
+
+#else  /* notdef USE_SECURE_LOGIN */
+
+static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, int opropcount)
+{
+  static char *line;
+  char *inboundsidcodes = NULL;
+
+  while ((line = wl2kgetline(ifp)) != NULL) {
+    print_log(LOG_DEBUG, "<%s", line);
+    if (strchr(line, '[')) {
+      inboundsidcodes = parse_inboundsid(line);
+      break;
+    } else if (strbegins(line, ";")) {
+      /* parse (am|em:h1 ... line here */
+      if (strstr(line, "QTC")) {
+        /* parse ; MYCALL DE YOURCALL QTC 0 line here */
+        continue;
+      } else {
+        break;
+      }
+    } else if (line[strlen(line) - 1] == '>') {
+      int sent_pr = 0;
+      if (inboundsidcodes == NULL) {
+        print_log(LOG_ERR, "inboundsidcodes not set");
+        exit(EXIT_FAILURE);
+      }
+      if (strchr(inboundsidcodes, 'I')) {
+        /* Identify: with QTC (I have telegrams) */
+        print_log(LOG_DEBUG, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
+        resettimeout();
+        if (fprintf(ofp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount) == -1) {
+          print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+          exit(EXIT_FAILURE);
+        }
+      }
+      if (!sent_pr) {
+        send_my_sid(ofp);
+      }
+      break;
+    }
+  }
+  if (line == NULL) {
+    print_log(LOG_ERR, "%s(): Lost connection. 1",__FUNCTION__);
+    exit(EXIT_FAILURE);
+  }
+  return(line);
+}
+
+static void
+p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsigned int oprop_usize)
+{
+  char *sp;
+  resettimeout();
+
+  if(opropcount) {
+      /* Not sure how to calc this total message size??? */
+    if(asprintf(&sp,"%s de %s QTC %d msg %lu char>\r",
+                yourcall, mycall, opropcount, oprop_usize+18) == -1) {
+      print_log(LOG_ERR, "asprintf() - %s", strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+  } else {
+    if (fputs("No Traffic\r",ofp) == -1) {
+      print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    print_log(LOG_DEBUG,"No Traffic");
+
+    if(asprintf(&sp,"%s de %s>\r",  yourcall, mycall) == -1) {
+      print_log(LOG_ERR, "asprintf() - %s", strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+  }
+  print_log(LOG_DEBUG,"%s", sp);
+
+  if (fprintf(ofp, "%s", sp) == -1) {
+    print_log(LOG_ERR, "fprintf() - %s", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+  fflush(ofp);
+  free(sp);
+}
+#endif /* USE_SECURE_LOGIN */
+
+void
+wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+{
+  static char *line;
+  struct proposal *prop;
+  struct proposal *oproplist;
+  struct proposal *nproplist;
+  int opropcount = 0;
+  long unsigned int oprop_usize = 0;
+  long unsigned int oprop_csize = 0;
+  int inbound_ret;
+
+  if (expire_mids() == -1) {
+    print_log(LOG_ERR, "expire_mids() failed");
+    exit(EXIT_FAILURE);
+  }
+
+  oproplist = prepare_outbound_proposals();
+
+  for (prop = oproplist; prop; prop = prop->next) {
+    opropcount++;
+    oprop_usize += prop->usize;
+    oprop_csize += prop->csize;
+  }
+
+  p2p_startmsg(ofp, mycall, yourcall, opropcount, oprop_usize);
+  line = handshake_no_secure_login(ifp, ofp, mycall, yourcall, opropcount);
+  nproplist = oproplist;
+
+  print_log(LOG_DEBUG, "Debug ex: handshake FINISHED");
+
+  print_log(LOG_DEBUG, "Debug ex: inbound parser START");
+  inbound_ret = inbound_parser(ifp, ofp, nproplist, oproplist, emailaddress);
+
+  print_log(LOG_DEBUG, "Debug ex: inbound parser FINISHED, retcode: 0x%02x", inbound_ret);
+
+  if (inbound_ret == 0) {
+    if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+      print_log(LOG_DEBUG, "Debug ex: b2outboundprop FINISHED output FQ");
+      /* Should exit after this */
+    } else {
+      print_log(LOG_DEBUG, "Debug ex: b2outboundprop FINISHED output FF");
+    }
+  }
+  print_log(LOG_DEBUG, "Debug ex: %s(): FINISHED", __FUNCTION__);
+  fflush(ofp);
 }
