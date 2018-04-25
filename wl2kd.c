@@ -123,10 +123,13 @@ static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 static void send_my_sid(FILE *ofp);
 static char *parse_inboundsid(char *line);
 static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress);
+
+#ifdef WL2KAX25_DAEMON
 static void p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsigned int oprop_usize);
 static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, int opropcount);
 
-#ifdef USE_SECURE_LOGIN
+#else /* NOT WL2KAX25_DAEMON, for secure login */
+
 static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount);
 static void compute_secure_login_response(char *challenge, char *response, char *password);
 static int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass);
@@ -146,7 +149,7 @@ static const unsigned char sl_salt[] = {
   187, 249, 232, 193, 41, 113,
   41, 45, 240, 16, 29, 228,
   208, 228, 61, 20 };
-#endif
+#endif  /* NOT WL2KAX25_DAEMON */
 
 /* Debug only */
 void dump_hex(char *buf, size_t len);
@@ -820,7 +823,7 @@ wl2kgetline(FILE *fp)
 }
 
 void
-   send_my_sid(FILE *ofp)
+send_my_sid(FILE *ofp)
 {
   char sidbuf[32];
 
@@ -869,7 +872,8 @@ parse_inboundsid(char *line)
  *   Found 'FQ' -1
  *   End of Function 0
  */
-static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress)
+static int
+inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress)
 {
   int i,j;
   char *cp;
@@ -1097,7 +1101,7 @@ static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, stru
   return(0);
 }
 
-#ifdef USE_SECURE_LOGIN
+#ifndef WL2KAX25_DAEMON /* For secure login */
 void
 compute_secure_login_response(char *challenge, char *response, char *password)
 {
@@ -1129,7 +1133,8 @@ compute_secure_login_response(char *challenge, char *response, char *password)
     strcpy(response, pr_str);
 }
 
-int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
+int
+send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
 {
   int sent_pr = 0;
 
@@ -1148,7 +1153,8 @@ int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
   return(sent_pr);
 }
 
-static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount)
+static char *
+handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount)
 {
   static char *line;
   char *inboundsidcodes = NULL;
@@ -1197,9 +1203,50 @@ static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * 
   return(line);
 }
 
-#else  /* notdef USE_SECURE_LOGIN */
+void
+wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+{
+  static char *line;
+  struct proposal *prop;
+  struct proposal *oproplist;
+  struct proposal *nproplist;
+  int opropcount = 0;
+  long unsigned int oprop_usize = 0;
+  long unsigned int oprop_csize = 0;
 
-static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, int opropcount)
+  if (expire_mids() == -1) {
+    print_log(LOG_ERR, "expire_mids() failed");
+    exit(EXIT_FAILURE);
+  }
+
+  oproplist = prepare_outbound_proposals();
+
+  for (prop = oproplist; prop; prop = prop->next) {
+    opropcount++;
+    oprop_usize += prop->usize;
+    oprop_csize += prop->csize;
+  }
+
+  line = handshake(ifp, ofp, sl_pass, mycall, yourcall, opropcount);
+  nproplist = oproplist;
+
+  print_log(LOG_DEBUG, "Debug ex: handshake FINISHED");
+
+  if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
+    return;
+  }
+  print_log(LOG_DEBUG, "Debug: outbound parser finished");
+
+  fflush(ofp);
+
+  print_log(LOG_DEBUG, "Debug: Start inbound parser");
+  inbound_parser(ifp, ofp, nproplist, oproplist, emailaddress);
+}
+
+#else  /* WL2KAX25_DAEMON */
+
+static char *
+handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, int opropcount)
 {
   static char *line;
   char *inboundsidcodes = NULL;
@@ -1279,7 +1326,6 @@ p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsi
   fflush(ofp);
   free(sp);
 }
-#endif /* USE_SECURE_LOGIN */
 
 void
 wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
@@ -1328,3 +1374,4 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
   print_log(LOG_DEBUG, "Debug ex: %s(): FINISHED", __FUNCTION__);
   fflush(ofp);
 }
+#endif /* WL2KAX25_DAEMON */
