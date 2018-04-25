@@ -31,7 +31,7 @@ Daemon mode allows other Winlink clients to connect to your station
 for peer to peer delivery of Winlink messages.
 
 If you are using paclink_unix for peer to peer messaging you also need
-to set the following:
+to set the following in _wl2k.conf_:
 ```
 gridsquare=
 welcomemsg=
@@ -49,11 +49,17 @@ welcomemsg="Welcome to N7NIX's Winlink mailbox\r"
   * Need to have an entry in _/etc/ax25/ax25d.conf_ file
 
 ```
-[CALLSIGN VIA PORTNAME]
+[<CALLSIGN> VIA <PORTNAME>]
 NOCALL   * * * * * *  L
-default  * * * * * *  - USER /usr/local/bin/wl2kax25d wl2kax25d -c %U -a %d
+default  * * * * * *  - <USER> /usr/local/bin/wl2kax25d wl2kax25d -c %U -a %d
 ```
-
 * _CALLSIGN_ should be your callsign with no SSID
 * _PORTNAME_ is the portname of your ax25 device found in _/etc/ax25/axports_
 * _USER_ is your normal login user name (NOT ROOT)
+
+For example:
+```
+[N7NIX VIA udr0]
+NOCALL   * * * * * *  L
+default  * * * * * *  - gunn /usr/local/bin/wl2kax25d wl2kax25d -c %U -a %d
+```
