@@ -548,6 +548,9 @@ prepare_outbound_proposals(void)
       print_log(LOG_ERR,"%s - %s", prop->path, strerror(errno));
       exit(EXIT_FAILURE);
     }
+
+    print_log(LOG_DEBUG, "Debug: %s() file name: %s\n", __FUNCTION__, name);
+
     prop->usize = prop->ubuf->dlen;
 
     if ((prop->cbuf = version_1_Encode(prop->ubuf)) == NULL) {
@@ -565,15 +568,15 @@ prepare_outbound_proposals(void)
     buffer_rewind(prop->ubuf);
     while ((line = buffer_getline(prop->ubuf, '\n')) != NULL) {
       if (strbegins(line, "Subject:")) {
-	strzapcc(line);
-	cp = ((unsigned char *) line) + 8;
-	while (isspace(*cp)) {
-	  cp++;
-	}
-	if (strlen((const char *) cp) > 80) {
-	  cp[80] = '\0';
-	}
-	prop->title = strdup((const char *) cp);
+        strzapcc(line);
+        cp = ((unsigned char *) line) + 8;
+        while (isspace(*cp)) {
+          cp++;
+        }
+        if (strlen((const char *) cp) > 80) {
+          cp[80] = '\0';
+        }
+        prop->title = strdup((const char *) cp);
       }
       free(line);
     }
@@ -1253,6 +1256,19 @@ handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, 
 
   while ((line = wl2kgetline(ifp)) != NULL) {
     print_log(LOG_DEBUG, "<%s", line);
+
+    /* For line beginning: ";FW: " forwarding mail */
+    while (strbegins(line, ";FW:")) {
+      /* ignore this line & get next line */
+      print_log(LOG_DEBUG, "Found WL2K extension, forward mail");
+
+      if ((line = wl2kgetline(ifp)) == NULL) {
+        print_log(LOG_ERR, "connection closed");
+        exit(EXIT_FAILURE);
+      }
+      print_log(LOG_DEBUG, "<%s", line);
+    }
+
     if (strchr(line, '[')) {
       inboundsidcodes = parse_inboundsid(line);
       break;
@@ -1262,7 +1278,7 @@ handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, 
         /* parse ; MYCALL DE YOURCALL QTC 0 line here */
         continue;
       } else {
-        break;
+          break;
       }
     } else if (line[strlen(line) - 1] == '>') {
       int sent_pr = 0;
@@ -1289,6 +1305,8 @@ handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, 
     print_log(LOG_ERR, "%s(): Lost connection. 1",__FUNCTION__);
     exit(EXIT_FAILURE);
   }
+  print_log(LOG_DEBUG, "Debug: Leaving %s with line: %s", __FUNCTION__, line);
+
   return(line);
 }
 
@@ -1355,8 +1373,6 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
   p2p_startmsg(ofp, mycall, yourcall, opropcount, oprop_usize);
   line = handshake_no_secure_login(ifp, ofp, mycall, yourcall, opropcount);
   nproplist = oproplist;
-
-  print_log(LOG_DEBUG, "Debug ex: handshake FINISHED");
 
   print_log(LOG_DEBUG, "Debug ex: inbound parser START");
   inbound_ret = inbound_parser(ifp, ofp, nproplist, oproplist, emailaddress);

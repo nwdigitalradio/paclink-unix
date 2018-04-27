@@ -1,3 +1,11 @@
+Fri Apr 27 11:04:45 PDT 2018  Basil Gunn <basil@pacabunga.com>
+
+  * Peer-to-peer working with Airmail & Winlink Express
+  * Fold wl2kd.c into wl2k.c
+    Files modified:
+      wl2k.c
+      Makefile.am
+
 Fri Dec 22 16:05:56 PST 2017  Basil Gunn <basil@pacabunga.com>
 
   * Fix version display for wl2ktelnet, wl2kserial & wl2kax25
@@ -9,7 +17,7 @@ Fri Dec 22 16:05:56 PST 2017  Basil Gunn <basil@pacabunga.com>
 
 Fri Dec 22 10:50:07 PST 2017  Basil Gunn <basil@pacabunga.com>
 
-    * Separte daemon code used for direct connect from client code.
+    * Separate daemon code used for direct connect from client code.
       File added: wl2kd.c
       Files modified:
         Makefile.am
