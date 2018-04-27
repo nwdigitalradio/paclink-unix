@@ -123,6 +123,7 @@ static void dodelete(struct proposal **oproplist, struct proposal **nproplist);
 static void send_my_sid(FILE *ofp);
 static char *parse_inboundsid(char *line);
 static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress);
+static bool p2p_qualify(char *fname, char *remotecall, struct buffer* readfile);
 
 #ifdef WL2KAX25_DAEMON
 static void p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsigned int oprop_usize);
@@ -498,8 +499,97 @@ dodelete(struct proposal **oproplist, struct proposal **nproplist)
   }
 }
 
+/*
+ * Qualify Callsign of a peer-to-peer message in outbox
+ *
+ *  - Single address on To: line
+ *  - No addresses on Cc: line
+ *  - Single address on To: line matches caller's callsign
+ */
+static bool
+p2p_qualify(char *fname, char *remotecall, struct buffer* readfile)
+{
+  char *line, *callsign;
+  char *cp, *sp, *np;
+  bool p2p_ret = true;
+
+  print_log(LOG_DEBUG, "Debug: %s() file name: %s\n", __FUNCTION__, fname);
+
+  while ((line = buffer_getline(readfile, '\n')) != NULL) {
+    if (strbegins(line, "To:")) {
+      strzapcc(line);
+      cp = line + 3;
+      while (isspace(*cp)) {
+        cp++;
+      }
+      if (strlen((const char *) cp) > 80) {
+        cp[80] = '\0';
+      }
+      /* Find first character after To: */
+      sp = strchr(cp, ':');
+      if (sp == NULL) {
+        print_log(LOG_DEBUG, "Debug: %s() to: parse error, could not locate colon %s\n", __FUNCTION__, cp);
+        free(line);
+        p2p_ret = false;
+        break;
+      } else {
+        /* isolate the callsign  on To: line */
+        print_log(LOG_DEBUG, "Debug: %s() to: %s, %s\n", __FUNCTION__, cp, sp+1);
+        callsign = strdup(sp+1);
+      }
+      np = strchr(callsign, '@');
+      if (np == NULL) {
+        print_log(LOG_DEBUG, "Debug: %s() No address found %s\n", __FUNCTION__, cp);
+      } else {
+        /* Are there multiple addresses on the To: line? */
+        sp = strchr(np+1, '@');
+        if (sp == NULL) {
+          /* Single address on the To: line, isolate the callsign */
+          strupper(callsign);
+          *np = '\0';
+          print_log(LOG_DEBUG, "Debug: %s() Found a single address: %s\n", __FUNCTION__, callsign);
+
+          /* compare callsign in mail message with callsign of caller */
+          if (strcmp(callsign, remotecall) != 0) {
+            print_log(LOG_DEBUG, "Debug: %s() callsign compare fail: %s to: %s\n", __FUNCTION__, callsign, remotecall);
+            free(line);
+            p2p_ret = false;
+            break;
+          }
+          print_log(LOG_DEBUG, "Debug: %s() callsign match: %s to: %s\n", __FUNCTION__, callsign, remotecall);
+        } else {
+          print_log(LOG_DEBUG, "Debug: %s() Found multiple addresses %s\n", __FUNCTION__, cp);
+          free(line);
+          p2p_ret = false;
+          break;
+        }
+      }
+    }
+    /* Find first character after Cc:
+     *  - if a Cc: line is found at all p2p is disqualified
+     */
+    if (strbegins(line, "Cc:")) {
+      strzapcc(line);
+      cp = line + 3;
+      while (isspace(*cp)) {
+        cp++;
+      }
+      if (strlen((const char *) cp) > 80) {
+        cp[80] = '\0';
+      }
+      print_log(LOG_DEBUG, "Debug: %s() Cc: %s\n", __FUNCTION__, cp);
+      free(line);
+      p2p_ret = false;
+      break;
+    }
+    free(line);
+  }
+
+  return p2p_ret;
+}
+
 static struct proposal *
-prepare_outbound_proposals(void)
+prepare_outbound_proposals(bool bp2p, char *remotecall)
 {
   struct proposal *prop;
   struct proposal **opropnext;
@@ -549,7 +639,16 @@ prepare_outbound_proposals(void)
       exit(EXIT_FAILURE);
     }
 
-    print_log(LOG_DEBUG, "Debug: %s() file name: %s\n", __FUNCTION__, name);
+    if(bp2p) {
+      if(!p2p_qualify(name, remotecall, prop->ubuf)) {
+        free(prop);
+        buffer_free(prop->ubuf);
+        print_log(LOG_DEBUG, "Debug: %s() p2p qualify FALSE for filename %s\n", __FUNCTION__, name);
+        continue;
+      } else {
+        print_log(LOG_DEBUG, "Debug: %s() p2p qualify TRUE for filename %s\n", __FUNCTION__, name);
+      }
+    }
 
     prop->usize = prop->ubuf->dlen;
 
@@ -928,7 +1027,6 @@ inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal
       print_log(LOG_DEBUG, "Debug: %s(): xmit 1", __FUNCTION__);
 
       if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
-        print_log(LOG_DEBUG, "Debug: %s(): ret: 0x%02x, xmit 1", b2outret, __FUNCTION__);
         return(b2outret);
       }
     } else if (strbegins(line, "B")) {
@@ -1222,7 +1320,7 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
     exit(EXIT_FAILURE);
   }
 
-  oproplist = prepare_outbound_proposals();
+  oproplist = prepare_outbound_proposals(false, yourcall);
 
   for (prop = oproplist; prop; prop = prop->next) {
     opropcount++;
@@ -1362,7 +1460,7 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
     exit(EXIT_FAILURE);
   }
 
-  oproplist = prepare_outbound_proposals();
+  oproplist = prepare_outbound_proposals(true, yourcall);
 
   for (prop = oproplist; prop; prop = prop->next) {
     opropcount++;
