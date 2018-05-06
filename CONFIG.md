@@ -28,10 +28,12 @@ fine for most cases.
 ### Daemon mode
 
 Daemon mode allows other Winlink clients to connect to your station
-for peer to peer delivery of Winlink messages.
+for peer-to-peer delivery of Winlink messages.
 
-If you are using paclink_unix for peer to peer messaging you also need
-to set the following in _wl2k.conf_:
+For peer to peer messaging you also need to set the following in
+_wl2k.conf_:
+
+
 ```
 gridsquare=
 welcomemsg=
@@ -63,3 +65,13 @@ For example:
 NOCALL   * * * * * *  L
 default  * * * * * *  - gunn /usr/local/bin/wl2kax25d wl2kax25d -c %U -a %d
 ```
+
+##### Qualifying Rules for peer-to-peer message pickup
+
+The following rules apply for message proposals. Messages will not be
+picked up by an attaching station unless these conditions are met for
+email in your outbox.
+
+* Single address on To: line
+* No addresses on Cc: line
+* Single address on To: line matches caller's callsign
