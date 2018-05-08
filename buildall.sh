@@ -4,6 +4,7 @@
 #  - any command line args causes build from clean
 #
 #DEBUG=1
+# Used to test build without doing an install
 #MAKE_NO_INSTALL="true"
 MAKE_NO_INSTALL=
 
@@ -122,8 +123,9 @@ if [ "$MAKE_NO_INSTALL" != "true" ] ; then
       user=$(whoami)
       sudo chown -R $user:mail /usr/local/var/wl2k
    fi
+   echo "$(date "+%Y %m %d %T %Z"): paclink-unix build script FINISHED" >> build_log.out
+
 fi  # MAKE_NO_INSTALL == true
 
 echo
 echo "$(date "+%Y %m %d %T %Z"): paclink-unix build script FINISHED"
-echo "$(date "+%Y %m %d %T %Z"): paclink-unix build script FINISHED" >> build_log.out
