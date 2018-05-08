@@ -72,6 +72,6 @@ The following rules apply for message proposals. Messages will not be
 picked up by an attaching station unless these conditions are met for
 email in your outbox.
 
-* Single address on To: line
+* Single address on To: line that matches caller's callsign
 * No addresses on Cc: line
-* Single address on To: line matches caller's callsign
+
