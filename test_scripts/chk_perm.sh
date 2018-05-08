@@ -5,6 +5,12 @@ PLU_VAR_DIR="/usr/local/var/wl2k"
 USER=$(whoami)
 GROUP="mail"
 
+if [[ $EUID == 0 ]] ; then
+   echo
+   echo "You are running this script as root ... don't do that."
+   exit 1
+fi
+
 # set permissions for /usr/local/var/wl2k directory
 # Check user & group of outbox directory
 #
