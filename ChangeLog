@@ -1,3 +1,9 @@
+Thu May  9 14:12:00 PDT 2019  Basil Gunn <basil@pacabunga.com>
+
+  * Fix mixed case password problem found by Mark Griffith KD0QYN
+    * remove strupper on hash_input
+    File modified: wl2k.c
+
 Fri Apr 27 11:04:45 PDT 2018  Basil Gunn <basil@pacabunga.com>
 
   * Peer-to-peer working with Airmail & Winlink Express
