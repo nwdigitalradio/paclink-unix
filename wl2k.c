@@ -1209,7 +1209,7 @@ compute_secure_login_response(char *challenge, char *response, char *password)
   char *hash_input;
   unsigned char hash_sig[16];
   size_t m, n;
-  int i, pr;
+  int pr;
   char pr_str[20];
 
   m = strlen(challenge) + strlen(password);
@@ -1217,14 +1217,12 @@ compute_secure_login_response(char *challenge, char *response, char *password)
   hash_input = (char*)malloc(n);
   strcpy(hash_input, challenge);
   strcat(hash_input, password);
-  strupper(hash_input);
+
   memcpy(hash_input+m, sl_salt, sizeof(sl_salt));
   md5_buffer(hash_input, (unsigned int)n, hash_sig);
   free(hash_input);
 
-  pr = hash_sig[3] & 0x3f;
-  for (i=2; i>=0; i--)
-    pr = (pr << 8) | hash_sig[i];
+  pr = ((hash_sig[3] & 0x3f) << 24) + (hash_sig[2] << 16) + (hash_sig[1] << 8) + hash_sig[0];
 
   sprintf(pr_str, "%08d", pr);
   n = strlen(pr_str);
@@ -1337,7 +1335,6 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
     return;
   }
   print_log(LOG_DEBUG, "Debug: outbound parser finished");
-
   fflush(ofp);
 
   print_log(LOG_DEBUG, "Debug: Start inbound parser");
