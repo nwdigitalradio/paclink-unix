@@ -1,3 +1,8 @@
+Thu May  9 17:25:43 PDT 2019  Basil Gunn <basil@pacabunga.com>
+
+    * Bump version number to 0.8
+      File modified: configure.ac
+
 Thu May  9 14:12:00 PDT 2019  Basil Gunn <basil@pacabunga.com>
 
   * Fix mixed case password problem found by Mark Griffith KD0QYN
