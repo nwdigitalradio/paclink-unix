@@ -513,7 +513,7 @@ p2p_qualify(char *fname, char *remotecall, struct buffer* readfile)
   char *cp, *sp, *np;
   bool p2p_ret = true;
 
-  print_log(LOG_DEBUG, "Debug: %s() file name: %s\n", __FUNCTION__, fname);
+  print_log(LOG_DEBUG_VERBOSE, "Debug: %s() file name: %s\n", __FUNCTION__, fname);
 
   while ((line = buffer_getline(readfile, '\n')) != NULL) {
     if (strbegins(line, "To:")) {
@@ -528,13 +528,13 @@ p2p_qualify(char *fname, char *remotecall, struct buffer* readfile)
       /* Find first character after To: */
       sp = strchr(cp, ':');
       if (sp == NULL) {
-        print_log(LOG_DEBUG, "Debug: %s() to: parse error, could not locate colon %s\n", __FUNCTION__, cp);
+        print_log(LOG_DEBUG_VERBOSE, "Debug: %s() to: parse error, could not locate colon %s\n", __FUNCTION__, cp);
         free(line);
         p2p_ret = false;
         break;
       } else {
         /* isolate the callsign  on To: line */
-        print_log(LOG_DEBUG, "Debug: %s() to: %s, %s\n", __FUNCTION__, cp, sp+1);
+        print_log(LOG_DEBUG_VERBOSE, "Debug: %s() to: %s, %s\n", __FUNCTION__, cp, sp+1);
         callsign = strdup(sp+1);
       }
       np = strchr(callsign, '@');
@@ -556,7 +556,7 @@ p2p_qualify(char *fname, char *remotecall, struct buffer* readfile)
             p2p_ret = false;
             break;
           }
-          print_log(LOG_DEBUG, "Debug: %s() callsign match: %s to: %s\n", __FUNCTION__, callsign, remotecall);
+          print_log(LOG_DEBUG_VERBOSE, "Debug: %s() callsign match: %s to: %s\n", __FUNCTION__, callsign, remotecall);
         } else {
           print_log(LOG_DEBUG, "Debug: %s() Found multiple addresses %s\n", __FUNCTION__, cp);
           free(line);
@@ -577,7 +577,7 @@ p2p_qualify(char *fname, char *remotecall, struct buffer* readfile)
       if (strlen((const char *) cp) > 80) {
         cp[80] = '\0';
       }
-      print_log(LOG_DEBUG, "Debug: %s() Cc: %s\n", __FUNCTION__, cp);
+      print_log(LOG_DEBUG, "%s() Cc: %s\n", __FUNCTION__, cp);
       free(line);
       p2p_ret = false;
       break;
@@ -643,10 +643,10 @@ prepare_outbound_proposals(bool bp2p, char *remotecall)
       if(!p2p_qualify(name, remotecall, prop->ubuf)) {
         free(prop);
         buffer_free(prop->ubuf);
-        print_log(LOG_DEBUG, "Debug: %s() p2p qualify FALSE for filename %s\n", __FUNCTION__, name);
+        print_log(LOG_DEBUG_VERBOSE, "Debug: %s() p2p qualify FALSE for filename %s\n", __FUNCTION__, name);
         continue;
       } else {
-        print_log(LOG_DEBUG, "Debug: %s() p2p qualify TRUE for filename %s\n", __FUNCTION__, name);
+        print_log(LOG_DEBUG_VERBOSE, "Debug: %s() p2p qualify TRUE for filename %s\n", __FUNCTION__, name);
       }
     }
 
@@ -1024,7 +1024,7 @@ inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal
     } else if (strbegins(line, "FF")) {
       dodelete(&oproplist, &nproplist);
 
-      print_log(LOG_DEBUG, "Debug: %s(): xmit 1", __FUNCTION__);
+      print_log(LOG_DEBUG_VERBOSE, "Debug: %s(): xmit 1", __FUNCTION__);
 
       if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
         return(b2outret);
@@ -1174,17 +1174,17 @@ inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal
       }
       proposals = 0;
       proposalcksum = 0;
-      print_log(LOG_DEBUG, "Debug: %s(): xmit 2", __FUNCTION__);
+      print_log(LOG_DEBUG_VERBOSE, "Debug: %s(): xmit 2", __FUNCTION__);
       if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
-        print_log(LOG_DEBUG, "Debug: %s(): ret: 0x%02x, xmit 2", b2outret, __FUNCTION__);
+        print_log(LOG_DEBUG_VERBOSE, "Debug: %s(): ret: 0x%02x, xmit 2", b2outret, __FUNCTION__);
         return(b2outret);
       }
     } else if (line[strlen(line - 1)] == '>') {
       dodelete(&oproplist, &nproplist);
 
-      print_log(LOG_DEBUG, "Debug: %s(): xmit 3", __FUNCTION__);
+      print_log(LOG_DEBUG_VERBOSE, "Debug: %s(): xmit 3", __FUNCTION__);
       if ((b2outret = b2outboundproposal(ifp, ofp, line, &nproplist)) != 0) {
-        print_log(LOG_DEBUG, "Debug: %s(): ret: 0x%02x, xmit 3", b2outret, __FUNCTION__);
+        print_log(LOG_DEBUG_VERBOSE, "Debug: %s(): ret: 0x%02x, xmit 3", b2outret, __FUNCTION__);
         return(b2outret);
       }
     } else {
@@ -1329,7 +1329,7 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
   line = handshake(ifp, ofp, sl_pass, mycall, yourcall, opropcount);
   nproplist = oproplist;
 
-  print_log(LOG_DEBUG, "Debug ex: handshake FINISHED");
+  print_log(LOG_DEBUG_VERBOSE, "Debug ex: handshake FINISHED");
 
   if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
     return;
@@ -1400,7 +1400,7 @@ handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, 
     print_log(LOG_ERR, "%s(): Lost connection. 1",__FUNCTION__);
     exit(EXIT_FAILURE);
   }
-  print_log(LOG_DEBUG, "Debug: Leaving %s with line: %s", __FUNCTION__, line);
+  print_log(LOG_DEBUG_VERBOSE, "Debug: Leaving %s with line: %s", __FUNCTION__, line);
 
   return(line);
 }
@@ -1469,20 +1469,20 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
   line = handshake_no_secure_login(ifp, ofp, mycall, yourcall, opropcount);
   nproplist = oproplist;
 
-  print_log(LOG_DEBUG, "Debug ex: inbound parser START");
+  print_log(LOG_DEBUG_VERBOSE, "Debug ex: inbound parser START");
   inbound_ret = inbound_parser(ifp, ofp, nproplist, oproplist, emailaddress);
 
-  print_log(LOG_DEBUG, "Debug ex: inbound parser FINISHED, retcode: 0x%02x", inbound_ret);
+  print_log(LOG_DEBUG_VERBOSE, "Debug ex: inbound parser FINISHED, retcode: 0x%02x", inbound_ret);
 
   if (inbound_ret == 0) {
     if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
-      print_log(LOG_DEBUG, "Debug ex: b2outboundprop FINISHED output FQ");
+      print_log(LOG_DEBUG_VERBOSE, "Debug ex: b2outboundprop FINISHED output FQ");
       /* Should exit after this */
     } else {
-      print_log(LOG_DEBUG, "Debug ex: b2outboundprop FINISHED output FF");
+      print_log(LOG_DEBUG_VERBOSE, "Debug ex: b2outboundprop FINISHED output FF");
     }
   }
-  print_log(LOG_DEBUG, "Debug ex: %s(): FINISHED", __FUNCTION__);
+  print_log(LOG_DEBUG_VERBOSE, "Debug ex: %s(): FINISHED", __FUNCTION__);
   fflush(ofp);
 }
 #endif /* WL2KAX25_DAEMON */
