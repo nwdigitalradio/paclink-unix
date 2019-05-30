@@ -838,7 +838,7 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
         prop->delete = 1;
       }
       if ((prop = prop->next) == NULL) {
-        print_log(LOG_DEBUG, "Debug: After putcompressed prop->next = NULL, i:%d", i);
+        print_log(LOG_DEBUG_VERBOSE, "Debug: After putcompressed prop->next = NULL, i:%d", i);
         break;
       }
     }
@@ -1334,10 +1334,10 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
   if (b2outboundproposal(ifp, ofp, line, &nproplist) != 0) {
     return;
   }
-  print_log(LOG_DEBUG, "Debug: outbound parser finished");
+  print_log(LOG_DEBUG_VERBOSE, "Debug: outbound parser finished");
   fflush(ofp);
 
-  print_log(LOG_DEBUG, "Debug: Start inbound parser");
+  print_log(LOG_DEBUG_VERBOSE, "Debug: Start inbound parser");
   inbound_parser(ifp, ofp, nproplist, oproplist, emailaddress);
 }
 
