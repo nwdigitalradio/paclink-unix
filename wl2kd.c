@@ -90,7 +90,7 @@ __RCSID("$Id$");
 
 #define PROPLIMIT 5
 /* number of bytes to send through socket */
-#define CHUNK_SIZE 255
+#define CHUNK_SIZE 250
 
 /* Send messages only flag */
 extern int gsendmsgonly_flag;
