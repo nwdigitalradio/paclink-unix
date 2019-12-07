@@ -2,7 +2,7 @@
 "use strict";
 
 // Install node modules globally npm -g install <module_name>
-var global_module_dir='/usr/lib/node_modules/';
+var global_module_dir='/usr/local/lib/node_modules/';
 
 // Optional. You will see this name in eg. 'ps' or 'top' command
 process.title = 'plu-server';
