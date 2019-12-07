@@ -40,7 +40,7 @@ MSGSIZE=0
 
 # Check for any command line arguments
 # Arg 1: sendto callsign
-# Arg 2: message size
+# Arg 2: message size in bytes
 
 if (( $# > 0 )) ; then
     CALLSIGN="$1"
@@ -134,7 +134,7 @@ subject="//WL2K $(hostname) plu $(date "+%m/%d/%y"), size: $FILESIZE, #$testinde
 echo "$subject"
 echo "plu outbox owner: $(stat -c '%U' /usr/local/var/wl2k) : $(stat -c '%G' /usr/local/var/wl2k/outbox)"
 
-# Test if Cc: is used
+# Test if Cc: is specified
 if [[ -z "$ccto" ]] ; then
    $MUTT -s "$subject" $sendto < $MSG_FILENAME
 else
