@@ -109,21 +109,6 @@ size_t paclen = DFLTPACLEN;
 int gverbose_flag=FALSE;
 int gsendmsgonly_flag=FALSE;
 
-/*
- * Config parameters struct
- */
-typedef struct _wl2kax25_config {
-  char *mycall;
-  char *targetcall;
-  struct buffer *pathbuf;
-  char *ax25port;
-  char *emailaddr;
-  char *wl2k_password;
-  unsigned int timeoutsecs;
-  int  bVerbose;
-  int  bSendonly;
-}cfg_t;
-
 static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
 static void displayversion(void);
@@ -274,12 +259,22 @@ main(int argc, char *argv[])
       // Inbound
       if (fds[0].revents & POLLIN) {
 
+#ifdef TIMEOUT_DEV
+        resettimeout();
+#endif
         len = read(fds[0].fd, axread, sizeof(axread));
+#ifdef TIMEOUT_DEV
+        printf("DEBUG: Inbound read %ld\n", len);
+#endif
         if ( len > 0 ) {
 
           pbuf = axread;
 
           while(len > 0) {
+#ifdef TIMEOUT_DEV
+            resettimeout();
+            printf("DEBUG: Inbound write %d\n", len);
+#endif
             byteswritten = write(fds[1].fd, pbuf, MIN(paclen, (size_t)len));
 
             if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
@@ -302,12 +297,21 @@ main(int argc, char *argv[])
       // Outbound
       if (fds[1].revents & POLLIN) {
 
+        resettimeout();
         len = read(fds[1].fd, axwrite, sizeof(axwrite));
+#ifdef TIMEOUT_DEV
+        printf("DEBUG: Outbound read %d\n", len);
+#endif
         if (len > 0 ) {
 
           pbuf = axwrite;
 
           while(len > 0) {
+
+#ifdef TIMEOUT_DEV
+            resettimeout();
+            printf("DEBUG: Outbound write %d\n", len);
+#endif
             byteswritten = write(fds[0].fd, pbuf, MIN(paclen, (size_t)len));
             if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
               fprintf(stderr,"%s error on outbound write: %s)\n",
@@ -395,7 +399,11 @@ main(int argc, char *argv[])
             printf("Child process calling wl2kexchange()\n");
     }
     settimeout(cfg.timeoutsecs);
+#if 0
     wl2k_exchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
+#else
+    wl2k_exchange(&cfg, fp, fp);
+#endif
     fclose(fp);
     printf("Child process exiting\n");
     exitcleanup(&cfg);

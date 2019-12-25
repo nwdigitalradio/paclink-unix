@@ -99,21 +99,6 @@ int gsendmsgonly_flag=FALSE;
 #define DFLTPACLEN   255   /* default packet length */
 size_t paclen = DFLTPACLEN;
 
-/*
- * Config parameters struct
- */
-typedef struct _rmsax25_config {
-  char *mycall;
-  char *targetcall;
-  char *ax25port;
-  char *emailaddr;
-  char *gridsquare;
-  char *welcomemsg;
-  unsigned int timeoutsecs;
-  int  bVerbose;
-  int  bSendonly;
-}cfg_t;
-
 static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
 static void displayversion(void);
@@ -151,7 +136,6 @@ main(int argc, char *argv[])
 
   g_mime_init(0);
 
-#if 1
   {
     int opts;
 
@@ -166,7 +150,6 @@ main(int argc, char *argv[])
       print_log(LOG_DEBUG, "Input set to BLOCK");
     }
   }
-#endif
 
   /* set buf size to paclen */
   setvbuf(stdout, NULL, _IOFBF, paclen);

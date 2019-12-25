@@ -56,7 +56,6 @@ __RCSID("$Id$");
 #include <sys/ioctl.h>
 #include <linux/serial.h>
 #include <fcntl.h>
-#include <termios.h>
 
 #ifndef bool
 #include <stdbool.h>
@@ -99,10 +98,7 @@ const struct modemtype {
         {NULL, 0}
 };
 
-const struct baudrate {
-  const char *asc;
-  speed_t num;
-} baudrates[] = {
+const struct baudrate baudrates[] = {
   {"50", B50},
   {"75", B75},
   {"110", B110},
@@ -151,23 +147,6 @@ const struct baudrate {
 #endif
   {NULL, 0}
 };
-
-/*
- * Config parameters struct
- */
-typedef struct _wl2kserial_config {
-  char    *mycall;
-  char    *targetcall;
-  char    *serialdevice;
-  char    *emailaddr;
-  char    *wl2k_password;
-  int     modem;
-  speed_t baudrate;
-  unsigned int timeoutsecs;
-  int     bVerbose;
-  int     bSendonly;
-  FILE    *modemfp;
-}cfg_t;
 
 static cfg_t cfg;
 
@@ -419,7 +398,11 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
+#if 0
   wl2k_exchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
+#else
+  wl2k_exchange(&cfg, fp, fp);
+#endif
 
   disconnect();
   fclose(fp);

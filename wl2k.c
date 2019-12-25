@@ -80,6 +80,7 @@ __RCSID("$Id$");
 
 #include "compat.h"
 #include "strutil.h"
+#include "conf.h"
 #include "wl2k.h"
 #include "timeout.h"
 #include "mid.h"
@@ -1302,8 +1303,11 @@ handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int
   return(line);
 }
 
-void
-wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+#if 0
+void wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+#else
+void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
+#endif
 {
   static char *line;
   struct proposal *prop;
@@ -1312,6 +1316,10 @@ wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailadd
   int opropcount = 0;
   long unsigned int oprop_usize = 0;
   long unsigned int oprop_csize = 0;
+  char *mycall=cfg->mycall;
+  char *yourcall=cfg->targetcall;
+  char *emailaddress=cfg->emailaddr;
+  char *sl_pass=cfg->wl2k_password;
 
   if (expire_mids() == -1) {
     print_log(LOG_ERR, "expire_mids() failed");

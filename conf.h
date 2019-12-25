@@ -26,6 +26,8 @@
 #ifndef CONF_H
 #define CONF_H
 
+#include <termios.h>
+
 #define DFLT_TIMEOUTSECS (120)  /* default time out seconds */
 #define DFLT_TELNET_PORT 8772
 #define DFLT_TELNET_CALL "wl2k"
@@ -41,6 +43,35 @@ struct conf {
   char *value;
   struct conf *next;
 };
+
+struct baudrate {
+        const char *asc;
+        speed_t num;
+};
+
+/*
+ * Config parameters struct
+ */
+typedef struct _plu_config {
+        char *mycall;
+        char *targetcall;
+        struct buffer *pathbuf;
+        char *hostname;
+        unsigned short  hostport;
+        char *password;
+        char *ax25port;
+        char *emailaddr;
+        char *wl2k_password;
+        char *gridsquare;
+        char *welcomemsg;
+        unsigned int timeoutsecs;
+        int  bVerbose;
+        int  bSendonly;
+        char    *serialdevice;
+        int     modem;
+        speed_t baudrate;
+        FILE    *modemfp;
+}cfg_t;
 
 struct conf *conf_read(void);
 char *conf_get(struct conf *conf, const char *var);

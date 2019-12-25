@@ -29,7 +29,12 @@
 #define SID_NAME "UnixLINK"
 
 char *wl2kgetline(FILE *fp);
+#if 0
 void wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass);
+#else
+void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp);
+#endif
+
 void wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass);
 
 #endif

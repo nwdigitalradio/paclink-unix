@@ -80,22 +80,6 @@ __RCSID("$Id$");
 int gverbose_flag=FALSE;
 int gsendmsgonly_flag=FALSE;
 
-/*
- * Config parameters struct
- */
-typedef struct _wl2ktelnet_config {
-  char *mycall;
-  char *targetcall;
-  char *hostname;
-  unsigned short  hostport;
-  char *password;
-  char *emailaddr;
-  char *wl2k_password;
-  unsigned int timeoutsecs;
-  int  bVerbose;
-  int  bSendonly;
-}cfg_t;
-
 static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
 static void displayversion(void);
@@ -199,7 +183,11 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
+#if 0
   wl2k_exchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
+#else
+  wl2k_exchange(&cfg, fp, fp);
+#endif
 
   fclose(fp);
   g_mime_shutdown();
