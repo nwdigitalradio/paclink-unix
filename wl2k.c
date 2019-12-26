@@ -132,7 +132,11 @@ static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char
 
 #else /* NOT WL2KAX25_DAEMON, for secure login */
 
+#if 0
 static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount);
+#else
+static char *handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount);
+#endif
 static void compute_secure_login_response(char *challenge, char *response, char *password);
 static int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass);
 
@@ -1252,14 +1256,21 @@ send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
   }
   return(sent_pr);
 }
-
+#if 0
 static char *
-handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount)
+   handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount)
+#else
+static char *
+handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount)
+#endif
 {
   static char *line;
   char *inboundsidcodes = NULL;
   char challenge[9];
   challenge[0] = 0;
+  char *sl_pass=cfg->wl2k_password;
+  char *mycall=cfg->mycall;
+  char *yourcall=cfg->targetcall;
 
 
   while ((line = wl2kgetline(ifp)) != NULL) {
@@ -1282,13 +1293,25 @@ handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int
       }
       sent_pr = send_secure_login_response(ofp, challenge, sl_pass);
       if (strchr(inboundsidcodes, 'I')) {
+#if 0
         /* Identify: with QTC (I have telegrams) */
         print_log(LOG_DEBUG, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
+#else
+        print_log(LOG_DEBUG, ">; %s DE %s (%s)", yourcall, mycall, cfg->gridsquare);
+#endif
         resettimeout();
+#if 0
         if (fprintf(ofp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount) == -1) {
           print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
           exit(EXIT_FAILURE);
         }
+#else
+        if (fprintf(ofp, "; %s DE %s (%s)\r", yourcall, mycall, cfg->gridsquare) == -1) {
+          print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+          exit(EXIT_FAILURE);
+        }
+
+#endif
       }
       if (!sent_pr) {
         send_my_sid(ofp);
@@ -1334,7 +1357,11 @@ void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
     oprop_csize += prop->csize;
   }
 
+#if 0
   line = handshake(ifp, ofp, sl_pass, mycall, yourcall, opropcount);
+#else
+  line = handshake(ifp, ofp, cfg, opropcount);
+#endif
   nproplist = oproplist;
 
   print_log(LOG_DEBUG_VERBOSE, "Debug ex: handshake FINISHED");
