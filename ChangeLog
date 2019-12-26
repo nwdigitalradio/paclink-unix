@@ -1,3 +1,19 @@
+Thu Dec 26 12:12:29 PST 2019  Basil Gunn <basil@pacabunga.com>
+
+  * Only pass one defined config parameter struct to all transports,
+     reduce call parameters to wl2k_exchange
+  * Bump version number to 0.9
+    Files modified:
+      configure.ac
+      conf.h
+      wl2k.c
+      wl2k.h
+      wl2kax25.c
+      wl2kax25d.c
+      wl2kd.c
+      wl2kserial.c
+      wl2ktelnet.c
+
 Thu May  9 17:25:43 PDT 2019  Basil Gunn <basil@pacabunga.com>
 
     * Bump version number to 0.8

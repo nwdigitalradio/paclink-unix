@@ -127,16 +127,12 @@ static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, stru
 static bool p2p_qualify(char *fname, char *remotecall, struct buffer* readfile);
 
 #ifdef WL2KAX25_DAEMON
-static void p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsigned int oprop_usize);
-static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, int opropcount);
+static void p2p_startmsg( FILE *ofp, cfg_t *cfg, int opropcount, long unsigned int oprop_usize);
+static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  cfg_t *cfg, int opropcount);
 
 #else /* NOT WL2KAX25_DAEMON, for secure login */
 
-#if 0
-static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount);
-#else
 static char *handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount);
-#endif
 static void compute_secure_login_response(char *challenge, char *response, char *password);
 static int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass);
 
@@ -1256,13 +1252,9 @@ send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass)
   }
   return(sent_pr);
 }
-#if 0
-static char *
-   handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount)
-#else
+
 static char *
 handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount)
-#endif
 {
   static char *line;
   char *inboundsidcodes = NULL;
@@ -1293,26 +1285,22 @@ handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount)
       }
       sent_pr = send_secure_login_response(ofp, challenge, sl_pass);
       if (strchr(inboundsidcodes, 'I')) {
+        char qtcbuf[64];
 #if 0
+        /* The following string crashes linbqp32 6.19.0.1 */
+        snprintf(qtcbuf,63, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
+#else
+        snprintf(qtcbuf,63, ">; %s DE %s (%s)", yourcall, mycall, cfg->gridsquare);
+#endif
         /* Identify: with QTC (I have telegrams) */
-        print_log(LOG_DEBUG, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
-#else
-        print_log(LOG_DEBUG, ">; %s DE %s (%s)", yourcall, mycall, cfg->gridsquare);
-#endif
+        print_log(LOG_DEBUG, "%s", qtcbuf);
         resettimeout();
-#if 0
-        if (fprintf(ofp, "; %s DE %s QTC %d\r", yourcall, mycall, opropcount) == -1) {
-          print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
-          exit(EXIT_FAILURE);
-        }
-#else
-        if (fprintf(ofp, "; %s DE %s (%s)\r", yourcall, mycall, cfg->gridsquare) == -1) {
-          print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
-          exit(EXIT_FAILURE);
-        }
 
-#endif
-      }
+        if (fprintf(ofp, "; %s\r", qtcbuf) == -1) {
+          print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
+          exit(EXIT_FAILURE);
+        }
+    }
       if (!sent_pr) {
         send_my_sid(ofp);
       }
@@ -1326,11 +1314,7 @@ handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount)
   return(line);
 }
 
-#if 0
-void wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
-#else
 void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
-#endif
 {
   static char *line;
   struct proposal *prop;
@@ -1339,10 +1323,9 @@ void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
   int opropcount = 0;
   long unsigned int oprop_usize = 0;
   long unsigned int oprop_csize = 0;
-  char *mycall=cfg->mycall;
+
   char *yourcall=cfg->targetcall;
   char *emailaddress=cfg->emailaddr;
-  char *sl_pass=cfg->wl2k_password;
 
   if (expire_mids() == -1) {
     print_log(LOG_ERR, "expire_mids() failed");
@@ -1357,11 +1340,7 @@ void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
     oprop_csize += prop->csize;
   }
 
-#if 0
-  line = handshake(ifp, ofp, sl_pass, mycall, yourcall, opropcount);
-#else
   line = handshake(ifp, ofp, cfg, opropcount);
-#endif
   nproplist = oproplist;
 
   print_log(LOG_DEBUG_VERBOSE, "Debug ex: handshake FINISHED");
@@ -1379,10 +1358,13 @@ void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
 #else  /* WL2KAX25_DAEMON */
 
 static char *
-handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, int opropcount)
+handshake_no_secure_login(FILE *ifp, FILE *ofp,  cfg_t *cfg, int opropcount)
 {
   static char *line;
   char *inboundsidcodes = NULL;
+  char *mycall=cfg->mycall;
+  char *yourcall=cfg->targetcall;
+
 
   while ((line = wl2kgetline(ifp)) != NULL) {
     print_log(LOG_DEBUG, "<%s", line);
@@ -1441,9 +1423,12 @@ handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, 
 }
 
 static void
-p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsigned int oprop_usize)
+p2p_startmsg( FILE *ofp, cfg_t *cfg, int opropcount, long unsigned int oprop_usize)
 {
   char *sp;
+  char *mycall=cfg->mycall;
+  char *yourcall=cfg->targetcall;
+
   resettimeout();
 
   if(opropcount) {
@@ -1476,7 +1461,7 @@ p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsi
 }
 
 void
-wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+wl2kd_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
 {
   static char *line;
   struct proposal *prop;
@@ -1486,6 +1471,10 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
   long unsigned int oprop_usize = 0;
   long unsigned int oprop_csize = 0;
   int inbound_ret;
+  char *emailaddress=cfg->emailaddr;
+  char *mycall=cfg->mycall;
+  char *yourcall=cfg->targetcall;
+
 
   if (expire_mids() == -1) {
     print_log(LOG_ERR, "expire_mids() failed");
@@ -1500,8 +1489,8 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
     oprop_csize += prop->csize;
   }
 
-  p2p_startmsg(ofp, mycall, yourcall, opropcount, oprop_usize);
-  line = handshake_no_secure_login(ifp, ofp, mycall, yourcall, opropcount);
+  p2p_startmsg(ofp, cfg, opropcount, oprop_usize);
+  line = handshake_no_secure_login(ifp, ofp, cfg, opropcount);
   nproplist = oproplist;
 
   print_log(LOG_DEBUG_VERBOSE, "Debug ex: inbound parser START");

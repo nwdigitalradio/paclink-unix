@@ -125,12 +125,12 @@ static char *parse_inboundsid(char *line);
 static int inbound_parser(FILE *ifp, FILE *ofp, struct proposal *nproplist, struct proposal *oproplist, char *emailaddress);
 
 #ifdef WL2KAX25_DAEMON
-static void p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsigned int oprop_usize);
-static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, int opropcount);
+static void p2p_startmsg( FILE *ofp, cfg_t *cfg, int opropcount, long unsigned int oprop_usize);
+static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  cfg_t *cfg, int opropcount);
 
 #else /* NOT WL2KAX25_DAEMON, for secure login */
 
-static char *handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int opropcount);
+static char *handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount);
 static void compute_secure_login_response(char *challenge, char *response, char *password);
 static int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass);
 
@@ -1204,7 +1204,7 @@ handshake(FILE *ifp, FILE *ofp, char *sl_pass,char *mycall, char * yourcall, int
 }
 
 void
-wl2k_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
 {
   static char *line;
   struct proposal *prop;
@@ -1293,7 +1293,7 @@ handshake_no_secure_login(FILE *ifp, FILE *ofp,  char *mycall, char * yourcall, 
 }
 
 static void
-p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsigned int oprop_usize)
+p2p_startmsg( FILE *ofp, cfg_t *cfg, int opropcount, long unsigned int oprop_usize)
 {
   char *sp;
   resettimeout();
@@ -1328,7 +1328,7 @@ p2p_startmsg( FILE *ofp, char *mycall, char *yourcall, int opropcount, long unsi
 }
 
 void
-wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailaddress, char *sl_pass)
+wl2kd_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
 {
   static char *line;
   struct proposal *prop;
@@ -1352,8 +1352,8 @@ wl2kd_exchange(char *mycall, char *yourcall, FILE *ifp, FILE *ofp, char *emailad
     oprop_csize += prop->csize;
   }
 
-  p2p_startmsg(ofp, mycall, yourcall, opropcount, oprop_usize);
-  line = handshake_no_secure_login(ifp, ofp, mycall, yourcall, opropcount);
+  p2p_startmsg(ofp, cfg, opropcount, oprop_usize);
+  line = handshake_no_secure_login(ifp, ofp, cfg, opropcount);
   nproplist = oproplist;
 
   print_log(LOG_DEBUG, "Debug ex: handshake FINISHED");

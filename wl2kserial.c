@@ -398,11 +398,7 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-#if 0
-  wl2k_exchange(cfg.mycall, cfg.targetcall, fp, fp, cfg.emailaddr, cfg.wl2k_password);
-#else
   wl2k_exchange(&cfg, fp, fp);
-#endif
 
   disconnect();
   fclose(fp);
