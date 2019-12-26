@@ -480,6 +480,9 @@ displayconfig(cfg_t *cfg)
   if(cfg->emailaddr) {
     printf("  Email address: %s\n", cfg->emailaddr);
   }
+  if(cfg->gridsquare) {
+    printf("  Grid square: %s\n", cfg->gridsquare);
+  }
   printf("  Flags: verbose = %s, send-only = %s\n",
          cfg->bVerbose  ? "On" : "Off",
          cfg->bSendonly ? "On" : "Off");
@@ -572,7 +575,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
   }
 
   if ((cfgbuf = conf_get(fileconf, "wl2k-password")) != NULL) {
-          config->wl2k_password = cfgbuf;
+    config->wl2k_password = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "gridsquare")) != NULL) {
+    config->gridsquare = cfgbuf;
   }
 
   /*
@@ -622,8 +629,8 @@ loadconfig(int argc, char **argv, cfg_t *config)
         config->emailaddr = optarg;
         break;
       case 'P':   /* set secure login password */
-	config->wl2k_password = optarg;
-	break;
+        config->wl2k_password = optarg;
+        break;
       case 'a':   /* set ax25 port */
         config->ax25port = optarg;
         break;
