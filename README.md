@@ -2,7 +2,7 @@
 
 [![GitPitch](https://gitpitch.com/assets/badge.svg)](https://gitpitch.com/nwdigitalradio/paclink-unix/master)
 
-paclink-unix is a UNIX client for the Winlink 2000 ham radio email
+paclink-unix is a UNIX/Linux client for the Winlink 2000 ham radio email
 system. It allows the use of email clients to compose & read Winlink
 messages. Currently mutt, claws-mail, rainloop & thunderbird are
 actively supported but any mail client that uses IMAP should work.
@@ -31,7 +31,7 @@ link](https://github.com/nwdigitalradio/paclink-unix/blob/master/INSTALL.md)
 
 ### Forum & code repository
 * Both yahoo groups & the SourceForge repository are deprecated please
-do not used them. Instead use:
+do not use them. Instead use:
   * __Code Repository__:
   https://github.com/nwdigitalradio/paclink-unix
   * __Forum__: https://groups.io/g/paclink-unix/topics
@@ -56,7 +56,8 @@ link](http://bazaudi.com/plu/doku.php)
 
 * paclink-unix is built using
 [autotools](https://www.gnu.org/software/automake/manual/html_node/Autotools-Introduction.html)
-  * To build paclink-unix you can use the _buildall.sh_ script. See
+  * To build paclink-unix you can use the [_buildall.sh_
+  script](https://github.com/nwdigitalradio/paclink-unix/blob/master/buildall.sh). See
   [Installation
   Notes](https://github.com/nwdigitalradio/paclink-unix/blob/master/INSTALL.md)
 
