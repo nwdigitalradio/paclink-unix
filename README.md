@@ -63,7 +63,7 @@ link](http://bazaudi.com/plu/doku.php)
 
 ### Recent news
 
-* The entire change log can be [viewd
+* The entire change log can be [viewed
 here](https://github.com/nwdigitalradio/paclink-unix/blob/master/ChangeLog)
 
 ##### 12/26/2019 version 0.9
