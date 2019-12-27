@@ -1287,7 +1287,7 @@ handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount)
       if (strchr(inboundsidcodes, 'I')) {
         char qtcbuf[64];
 #if 0
-        /* The following string crashes linbqp32 6.19.0.1 */
+        /* The following string crashes linbpq32 6.0.19.1 */
         snprintf(qtcbuf,63, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
 #else
         snprintf(qtcbuf,63, ">; %s DE %s (%s)", yourcall, mycall, cfg->gridsquare);

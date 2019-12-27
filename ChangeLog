@@ -1,5 +1,9 @@
 Thu Dec 26 12:12:29 PST 2019  Basil Gunn <basil@pacabunga.com>
 
+  * Fix paclink-unix crashing linBPQ32 6.0.19.1 because of
+    paclink-unix outputting QTC line.
+    * Now just output gridsquare
+      File modified: wl2k.c
   * Only pass one defined config parameter struct to all transports,
      reduce call parameters to wl2k_exchange
   * Bump version number to 0.9
