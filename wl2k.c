@@ -354,11 +354,12 @@ putcompressed(struct proposal *prop, FILE *fp)
     cp_buf = cp;
     msgbuflen = msglen;
     while (msglen--) {
-      resettimeout();
       cksum += *cp;
       cp++;
       rem--;
     }
+
+    resettimeout();
     if( fwrite(cp_buf, 1, msgbuflen, fp) < msgbuflen) {
       print_log(LOG_ERR, "socket write - %s", strerror(errno));
     }
