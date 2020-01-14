@@ -571,9 +571,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
     config->ax25port = cfgbuf;
   }
 
+#ifdef DEBUG /* Do not display password */
   if ((cfgbuf = conf_get(fileconf, "wl2k-password")) != NULL) {
     config->wl2k_password = cfgbuf;
   }
+#endif /* DEBUG end */
 
   if ((cfgbuf = conf_get(fileconf, "gridsquare")) != NULL) {
     config->gridsquare = cfgbuf;
