@@ -506,9 +506,11 @@ displayconfig(cfg_t *config)
     printf("Invalid\n");
   }
 
+#ifdef DEBUG /* Do not display Winlink password */
   if(config->wl2k_password) {
     printf("  WL2K secure login password: %s\n", config->wl2k_password);
   }
+#endif /* DEBUG end */
 
   printf("  Timeout: %d\n", config->timeoutsecs);
 
@@ -616,6 +618,10 @@ loadconfig(int argc, char **argv, cfg_t *config)
 
   if ((cfgbuf = conf_get(fileconf, "wl2k-password")) != NULL) {
     config->wl2k_password = cfgbuf;
+  }
+
+  if ((cfgbuf = conf_get(fileconf, "gridsquare")) != NULL) {
+          config->gridsquare = cfgbuf;
   }
 
   if ((cfgbuf = conf_get(fileconf, "device")) != NULL) {
