@@ -71,6 +71,7 @@ typedef struct _plu_config {
         int     modem;
         speed_t baudrate;
         FILE    *modemfp;
+        int     ax25sock;
 }cfg_t;
 
 struct conf *conf_read(void);

@@ -55,25 +55,34 @@
 #include "timeout.h"
 
 unsigned int timeoutsecs;
+volatile sig_atomic_t timeout_flag = 1;
+
 
 void
 sigalrm(int sig ATTRIBUTE_UNUSED)
 {
+#if 0
   char msg[128];
   ssize_t byteswritten;
 
-  sprintf(msg, "Timed out, exiting %s!\n", getprogname());
+  memset(msg, 0, sizeof(msg));
+  sprintf(msg, "%s: Timed out, exiting!\n", getprogname());
 
   byteswritten = write(STDERR_FILENO, msg, sizeof(msg));
   if (byteswritten == 0 || (byteswritten < 0 && errno != EAGAIN)) {
     fprintf(stdout,"%s error writing to stderr: %s)\n",
             getprogname(), strerror(errno));
   }
+#endif
+
   /* send a disconnect to modem */
   disconnect();
 
   syslog(LOG_ERR, "Timed out, exiting!");
-  _exit(EXIT_FAILURE);
+  timeout_flag=0;
+#if 0
+  kill(0,SIGTERM);
+#endif
 }
 
 void

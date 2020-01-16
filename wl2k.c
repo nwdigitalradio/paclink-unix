@@ -51,6 +51,12 @@ __RCSID("$Id$");
 #if HAVE_CTYPE_H
 # include <ctype.h>
 #endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
 #if HAVE_SYS_STAT_H
 # include <sys/stat.h>
 #endif
@@ -77,6 +83,12 @@ __RCSID("$Id$");
 #  include <ndir.h>
 # endif
 #endif
+/*#ifndef bool */
+#include <stdbool.h>
+/* #endif  bool */
+
+/* debug only */
+#include <time.h>
 
 #include "compat.h"
 #include "strutil.h"
@@ -135,6 +147,7 @@ static char *handshake_no_secure_login(FILE *ifp, FILE *ofp,  cfg_t *cfg, int op
 static char *handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount);
 static void compute_secure_login_response(char *challenge, char *response, char *password);
 static int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass);
+bool isax25connected(int s);
 
 # include "md5.h"
 
@@ -1287,7 +1300,7 @@ handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount)
       sent_pr = send_secure_login_response(ofp, challenge, sl_pass);
       if (strchr(inboundsidcodes, 'I')) {
         char qtcbuf[64];
-#if 0
+#if 1
         /* The following string crashes linbpq32 6.0.19.1 */
         snprintf(qtcbuf,63, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
 #else
@@ -1313,6 +1326,97 @@ handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount)
     exit(EXIT_FAILURE);
   }
   return(line);
+}
+
+/*
+ * Check if an AX25 socket is connected
+ */
+bool isax25connected(int s)
+{
+  struct sockaddr_in peer;
+  size_t peer_len;
+
+  /* Must put the length in a variable */
+  peer_len = sizeof(peer);
+  /* Ask getpeername to fill in peer's socket address */
+  if (getpeername(s, &peer, &peer_len) == -1) {
+    return false;
+  }
+  return true;
+}
+/*
+ * get a seconds reference
+ */
+unsigned int getseconds(void)
+{
+  /* get current time */
+  struct timeval nowVal;
+  gettimeofday(&nowVal, NULL);
+  return(nowVal.tv_sec);
+}
+
+/*
+ * Wait for response from target machine (CMS, etc) before entering
+ * next parser
+ */
+bool wl2k_wait_for_response(cfg_t *cfg, FILE *ifp)
+{
+  struct timeval tv = {1, 0};
+  fd_set fds;
+  int retval;
+  int rfd;
+  int timeoutsecs=cfg->timeoutsecs/2;
+  /* debug */
+  unsigned int start_secs, end_secs, elapsed;
+
+  print_log(LOG_ERR, "%s(): enter",__FUNCTION__);
+
+  /* convert stream to file descriptor */
+  rfd=fileno(ifp);
+
+  start_secs=getseconds();
+/*  unsettimeout(); */
+
+  for (;;) {
+    /* watch socket (fd ifp) to see when it has input */
+    FD_ZERO(&fds);
+    FD_SET(rfd, &fds);
+
+    /* wait for something less than the set timeout value to avoid
+     * a sigalrm
+     */
+    tv.tv_sec=timeoutsecs;
+    tv.tv_usec=0;
+
+    retval = select(rfd+1, &fds, NULL, NULL, &tv);
+    /* check for select error */
+    if (retval == -1) {
+      perror("select");
+      if (errno == EBADF)
+        break;
+      continue;
+    } else if (retval > 0) {
+      /* got something, time to bail */
+      resettimeout();
+      print_log(LOG_DEBUG_VERBOSE, "%s(): Got something, time to bail",__FUNCTION__);
+      return true;
+    } else {
+      /* timed out
+       * Do something so sigalrm does not fire.
+       */
+      resettimeout();
+       end_secs = getseconds();
+       elapsed = end_secs - start_secs;
+       print_log(LOG_ERR, "%s(): Reset timeout after %d seconds, elapsed: %u",__FUNCTION__, timeoutsecs, elapsed);
+       if(isax25connected(cfg->ax25sock) == false) {
+         print_log(LOG_ERR, "%s(): AX.25 Socket is no longer connected, should bail",__FUNCTION__);
+         return false;
+       }
+    }
+  }
+  print_log(LOG_ERR, "%s(): exit, timeout in: %d seconds",__FUNCTION__, cfg->timeoutsecs);
+  /*  settimeout(cfg->timeoutsecs); */
+  return true;
 }
 
 void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
@@ -1351,6 +1455,14 @@ void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
   }
   print_log(LOG_DEBUG_VERBOSE, "Debug: outbound parser finished");
   fflush(ofp);
+
+  /* wait here before jumping into the inbound_parser loop until
+   * something comes back from the other end */
+
+  if( ! wl2k_wait_for_response(cfg, ifp)) {
+    print_log(LOG_DEBUG_VERBOSE, "Debug: Skip inbound parser, connection broken");
+    return;
+  }
 
   print_log(LOG_DEBUG_VERBOSE, "Debug: Start inbound parser");
   inbound_parser(ifp, ofp, nproplist, oproplist, emailaddress);

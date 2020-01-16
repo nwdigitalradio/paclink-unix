@@ -87,6 +87,7 @@ __RCSID("$Id$");
 #include <getopt.h>
 #include <gmime/gmime.h>
 #include <poll.h>
+#include <signal.h>
 
 #include "compat.h"
 #include "conf.h"
@@ -109,12 +110,14 @@ size_t paclen = DFLTPACLEN;
 int gverbose_flag=FALSE;
 int gsendmsgonly_flag=FALSE;
 
+extern sig_atomic_t timeout_flag;
+
 static bool loadconfig(int argc, char **argv, cfg_t *cfg);
 static void usage(void);
 static void displayversion(void);
 static void displayconfig(cfg_t *cfg);
 static void exitcleanup(cfg_t *cfg);
-static bool isax25connected(int s);
+bool isax25connected(int s);
 
 /**
  * Function: main
@@ -224,15 +227,16 @@ main(int argc, char *argv[])
   unsettimeout();
 
   printf("Connected to AX.25 stack\n"); fflush(stdout);
+  cfg.ax25sock=s;
   // End AX25 socket code
 
   // Fork a process
   if ((procID = fork())) {
     // Parent processing
     if (-1 == procID) {
-	fprintf(stderr, "fork\n");
-        exitcleanup(&cfg);
-        exit(EXIT_FAILURE);
+      fprintf(stderr, "fork\n");
+      exitcleanup(&cfg);
+      exit(EXIT_FAILURE);
     }
 
     close(sv[1]);
@@ -259,8 +263,8 @@ main(int argc, char *argv[])
       // Inbound
       if (fds[0].revents & POLLIN) {
 
-#ifdef TIMEOUT_DEV
-        resettimeout();
+#ifdef NOT_NOW
+              resettimeout();
 #endif
         len = read(fds[0].fd, axread, sizeof(axread));
 #ifdef TIMEOUT_DEV
@@ -271,8 +275,10 @@ main(int argc, char *argv[])
           pbuf = axread;
 
           while(len > 0) {
-#ifdef TIMEOUT_DEV
+#ifdef NOT_NOW
             resettimeout();
+#endif
+#ifdef TIMEOUT_DEV
             printf("DEBUG: Inbound write %d\n", len);
 #endif
             byteswritten = write(fds[1].fd, pbuf, MIN(paclen, (size_t)len));
@@ -297,7 +303,9 @@ main(int argc, char *argv[])
       // Outbound
       if (fds[1].revents & POLLIN) {
 
+#ifdef NOT_NOW
         resettimeout();
+#endif
         len = read(fds[1].fd, axwrite, sizeof(axwrite));
 #ifdef TIMEOUT_DEV
         printf("DEBUG: Outbound read %d\n", len);
@@ -308,8 +316,10 @@ main(int argc, char *argv[])
 
           while(len > 0) {
 
-#ifdef TIMEOUT_DEV
+#ifdef NOT_NOW
             resettimeout();
+#endif
+#ifdef TIMEOUT_DEV
             printf("DEBUG: Outbound write %d\n", len);
 #endif
             byteswritten = write(fds[0].fd, pbuf, MIN(paclen, (size_t)len));
@@ -327,7 +337,11 @@ main(int argc, char *argv[])
           break;
         }
       }
-    }
+      if (timeout_flag != 1) {
+        printf("timeout flag set!!\n");
+        break;
+      }
+    } /* End of forever loop */
 
     childstatus = -1;
     childexitstatus = EXIT_SUCCESS;
@@ -727,24 +741,6 @@ loadconfig(int argc, char **argv, cfg_t *config)
   }
 
   return(TRUE);
-}
-
-/*
- * Check if an AX25 socket is connected
- */
-static bool isax25connected(int s)
-{
-  struct sockaddr_in peer;
-  size_t peer_len;
-
-  /* Must put the length in a variable */
-  peer_len = sizeof(peer);
-  /* Ask getpeername to fill in peer's socket address */
-  if (getpeername(s, &peer, &peer_len) == -1) {
-    return FALSE;
-  }
-
-  return TRUE;
 }
 
 /*
