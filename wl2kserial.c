@@ -447,7 +447,7 @@ static void
 displayversion(void)
 {
 
-  printf("%s  %s ", getprogname(), PACKAGE_VERSION);
+  printf("%s  %s, ", getprogname(), PACKAGE_VERSION);
 
   /* Check verbose flag for displaying gmime version */
   if(gverbose_flag) {
@@ -516,6 +516,9 @@ displayconfig(cfg_t *config)
 
   if(config->emailaddr) {
     printf("  Email address: %s\n", config->emailaddr);
+  }
+  if(config->gridsquare) {
+          printf("  Grid square: %s\n", config->gridsquare);
   }
   printf("  Flags: verbose = %s, send-only = %s\n",
          config->bVerbose  ? "On" : "Off",
@@ -595,6 +598,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   config->bVerbose = FALSE;
   config->bSendonly = FALSE;
   config->modem = SCSMODEM_PTCIIPRO;
+  config->gridsquare = NULL;
 
   /*
    * Get config from config file
@@ -796,6 +800,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
   if(config->baudrate == 0) {
     fprintf(stderr,  "%s: Need to specify baud rate of serial device\n", getprogname() );
     bRequireConfig_pass = FALSE;
+  }
+
+  /* display warning if gridsquare not set */
+  if(config->gridsquare == NULL) {
+    fprintf (stderr,"%s: WARNING: gridsquare not specified in config file\n", getprogname());
   }
 
   strupper((char *) config->mycall);

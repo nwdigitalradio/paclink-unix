@@ -207,7 +207,6 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-
   if (ax25_aton(cfg.targetcall, &sockaddr.ax25) < 0) {
     close(s);
     perror("ax25_aton()");
@@ -450,7 +449,7 @@ static void
 displayversion(void)
 {
 
-  printf("%s  %s ", getprogname(), PACKAGE_VERSION);
+  printf("%s  %s, ", getprogname(), PACKAGE_VERSION);
 
   /* Check verbose flag for displaying gmime version */
   if(gverbose_flag) {
@@ -561,6 +560,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   config->ax25port = NULL;
   config->bVerbose = FALSE;
   config->bSendonly = FALSE;
+  config->gridsquare = NULL;
 
   /*
    * Get config from config file
@@ -715,6 +715,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
   if(config->ax25port == NULL) {
     fprintf(stderr,  "%s: Need to specify ax25 port\n", getprogname() );
     bRequireConfig_pass = FALSE;
+  }
+
+  /* display warning if gridsquare not set */
+  if(config->gridsquare == NULL) {
+    fprintf (stderr,"%s: WARNING: gridsquare not specified in config file\n", getprogname());
   }
 
   strupper((char *) config->mycall);

@@ -219,7 +219,7 @@ static void
 displayversion(void)
 {
 
-  printf("%s  %s ", getprogname(), PACKAGE_VERSION);
+  printf("%s  %s, ", getprogname(), PACKAGE_VERSION);
 
   /* Check verbose flag for displaying gmime version */
   if(gverbose_flag) {
@@ -267,6 +267,9 @@ displayconfig(cfg_t *cfg)
 
   if(cfg->emailaddr) {
     printf("  Email address: %s\n", cfg->emailaddr);
+  }
+  if(cfg->gridsquare) {
+    printf("  Grid square: %s\n", cfg->gridsquare);
   }
   printf("  Flags: verbose = %s, send-only = %s\n",
          cfg->bVerbose ? "On" : "Off",
@@ -341,6 +344,7 @@ loadconfig(int argc, char **argv, cfg_t *config)
   config->hostport = DFLT_TELNET_PORT;
   config->bVerbose = FALSE;
   config->bSendonly = FALSE;
+  config->gridsquare = NULL;
 
   /*
    * Get config from config file
@@ -497,6 +501,11 @@ loadconfig(int argc, char **argv, cfg_t *config)
   if(config->hostport == 0) {
     fprintf(stderr,  "%s: Need to specify hostport\n", getprogname() );
     bRequireConfig_pass = FALSE;
+  }
+
+  /* display warning if gridsquare not set */
+  if(config->gridsquare == NULL) {
+    fprintf (stderr,"%s: WARNING: gridsquare not specified in config file\n", getprogname());
   }
 
   strupper((char *) config->mycall);
