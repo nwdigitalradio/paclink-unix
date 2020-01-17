@@ -1,3 +1,23 @@
+Fri Jan 17 11:53:21 PST 2020  Basil Gunn <basil@pacabunga.com>
+
+  * Add wl2k_wait_for response() routine between outbound parser & inbound parser
+    * This fixes timeout when transfering many or large files.
+  * Add gridsquare requirement to config and display warning if not configured.
+    * Gridsquare is required for linBPQ32 fix, which is used instead of QTC
+  * Get rid of all console output in sigalrm() routine which was
+    causing spurious output to console on timeout detect.
+  * Detect if ax25 socket has been closed when waiting for a response
+    between outbound & inbound parsing.
+  * Bump version number to 0.10
+    Files modified:
+      configure.ac
+      conf.h
+      timeout.c
+      wl2k.c
+      wl2kax25.c
+      wl2kserial.c
+      wl2ktelnet.c
+
 Thu Dec 26 12:12:29 PST 2019  Basil Gunn <basil@pacabunga.com>
 
   * Fix paclink-unix crashing linBPQ32 6.0.19.1 because of
