@@ -80,9 +80,7 @@ sigalrm(int sig ATTRIBUTE_UNUSED)
 
   syslog(LOG_ERR, "Timed out, exiting!");
   timeout_flag=0;
-#if 0
-  kill(0,SIGTERM);
-#endif
+  kill(0, SIGTERM);
 }
 
 void
