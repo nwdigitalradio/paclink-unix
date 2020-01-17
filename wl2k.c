@@ -101,6 +101,8 @@ __RCSID("$Id$");
 #include "wl2mime.h"
 #include "printlog.h"
 
+#define LINBPQ_FIX 1
+
 #define PROPLIMIT 5
 /* number of bytes to send through socket */
 #define CHUNK_SIZE 250
@@ -1300,11 +1302,11 @@ handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount)
       sent_pr = send_secure_login_response(ofp, challenge, sl_pass);
       if (strchr(inboundsidcodes, 'I')) {
         char qtcbuf[64];
-#if 1
+#ifdef LINBPQ_FIX
+        snprintf(qtcbuf,63, ">; %s DE %s (%s)", yourcall, mycall, cfg->gridsquare);
+#else
         /* The following string crashes linbpq32 6.0.19.1 */
         snprintf(qtcbuf,63, ">; %s DE %s QTC %d", yourcall, mycall, opropcount);
-#else
-        snprintf(qtcbuf,63, ">; %s DE %s (%s)", yourcall, mycall, cfg->gridsquare);
 #endif
         /* Identify: with QTC (I have telegrams) */
         print_log(LOG_DEBUG, "%s", qtcbuf);
@@ -1369,7 +1371,7 @@ bool wl2k_wait_for_response(cfg_t *cfg, FILE *ifp)
   /* debug */
   unsigned int start_secs, end_secs, elapsed;
 
-  print_log(LOG_ERR, "%s(): enter",__FUNCTION__);
+  print_log(LOG_DEBUG_VERBOSE, "%s(): enter",__FUNCTION__);
 
   /* convert stream to file descriptor */
   rfd=fileno(ifp);
@@ -1398,7 +1400,7 @@ bool wl2k_wait_for_response(cfg_t *cfg, FILE *ifp)
     } else if (retval > 0) {
       /* got something, time to bail */
       resettimeout();
-      print_log(LOG_DEBUG_VERBOSE, "%s(): Got something, time to bail",__FUNCTION__);
+      print_log(LOG_DEBUG_VERBOSE, "%s(): leaving, input stream active",__FUNCTION__);
       return true;
     } else {
       /* timed out
@@ -1414,7 +1416,9 @@ bool wl2k_wait_for_response(cfg_t *cfg, FILE *ifp)
        }
     }
   }
-  print_log(LOG_ERR, "%s(): exit, timeout in: %d seconds",__FUNCTION__, cfg->timeoutsecs);
+  end_secs = getseconds();
+  elapsed = end_secs - start_secs;
+  print_log(LOG_DEBUG_VERBOSE, "%s(): exit, timeout: %d secs. elapsed: %d secs",__FUNCTION__, cfg->timeoutsecs, elapsed);
   /*  settimeout(cfg->timeoutsecs); */
   return true;
 }
@@ -1498,8 +1502,15 @@ handshake_no_secure_login(FILE *ifp, FILE *ofp,  cfg_t *cfg, int opropcount)
       inboundsidcodes = parse_inboundsid(line);
       break;
     } else if (strbegins(line, ";")) {
+      /* Build a comparison string */
+      char strbuf[64];
+#ifdef LINBPQ_FIX
+      snprintf(strbuf, 63, "%s DE %s ", mycall, yourcall);
+#else
+      snprintf(strbuf, 8, "QTC");
+#endif
       /* parse (am|em:h1 ... line here */
-      if (strstr(line, "QTC")) {
+      if (strstr(line, strbuf)) {
         /* parse ; MYCALL DE YOURCALL QTC 0 line here */
         continue;
       } else {
