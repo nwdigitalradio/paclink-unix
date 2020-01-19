@@ -449,11 +449,11 @@ static void
 displayversion(void)
 {
 
-  printf("%s  %s, ", getprogname(), PACKAGE_VERSION);
+  printf("%s  %s", getprogname(), PACKAGE_VERSION);
 
   /* Check verbose flag for displaying gmime version */
   if(gverbose_flag) {
-    printf("Using gmime version %d.%d.%d",
+    printf(", Using gmime version %d.%d.%d",
            gmime_major_version, gmime_minor_version, gmime_micro_version);
   }
   printf("\n");
