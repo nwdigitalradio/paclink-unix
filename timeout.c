@@ -57,7 +57,6 @@
 unsigned int timeoutsecs;
 volatile sig_atomic_t timeout_flag = 1;
 
-
 void
 sigalrm(int sig ATTRIBUTE_UNUSED)
 {
@@ -80,7 +79,11 @@ sigalrm(int sig ATTRIBUTE_UNUSED)
 
   syslog(LOG_ERR, "Timed out, exiting!");
   timeout_flag=0;
+#if 0
   kill(0, SIGTERM);
+# else
+  _exit(EXIT_FAILURE);
+#endif
 }
 
 void
