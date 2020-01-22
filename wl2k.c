@@ -83,12 +83,15 @@ __RCSID("$Id$");
 #  include <ndir.h>
 # endif
 #endif
+#include <signal.h>
+
 /*#ifndef bool */
 #include <stdbool.h>
 /* #endif  bool */
 
 /* debug only */
-#include <time.h>
+#include <sys/time.h>
+/* #include <time.h> */
 
 #include "compat.h"
 #include "strutil.h"
@@ -109,6 +112,9 @@ __RCSID("$Id$");
 
 /* Send messages only flag */
 extern int gsendmsgonly_flag;
+/* Flag set in sigalrm */
+extern sig_atomic_t timeout_flag;
+extern int timeoutsecs;
 
 struct proposal {
   char code;
@@ -150,6 +156,8 @@ static char *handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount);
 static void compute_secure_login_response(char *challenge, char *response, char *password);
 static int send_secure_login_response(FILE *ofp, char *challenge, char *sl_pass);
 bool isax25connected(int s);
+bool wl2k_wait_for_response(cfg_t *cfg, FILE *ifp);
+static unsigned int getseconds(void);
 
 # include "md5.h"
 
@@ -883,6 +891,17 @@ b2outboundproposal(FILE *ifp, FILE *ofp, char *lastcommand, struct proposal **op
   }
 }
 
+/*
+ * get a seconds reference
+ */
+unsigned int getseconds(void)
+{
+  /* get current time */
+  struct timeval nowVal;
+  gettimeofday(&nowVal, NULL);
+  return(nowVal.tv_sec);
+}
+
 static char *
 tgetline(FILE *fp, int terminator, int ignore)
 {
@@ -900,8 +919,10 @@ tgetline(FILE *fp, int terminator, int ignore)
   } else {
     buffer_truncate(buf);
   }
+
   for (;;) {
     resettimeout();
+    /* Note: Timeout the fgetc blocking function */
     if ((c = fgetc(fp)) == EOF) {
       return NULL;
     }
@@ -926,6 +947,10 @@ tgetline(FILE *fp, int terminator, int ignore)
     }
     if ((c != ignore) && buffer_addchar(buf, c) == -1) {
       print_log(LOG_ERR, "buffer_addchar() - %s",  strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    if (timeout_flag != 1) {
+      printf("exiting on timeout flag set\n");
       exit(EXIT_FAILURE);
     }
   }
@@ -1310,8 +1335,8 @@ handshake(FILE *ifp, FILE *ofp, cfg_t *cfg, int opropcount)
 #endif
         /* Identify: with QTC (I have telegrams) */
         print_log(LOG_DEBUG, "%s", qtcbuf);
-        resettimeout();
 
+        resettimeout();
         if (fprintf(ofp, "; %s\r", qtcbuf) == -1) {
           print_log(LOG_ERR, "fprintf() - %s",strerror(errno));
           exit(EXIT_FAILURE);
@@ -1346,16 +1371,6 @@ bool isax25connected(int s)
   }
   return true;
 }
-/*
- * get a seconds reference
- */
-unsigned int getseconds(void)
-{
-  /* get current time */
-  struct timeval nowVal;
-  gettimeofday(&nowVal, NULL);
-  return(nowVal.tv_sec);
-}
 
 /*
  * Wait for response from target machine (CMS, etc) before entering
@@ -1367,7 +1382,7 @@ bool wl2k_wait_for_response(cfg_t *cfg, FILE *ifp)
   fd_set fds;
   int retval;
   int rfd;
-  int timeoutsecs=cfg->timeoutsecs/2;
+  int timeout_secs=(int)cfg->timeoutsecs/2;
   /* debug */
   unsigned int start_secs, end_secs, elapsed;
 
@@ -1377,7 +1392,6 @@ bool wl2k_wait_for_response(cfg_t *cfg, FILE *ifp)
   rfd=fileno(ifp);
 
   start_secs=getseconds();
-/*  unsettimeout(); */
 
   for (;;) {
     /* watch socket (fd ifp) to see when it has input */
@@ -1387,7 +1401,7 @@ bool wl2k_wait_for_response(cfg_t *cfg, FILE *ifp)
     /* wait for something less than the set timeout value to avoid
      * a sigalrm
      */
-    tv.tv_sec=timeoutsecs;
+    tv.tv_sec=timeout_secs;
     tv.tv_usec=0;
 
     retval = select(rfd+1, &fds, NULL, NULL, &tv);
@@ -1407,20 +1421,21 @@ bool wl2k_wait_for_response(cfg_t *cfg, FILE *ifp)
        * Do something so sigalrm does not fire.
        */
       resettimeout();
-       end_secs = getseconds();
-       elapsed = end_secs - start_secs;
-       print_log(LOG_ERR, "%s(): Reset timeout after %d seconds, elapsed: %u",__FUNCTION__, timeoutsecs, elapsed);
-       if(isax25connected(cfg->ax25sock) == false) {
-         print_log(LOG_ERR, "%s(): AX.25 Socket is no longer connected, should bail",__FUNCTION__);
-         return false;
-       }
+      end_secs = getseconds();
+      elapsed = end_secs - start_secs;
+      print_log(LOG_ERR, "%s(): Reset timeout after %d seconds, elapsed: %u",__FUNCTION__, timeout_secs, elapsed);
+      if(isax25connected(cfg->ax25sock) == false) {
+        print_log(LOG_ERR, "%s(): AX.25 Socket is no longer connected, should bail",__FUNCTION__);
+        return false;
+      }
     }
   }
+
   end_secs = getseconds();
   elapsed = end_secs - start_secs;
   print_log(LOG_DEBUG_VERBOSE, "%s(): exit, timeout: %d secs. elapsed: %d secs",__FUNCTION__, cfg->timeoutsecs, elapsed);
-  /*  settimeout(cfg->timeoutsecs); */
-  return true;
+
+  return false;
 }
 
 void wl2k_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
@@ -1596,7 +1611,6 @@ wl2kd_exchange(cfg_t *cfg, FILE *ifp, FILE *ofp)
   long unsigned int oprop_csize = 0;
   int inbound_ret;
   char *emailaddress=cfg->emailaddr;
-  char *mycall=cfg->mycall;
   char *yourcall=cfg->targetcall;
 
 
