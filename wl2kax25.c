@@ -110,6 +110,7 @@ size_t paclen = DFLTPACLEN;
 int gverbose_flag=FALSE;
 int gsendmsgonly_flag=FALSE;
 
+/* Flag set in sigalrm */
 extern sig_atomic_t timeout_flag;
 
 static bool loadconfig(int argc, char **argv, cfg_t *cfg);
