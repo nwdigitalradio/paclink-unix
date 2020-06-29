@@ -7,7 +7,7 @@ system. It allows the use of email clients to compose & read Winlink
 messages. Currently mutt, claws-mail, rainloop & thunderbird are
 actively supported but any mail client that uses IMAP should work.
 
-paclink-unix was originally written by Nicholas S. Castellan N2QZ
+paclink-unix was originally written by Nicholas S. Castellano N2QZ
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -61,10 +61,17 @@ link](http://bazaudi.com/plu/doku.php)
   [Installation
   Notes](https://github.com/nwdigitalradio/paclink-unix/blob/master/INSTALL.md)
 
-### Recent news
+### Recent News
 
 * The entire change log can be [viewed
 here](https://github.com/nwdigitalradio/paclink-unix/blob/master/ChangeLog)
+
+##### 01/17/2020 version 0.10
+* Fix timeout when transfering many or large files.
+* Add gridsquare requirement to config and display warning if not configured.
+  * Gridsquare is required for linBPQ32 fix, which is used instead of QTC
+* Get rid of all console output in sigalrm() routine which causedg spurious output on timeout detect.
+* Detect if ax25 socket has been closed when waiting for a response between outbound & inbound parsing.
 
 ##### 12/26/2019 version 0.9
 * The QTC line is not output anymore due to linBPQ32 6.0.19.1 crashing when it tries to parse it.
@@ -79,7 +86,7 @@ here](https://github.com/nwdigitalradio/paclink-unix/blob/master/ChangeLog)
   * Multi case passwords now work.
 
 ##### 4/27/2018 version 0.7
-* Peer-to-peer working with Airmail & Winkink Express
+* Peer-to-peer working with Airmail & Winlink Express
 
 
 ### Other files you might want to peruse:
