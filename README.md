@@ -48,7 +48,7 @@ git clone https://github.com/nwdigitalradio/paclink-unix
 wget -O paclink-unix.tgz https://github.com/nwdigitalradio/paclink-unix/tarball/master
 
 # To create a directory with source files from the zipped tarball
-wget -O - https://github.com/nwdigitalradio/rmsgw/tarball/master | tar zxf
+wget -O - https://github.com/nwdigitalradio/rmsgw/tarball/master | tar -xz
 ```
 
 * There are some detailed installation notes [at this
