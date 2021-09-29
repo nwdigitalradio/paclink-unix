@@ -83,7 +83,11 @@ main(int argc, char *argv[])
   char *mycall;
   bool bRecordMid = TRUE;   /* default is record mid on mail send */
 
+#if (GMIME_VER > 2)
+  g_mime_init();
+#else
   g_mime_init(0);
+#endif
 
   opterr = 0;
 

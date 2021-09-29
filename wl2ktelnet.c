@@ -114,7 +114,11 @@ main(int argc, char *argv[])
 
   loadconfig(argc, argv, &cfg);
 
+#if (GMIME_VER > 2)
+  g_mime_init();
+#else
   g_mime_init(0);
+#endif
 
   setlinebuf(stdout);
 

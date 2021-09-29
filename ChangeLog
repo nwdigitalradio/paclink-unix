@@ -1,3 +1,19 @@
+Wed Sep 29 11:01:19 PDT 2021  Basil Gunn <basil@pacabunga.com>
+
+  * Fix for gmime library migration from 2.6 to 3.0 as found in Debian 11 Bullseye
+  * Fix syntax for listing all files & their sizes in outbox directory.
+  * Bump version number to 0.11
+    Files modified:
+      test_scripts/chk_perm.sh
+      configure.ac
+      mail.wl2k.c
+      mime2wl.c
+      wl2kax25.c
+      wl2kax25d.c
+      wl2kserial.c
+      wl2ktelnet.c
+      wl2mime.c
+
 Fri Jan 17 11:53:21 PST 2020  Basil Gunn <basil@pacabunga.com>
 
   * Add wl2k_wait_for response() routine between outbound parser & inbound parser

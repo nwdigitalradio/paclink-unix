@@ -145,60 +145,104 @@ wl2mime(struct buffer *ibuf)
 	/* Get date as UTC */
 	date = wl_timegm(&tm);
 	/* set date as UTC */
+#if (GMIME_VER > 2)
+	g_mime_message_set_date(message, date);
+#else
 	g_mime_message_set_date(message, date, 0);
+#endif
       }
     } else if (strcasebegins(line, "From:")) {
       if (strcasebegins(linedata, "SMTP:")) {
 	linedata += 5;
+#if (GMIME_VER > 2)
+	g_mime_message_add_mailbox(message, GMIME_ADDRESS_TYPE_SENDER, "", linedata);
+#else
 	g_mime_message_set_sender(message, linedata);
+#endif
       } else {
 	if (asprintf(&smtp, "%s@winlink.org", linedata) == -1) {
 	  perror("asprintf()");
 	  exit(EXIT_FAILURE);
 	}
+#if (GMIME_VER > 2)
+	g_mime_message_add_mailbox(message, GMIME_ADDRESS_TYPE_SENDER, "", smtp);
+#else
 	g_mime_message_set_sender(message, smtp);
+#endif
 	free(smtp);
       }
     } else if (strcasebegins(line, "To:")) {
       if (strcasebegins(linedata, "SMTP:")) {
 	linedata += 5;
-	g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_TO, "", linedata);
+#if (GMIME_VER > 2)
+        g_mime_message_add_mailbox(message, GMIME_ADDRESS_TYPE_TO, "", linedata);
+#else
+        g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_TO, "", linedata);
+#endif
       } else {
 	if (asprintf(&smtp, "%s@winlink.org", linedata) == -1) {
 	  perror("asprintf()");
 	  exit(EXIT_FAILURE);
 	}
-	g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_TO, "", smtp);
+#if (GMIME_VER > 2)
+        g_mime_message_add_mailbox(message, GMIME_ADDRESS_TYPE_TO, "", smtp);
+#else
+        g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_TO, "", smtp);
+#endif
 	free(smtp);
       }
     } else if (strcasebegins(line, "Cc:")) {
       if (strcasebegins(linedata, "SMTP:")) {
 	linedata += 5;
-	g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_CC, "", linedata);
+#if (GMIME_VER > 2)
+        g_mime_message_add_mailbox(message, GMIME_ADDRESS_TYPE_CC, "", linedata);
+#else
+        g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_CC, "", linedata);
+#endif
       } else {
 	if (asprintf(&smtp, "%s@winlink.org", linedata) == -1) {
 	  perror("asprintf()");
 	  exit(EXIT_FAILURE);
 	}
-	g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_CC, "", smtp);
+#if (GMIME_VER > 2)
+        g_mime_message_add_mailbox(message, GMIME_ADDRESS_TYPE_CC, "", smtp);
+#else
+        g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_CC, "", smtp);
+#endif
 	free(smtp);
       }
     } else if (strcasebegins(line, "Bcc:")) {
       if (strcasebegins(linedata, "SMTP:")) {
         linedata += 5;
+#if (GMIME_VER > 2)
+        g_mime_message_add_mailbox(message, GMIME_ADDRESS_TYPE_BCC, "", linedata);
+#else
         g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_BCC, "", linedata);
+#endif
       } else {
         if (asprintf(&smtp, "%s@winlink.org", linedata) == -1) {
           perror("asprintf()");
           exit(EXIT_FAILURE);
         }
+#if (GMIME_VER > 2)
+        g_mime_message_add_mailbox(message, GMIME_ADDRESS_TYPE_BCC, "", smtp);
+#else
         g_mime_message_add_recipient(message, GMIME_RECIPIENT_TYPE_BCC, "", smtp);
+#endif
         free(smtp);
       }
     } else if (strcasebegins(line, "Reply-To:")) {
-      g_mime_message_set_reply_to(message, linedata);
+#if (GMIME_VER > 2)
+        g_mime_message_add_mailbox(message, GMIME_ADDRESS_TYPE_REPLY_TO, "", linedata);
+#else
+        g_mime_message_set_reply_to(message, linedata);
+#endif
     } else if (strcasebegins(line, "Subject:")) {
-      g_mime_message_set_subject(message, linedata);
+#if (GMIME_VER > 2)
+        g_mime_message_set_subject(message, linedata, NULL);
+#else
+        g_mime_message_set_subject(message, linedata);
+#endif
     } else if (strcasebegins(line, "Body:")) {
       mime_part = g_mime_part_new_with_type("text", "plain");
       stream = g_mime_stream_mem_new();
@@ -210,7 +254,11 @@ wl2mime(struct buffer *ibuf)
       }
       content = g_mime_data_wrapper_new_with_stream(stream, GMIME_CONTENT_ENCODING_DEFAULT);
       g_object_unref(stream);
+#if (GMIME_VER > 2)
+      g_mime_part_set_content(mime_part, content);
+#else
       g_mime_part_set_content_object(mime_part, content);
+#endif
       g_object_unref(content);
       g_mime_multipart_add(multipart, (GMimeObject *) mime_part);
     } else if (strcasebegins(line, "File:")) {
@@ -233,7 +281,11 @@ wl2mime(struct buffer *ibuf)
       }
       content = g_mime_data_wrapper_new_with_stream(stream, GMIME_CONTENT_ENCODING_DEFAULT);
       g_object_unref(stream);
+#if (GMIME_VER > 2)
+      g_mime_part_set_content(mime_part, content);
+#else
       g_mime_part_set_content_object(mime_part, content);
+#endif
       g_object_unref(content);
       g_mime_part_set_content_encoding(mime_part, GMIME_CONTENT_ENCODING_BASE64);
       g_mime_multipart_add(multipart, (GMimeObject *) mime_part);
@@ -249,7 +301,11 @@ wl2mime(struct buffer *ibuf)
     return NULL;
   }
 
+#if (GMIME_VER > 2)
+  ms = g_mime_object_to_string((GMimeObject *) message, NULL);
+#else
   ms = g_mime_object_to_string((GMimeObject *) message);
+#endif
   buffer_addstring(obuf, ms);
   g_free(ms);
 
@@ -266,7 +322,11 @@ main(int argc, char *argv[])
   struct buffer *obuf;
   int c;
 
+#if (GMIME_VER > 2)
+  g_mime_init();
+#else
   g_mime_init(0);
+#endif
 
   if (argc != 2) {
     fprintf(stderr, "Usage: %s messagefile\n", getprogname());

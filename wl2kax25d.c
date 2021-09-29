@@ -134,7 +134,11 @@ main(int argc, char *argv[])
 
   print_log(LOG_DEBUG,"*** Incoming call from %s", cfg.targetcall);
 
+#if (GMIME_VER > 2)
+  g_mime_init();
+#else
   g_mime_init(0);
+#endif
 
   {
     int opts;

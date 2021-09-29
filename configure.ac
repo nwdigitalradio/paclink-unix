@@ -2,7 +2,7 @@ dnl $Id$
 dnl Process this file with autoconf to produce a configure script.
 
 dnl Increment the package version for each release.
-AC_INIT(PACLINK-UNIX, 0.10)
+AC_INIT(PACLINK-UNIX, 0.11)
 AC_CONFIG_HEADER(config.h)
 
 AM_INIT_AUTOMAKE
@@ -26,6 +26,9 @@ if test -z "$SENDMAIL"; then
   AC_MSG_FAILURE([sendmail not found])
 fi
 AC_DEFINE_UNQUOTED([SENDMAIL], ["$SENDMAIL"], [Define to full path of sendmail executable])
+
+gmime_version="$(dpkg -l *gmime*  | grep -i "\-dev" | cut -f2 -d"-" | cut -f1 -d'.')"
+AC_DEFINE_UNQUOTED([GMIME_VER], [$gmime_version], [define GMIME LIB version number])
 
 dnl =======================================================================
 dnl Checks for libraries.
@@ -55,9 +58,11 @@ AX_PATH_BDB([3], [
 )
 
 PKG_CHECK_MODULES(GMIME, gmime-2.4 >= 2.4.3, , [
-	PKG_CHECK_MODULES(GMIME, gmime-2.5 >= 2.4.3, , [
-		 PKG_CHECK_MODULES(GMIME, gmime-2.6 >= 2.4.3, , AC_MSG_FAILURE([gmime-2.4.3 or newer not found]))
-	])
+    PKG_CHECK_MODULES(GMIME, gmime-2.5 >= 2.4.3, , [
+        PKG_CHECK_MODULES(GMIME, gmime-2.6 >= 2.4.3, , [
+                PKG_CHECK_MODULES(GMIME, gmime-3.0 >= 2.4.3, , AC_MSG_FAILURE([gmime-2.4.3 or newer not found]))
+        ])
+    ])
 ])
 CFLAGS="$CFLAGS $GMIME_CFLAGS"
 CPPFLAGS="$CPPFLAGS $GMIME_CPPFLAGS"

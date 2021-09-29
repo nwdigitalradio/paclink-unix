@@ -231,7 +231,11 @@ parse_message(int fd)
    *
    *  Returns : new GMimeFilterCRLF filter.
    */
+#if (GMIME_VER > 2)
+  filtcrlf = g_mime_filter_unix2dos_new(TRUE);
+#else
   filtcrlf = g_mime_filter_crlf_new(TRUE, TRUE);
+#endif
 
   /* create a new filter object */
   filtstream = (GMimeStreamFilter *)g_mime_stream_filter_new (stream);
@@ -252,7 +256,11 @@ parse_message(int fd)
   g_object_unref(stream);
 
   /* parse the message from the stream */
+#if (GMIME_VER > 2)
+  message = g_mime_parser_construct_message(parser, g_mime_parser_options_get_default ());
+#else
   message = g_mime_parser_construct_message(parser);
+#endif
 
   /* free the parser (and the stream) */
   g_object_unref(parser);
@@ -321,7 +329,11 @@ mime_foreach_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data
       }
     }
 
+#if (GMIME_VER > 2)
+    wrapper = g_mime_part_get_content((const GMimePart *) part);
+#else
     wrapper = g_mime_part_get_content_object((const GMimePart *) part);
+#endif
 
     stream = g_mime_stream_mem_new();
 
@@ -420,7 +432,12 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
   buffer_addstring(wl2k.hbuf, "\r\n");
 
   buffer_addstring(wl2k.hbuf, "Date: ");
+#if (GMIME_VER > 2)
+  g_mime_message_get_date(message);
+#else
   g_mime_message_get_date(message, &tloc, &gmt_offset);
+#endif
+
   if (tloc == 0) {
     time(&tloc);
   }
@@ -442,10 +459,18 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
   buffer_addstring(wl2k.hbuf, mheader_from);
   buffer_addstring(wl2k.hbuf, "\r\n");
 
+#if (GMIME_VER > 2)
+  ialp = ial = g_mime_message_get_addresses(message, GMIME_ADDRESS_TYPE_TO);
+#else
   ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_TO);
+#endif
   idx = 0;
   while ((ia = internet_address_list_get_address(ial, idx)) != NULL) {
+#if (GMIME_VER > 2)
+    header = internet_address_to_string(ia, NULL, 0);
+#else
     header = internet_address_to_string(ia, 0);
+#endif
     clean = address_cleanup(header);
     buffer_addstring(wl2k.hbuf, "To: ");
     if (strchr(clean, '@')) {
@@ -457,10 +482,18 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
     idx++;
   }
 
+#if (GMIME_VER > 2)
+  ialp = ial = g_mime_message_get_addresses(message, GMIME_ADDRESS_TYPE_CC);
+#else
   ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_CC);
+#endif
   idx = 0;
   while ((ia = internet_address_list_get_address(ial, idx)) != NULL) {
+#if (GMIME_VER > 2)
+    header = internet_address_to_string(ia, NULL, 0);
+#else
     header = internet_address_to_string(ia, 0);
+#endif
     clean = address_cleanup(header);
     buffer_addstring(wl2k.hbuf, "Cc: ");
     if (strchr(clean, '@')) {
@@ -472,10 +505,18 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
     idx++;
   }
 
+#if (GMIME_VER > 2)
+  ialp = ial = g_mime_message_get_addresses(message, GMIME_ADDRESS_TYPE_BCC);
+#else
   ialp = ial = g_mime_message_get_recipients(message, GMIME_RECIPIENT_TYPE_BCC);
+#endif
   idx = 0;
   while ((ia = internet_address_list_get_address(ial, idx)) != NULL) {
+#if (GMIME_VER > 2)
+    header = internet_address_to_string(ia, NULL, 0);
+#else
     header = internet_address_to_string(ia, 0);
+#endif
     clean = address_cleanup(header);
     buffer_addstring(wl2k.hbuf, "Bcc: ");
     if (strchr(clean, '@')) {
@@ -557,7 +598,11 @@ main(int argc, char *argv[])
   char *mycall;
   bool bRecordMid = TRUE;   /* default is record mid on mail send */
 
+#if (GMIME_VER > 2)
+  g_mime_init();
+#else
   g_mime_init(0);
+#endif
 
   opterr = 0;
 
