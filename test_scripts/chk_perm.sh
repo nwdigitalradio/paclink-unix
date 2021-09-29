@@ -41,9 +41,12 @@ fi
 if [ "$filecount" == 0 ] ; then
    echo "No files in outbox"
 else
-   for filename in "${PLU_VAR_DIR}/outbox/*" ; do
+   for filename in ${PLU_VAR_DIR}/outbox/* ; do
+       [ -e "$filename" ] || continue
        filesize=$(stat -c %s $filename)
-       echo -e "$(basename $filename)\t$filesize"
+       bname="$(basename $filename)"
+#      echo "debug: filename: $filename, base: $bname"
+       echo -e "$bname\t$filesize"
    done
    echo "$filecount file(s) in outbox"
 fi
