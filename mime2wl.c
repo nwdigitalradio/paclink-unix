@@ -450,6 +450,10 @@ mime2wl(int fd, const char *callsign, bool bRecMid)
 
   buffer_addstring(wl2k.hbuf, "Type: Private\r\n");
 
+  /*  g_mime_message_get_sender() in libgmime 3.x no longer returns the
+      value of the From header, it now returns an InternetAddressList*
+      containing the parsed address(es) from the Sender header.
+   */
   header = g_mime_message_get_sender(message);
   mheader_from = address_cleanup(header);
   buffer_addstring(wl2k.hbuf, "From: ");
