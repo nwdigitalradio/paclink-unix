@@ -369,7 +369,7 @@ main(int argc, char *argv[])
         printf("Waiting for AX25 peer ... ");
         while(isax25connected(s)){
           current_time = time(NULL);
-          if (difftime(current_time, start_time) > 6) {
+          if (difftime(current_time, start_time) > 12) {
             break;
           }
         }
@@ -392,6 +392,7 @@ main(int argc, char *argv[])
   {
     // Child processing
     printf("Child process\n");
+    close(s);
     close(sv[0]);
 
     if ((fp = fdopen(sv[1], "r+b")) == NULL) {

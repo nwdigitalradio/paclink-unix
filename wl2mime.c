@@ -142,11 +142,15 @@ wl2mime(struct buffer *ibuf)
     } else if (strcasebegins(line, "Date:")) {
       memset(&tm, 0, sizeof(struct tm));
       if (strptime(linedata, "%Y/%m/%d %R", &tm) != NULL) {
-	/* Get date as UTC */
-	date = wl_timegm(&tm);
+
 	/* set date as UTC */
+	
+	/* Get date as UTC */
+	time_t date = wl_timegm(&tm);
 #if (GMIME_VER > 2)
-	g_mime_message_set_date(message, date);
+	GDateTime *gdate=g_date_time_new_from_unix_utc(date);
+	g_mime_message_set_date(message, gdate);
+	g_date_time_unref(gdate);
 #else
 	g_mime_message_set_date(message, date, 0);
 #endif
