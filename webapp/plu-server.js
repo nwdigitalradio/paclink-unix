@@ -45,7 +45,8 @@ var wsClients = [ ];
 
 
 // websocket and http servers
-var webSocketServer = require(global_module_dir + 'websocket').server;
+// var webSocketServer = require(global_module_dir + 'websocket').server;
+var webSocketServer = require('websocket').server;
 var http = require('http');
 var events = require("events");
 
@@ -418,9 +419,13 @@ console.log('Server listening on ' + NETHOST +':'+ NETPORT);
  * ===================== HTML server ========================
  */
 
-var connect = require(global_module_dir + 'connect'),
-    serveStatic = require(global_module_dir + 'serve-static');
-var finalhandler = require(global_module_dir + 'finalhandler');
+// var connect = require(global_module_dir + 'connect'),
+//    serveStatic = require(global_module_dir + 'serve-static');
+// var finalhandler = require(global_module_dir + 'finalhandler');
+
+var connect = require('connect'),
+serveStatic = require('serve-static');
+var finalhandler = require('finalhandler');
 
 var app = connect();
 var serve = serveStatic(__dirname, {'index': ['plu.html']})
