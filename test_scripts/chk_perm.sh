@@ -25,12 +25,17 @@ else
 fi
 
 echo "=== test owner & group id of message id database"
-if [ $(stat -c "%U" $MID_DB_FILE) != "$USER" ]  || [ $(stat -c "%G" $MID_DB_FILE) != "$GROUP" ] ; then
-   echo "MID database has wrong permissions: $(stat -c "%U" $MID_DB_FILE):$(stat -c "%G" $MID_DB_FILE)"
-   sudo chown $USER:$GROUP $MID_DB_FILE
-   echo "New permissions: $(stat -c "%U" $MID_DB_FILE):$(stat -c "%G" $MID_DB_FILE)"
+
+if [ -e $MID_DB_FILE ] ; then
+    if [ $(stat -c "%U" $MID_DB_FILE) != "$USER" ]  || [ $(stat -c "%G" $MID_DB_FILE) != "$GROUP" ] ; then
+        echo "MID database has wrong permissions: $(stat -c "%U" $MID_DB_FILE):$(stat -c "%G" $MID_DB_FILE)"
+        sudo chown $USER:$GROUP $MID_DB_FILE
+        echo "New permissions: $(stat -c "%U" $MID_DB_FILE):$(stat -c "%G" $MID_DB_FILE)"
+    else
+        echo "permissions OK on file $MID_DB_FILE: $(stat -c "%U" $MID_DB_FILE):$(stat -c "%G" $MID_DB_FILE)"
+    fi
 else
-   echo "permissions OK on file $MID_DB_FILE: $(stat -c "%U" $MID_DB_FILE):$(stat -c "%G" $MID_DB_FILE)"
+    echo "MID database file: $MID_DB_FILE does NOT exist"
 fi
 
 filecount=$(ls -1 ${PLU_VAR_DIR}/outbox | wc -l)
