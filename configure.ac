@@ -28,8 +28,12 @@ fi
 AC_DEFINE_UNQUOTED([SENDMAIL], ["$SENDMAIL"], [Define to full path of sendmail executable])
 
 gmime_version="$(dpkg -l *gmime*  | grep -i "\-dev" | cut -f2 -d"-" | cut -f1 -d'.')"
+
+
+# Why? Guess we'll find out...
 # Force gmime version to 2.x
-gmime_version=2
+#gmime_version=2
+
 AC_DEFINE_UNQUOTED([GMIME_VER], [$gmime_version], [define GMIME LIB version number])
 
 dnl =======================================================================
